@@ -1,7 +1,8 @@
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { logger } from 'hono/logger';
-import { userRoutes } from './routes/userRoutes';
+import { cors } from 'hono/cors';
+
 import { homeRoutes } from './routes/homeRoutes';
 import { uploadRoutes } from './routes/uploadRoutes';
 
@@ -9,9 +10,9 @@ const app = new Hono();
 
 // Middleware
 app.use('*', logger());
+app.use('*', cors());
 
 // Routes
-app.route('/users', userRoutes);
 app.route('/upload', uploadRoutes);
 app.route('/', homeRoutes);
 
