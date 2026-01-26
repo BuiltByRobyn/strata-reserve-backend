@@ -1,6 +1,6 @@
 import { Context } from "hono";
 
-export const HomeController = {
+export const DashboardController = {
   index: (c: Context) => {
     return c.json({
       message: "This is Strata Reserve Planning API server!",
