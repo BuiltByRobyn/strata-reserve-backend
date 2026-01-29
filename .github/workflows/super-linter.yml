@@ -19,17 +19,17 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # ✅ IMPORTANT FIX
 
       - name: Run Super Linter
         uses: super-linter/super-linter@v6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-          # Enable only what you use
           VALIDATE_TYPESCRIPT: true
           VALIDATE_JAVASCRIPT: true
           VALIDATE_JSON: true
           VALIDATE_YAML: true
 
-          # Optional: make output cleaner
           LOG_LEVEL: WARN
