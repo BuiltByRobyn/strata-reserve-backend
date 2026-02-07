@@ -3,7 +3,6 @@ import prisma from '../lib/prismaClient';
 
 export interface UpdateProfileInput {
   firstName?: string;
-  middleName?: string | null;
   lastName?: string;
   displayName?: string;
   phoneNumber?: string | null;
@@ -20,7 +19,7 @@ export const getProfiles = async () => {
     include: {
       userType: { select: { userTypeId: true, userTypeName: true } },
       _count: {
-        select: { strataEmployees: true }
+        select: { strataProfiles: true }
       }
     }
   });
@@ -34,7 +33,7 @@ export const getProfileById = async (id: string) => {
     where: { id },
     include: {
       userType: true,
-      strataEmployees: {
+      strataProfiles: {
         include: {
           strata: {
             select: {
@@ -97,7 +96,7 @@ export const searchProfiles = async (query: string) => {
 // Get Profiles Not Assigned to Strata
 // ============================================
 export const getUnassignedProfiles = async (strataId: number) => {
-  const assignedProfileIds = await prisma.strataEmployee.findMany({
+  const assignedProfileIds = await prisma.strataProfile.findMany({
     where: { strataId },
     select: { profileId: true }
   });

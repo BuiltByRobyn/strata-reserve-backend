@@ -6,6 +6,7 @@ import { cors } from 'hono/cors';
 // Admin routes
 import { adminRoutes } from './admin/routes/adminRoutes';
 import { adminProfileRoutes } from './admin/routes/adminProfileRoutes';
+import { adminUsersRoutes } from './admin/routes/adminUsersRoutes';
 import { companyRoutes } from './admin/routes/companyRoutes';
 import { strataRoutes } from './admin/routes/strataRoutes';
 
@@ -37,6 +38,7 @@ app.route('/api/lookups', lookupRoutes);
 // Admin routes
 app.route('/admin', adminRoutes);
 app.route('/admin', adminProfileRoutes);
+app.route('/admin', adminUsersRoutes);
 app.route('/admin', companyRoutes);
 app.route('/admin', strataRoutes);
 
