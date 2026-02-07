@@ -1,0 +1,369 @@
+// Prisma Schema for Strata Reserve Planning
+// This schema mirrors the Supabase tables
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// Lookup Tables
+// ============================================
+
+model UserType {
+  userTypeId   Int       @id @default(autoincrement()) @map("user_type_id")
+  userTypeName String    @unique @map("user_type_name") @db.VarChar(50)
+  profiles     Profile[]
+
+  @@map("user_type")
+}
+
+model LegalType {
+  legalTypeId   Int      @id @default(autoincrement()) @map("legal_type_id")
+  legalTypeName String   @unique @map("legal_type_name") @db.VarChar(50)
+  stratas       Strata[]
+
+  @@map("legal_type")
+}
+
+model PropertyType {
+  propertyTypeId   Int      @id @default(autoincrement()) @map("property_type_id")
+  propertyTypeName String   @unique @map("property_type_name") @db.VarChar(50)
+  description      String?  @db.Text
+  stratas          Strata[]
+
+  @@map("property_type")
+}
+
+model Service {
+  serviceId          Int             @id @default(autoincrement()) @map("service_id")
+  serviceName        String          @unique @map("service_name") @db.VarChar(100)
+  serviceDescription String?         @map("service_description") @db.Text
+  strataServices     StrataService[]
+
+  // Appointment relations
+  appointmentTypes   AppointmentType[]
+  serviceRequests    ServiceRequest[]
+
+  @@map("service")
+}
+
+// ============================================
+// Main Tables
+// ============================================
+
+model Profile {
+  id                 String           @id @db.Uuid
+  isAdmin            Boolean?         @default(false) @map("is_admin")
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  firstName          String?          @map("first_name") @db.Text
+  lastName           String?          @map("last_name") @db.Text
+  displayName        String?          @map("display_name") @db.Text
+  email              String?          @db.Text
+  phoneNumber        String?          @map("phone_number") @db.VarChar(20)
+  userTypeId         Int?             @map("user_type_id")
+  mustChangePassword Boolean?         @default(true) @map("must_change_password")
+  companyName        String?          @map("company_name") @db.VarChar(255)
+
+  // Relations
+  userType       UserType?        @relation(fields: [userTypeId], references: [userTypeId], onDelete: SetNull)
+  strataProfiles StrataProfile[]
+  strataNotes    StrataNotes[]
+
+  // Appointment relations
+  requestedServiceRequests  ServiceRequest[]    @relation("RequestedByProfile")
+  requestedAppointments     AppointmentRequest[] @relation("AppointmentRequestedBy")
+  reviewedAppointments      AppointmentReview[] @relation("ReviewedByProfile")
+  inspectorAppointments     Appointment[]       @relation("InspectorAppointments")
+
+  // Inspector availability relation
+  inspectorAvailableDates InspectorAvailableDate[] @relation("InspectorAvailableDates")
+
+  @@map("profiles")
+}
+
+model Company {
+  companyId        Int      @id @default(autoincrement()) @map("company_id")
+  companyName      String   @map("company_name") @db.VarChar(255)
+  companyTelephone String?  @map("company_telephone") @db.VarChar(20)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+  stratas          Strata[]
+
+  @@map("company")
+}
+
+model Strata {
+  strataId       Int      @id @default(autoincrement()) @map("strata_id")
+  strataPlan     String?  @map("strata_plan") @db.VarChar(100)
+  complexName    String?  @map("complex_name") @db.VarChar(255)
+  unitNumber     String?  @map("unit_number") @db.VarChar(50)
+  streetName     String?  @map("street_name") @db.VarChar(255)
+  town           String?  @db.VarChar(100)
+  province       String?  @db.VarChar(100)
+  postalCode     String?  @map("postal_code") @db.VarChar(20)
+  country        String?  @default("Canada") @db.VarChar(100)
+  website        String?  @db.VarChar(255)
+  legalTypeId    Int?     @map("legal_type_id")
+  propertyTypeId Int?     @map("property_type_id")
+  companyId      Int?     @map("company_id")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  legalType      LegalType?      @relation(fields: [legalTypeId], references: [legalTypeId], onDelete: SetNull)
+  propertyType   PropertyType?   @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: SetNull)
+  company        Company?        @relation(fields: [companyId], references: [companyId], onDelete: SetNull)
+  strataNotes    StrataNotes[]
+  strataProfiles StrataProfile[]
+  strataServices StrataService[]
+
+  // Appointment relations
+  serviceRequests ServiceRequest[]
+
+  @@map("strata")
+}
+
+// ============================================
+// Junction & Related Tables
+// ============================================
+
+model StrataNotes {
+  noteId             Int      @id @default(autoincrement()) @map("note_id")
+  noteMessage        String   @map("note_message") @db.Text
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+  createdByUser      String?  @map("created_by_user") @db.VarChar(255)
+  strataId           Int      @map("strata_id")
+  createdByProfileId String?  @map("created_by_profile_id") @db.Uuid
+
+  // Relations
+  strata    Strata   @relation(fields: [strataId], references: [strataId], onDelete: Cascade)
+  createdBy Profile? @relation(fields: [createdByProfileId], references: [id], onDelete: SetNull)
+
+  @@map("strata_note")
+}
+
+model StrataProfile {
+  strataProfileId Int      @id @default(autoincrement()) @map("strata_profile_id")
+  strataPosition  String?  @map("strata_position") @db.VarChar(100)
+  strataId        Int      @map("strata_id")
+  profileId       String   @map("profile_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  strata  Strata  @relation(fields: [strataId], references: [strataId], onDelete: Cascade)
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([strataId, profileId])
+  @@map("strata_profiles")
+}
+
+model StrataService {
+  strataServiceId Int      @id @default(autoincrement()) @map("strata_service_id")
+  strataId        Int      @map("strata_id")
+  serviceId       Int      @map("service_id")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  strata  Strata  @relation(fields: [strataId], references: [strataId], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [serviceId], onDelete: Cascade)
+
+  @@unique([strataId, serviceId])
+  @@map("strata_service")
+}
+
+// ============================================
+// Appointment Lookup Tables
+// ============================================
+
+model ReviewStatus {
+  reviewStatusId Int    @id @default(autoincrement()) @map("review_status_id")
+  statusName     String @unique @map("status_name") @db.VarChar(50) // Approved, Rejected, Needs Revision
+
+  // Relations
+  appointmentReviews AppointmentReview[]
+
+  @@map("review_status")
+}
+
+model AppointmentTimeSlot {
+  timeSlotId Int    @id @default(autoincrement()) @map("time_slot_id")
+  slotTime   String @map("slot_time") @db.VarChar(8) // hh:mm:ss format
+  slotName   String @map("slot_name") @db.VarChar(10) // 10AM, 2PM, 6PM
+
+  // Relations
+  appointmentTypeTimeSlots AppointmentTypeTimeSlot[]
+  firstChoiceRequests      AppointmentRequest[]      @relation("FirstChoiceTimeSlot")
+  secondChoiceRequests     AppointmentRequest[]      @relation("SecondChoiceTimeSlot")
+  appointments             Appointment[]
+
+  @@map("appointment_time_slot")
+}
+
+// ============================================
+// Appointment Type Tables
+// ============================================
+
+model AppointmentType {
+  appointmentTypeId Int     @id @default(autoincrement()) @map("appointment_type_id")
+  typeName          String  @map("type_name") @db.VarChar(100) // Standard Inspection, Elevator Assessment, Draft Meeting
+  durationType      String  @map("duration_type") @db.VarChar(20) // Half Day, Full Day
+  description       String? @db.Text
+  isDraftMeeting    Boolean @default(false) @map("is_draft_meeting")
+  serviceId         Int     @map("service_id")
+
+  // Relations
+  service                  Service                   @relation(fields: [serviceId], references: [serviceId], onDelete: Cascade)
+  appointmentTypeTimeSlots AppointmentTypeTimeSlot[]
+  appointmentRequests      AppointmentRequest[]
+  appointments             Appointment[]
+
+  @@map("appointment_type")
+}
+
+model AppointmentTypeTimeSlot {
+  appointmentTypeTimeSlotId Int @id @default(autoincrement()) @map("appointment_type_time_slot_id")
+  appointmentTypeId         Int @map("appointment_type_id")
+  timeSlotId                Int @map("time_slot_id")
+
+  // Relations
+  appointmentType AppointmentType     @relation(fields: [appointmentTypeId], references: [appointmentTypeId], onDelete: Cascade)
+  timeSlot        AppointmentTimeSlot @relation(fields: [timeSlotId], references: [timeSlotId], onDelete: Cascade)
+
+  @@unique([appointmentTypeId, timeSlotId])
+  @@map("appointment_type_time_slot")
+}
+
+// ============================================
+// Service Request Tables
+// ============================================
+
+model ServiceRequest {
+  serviceRequestId       Int       @id @default(autoincrement()) @map("service_request_id")
+  requestDate            DateTime  @default(now()) @map("request_date") @db.Timestamptz
+  status                 String    @db.VarChar(50) // Draft, Pending Approval, Approved, Rejected, Appointment Scheduled, Completed
+  submittedForReviewDate DateTime? @map("submitted_for_review_date") @db.Timestamptz
+  notes                  String?   @db.Text
+  archived               Boolean   @default(false)
+  archivedDate           DateTime? @map("archived_date") @db.Timestamptz
+  serviceId              Int       @map("service_id")
+  strataId               Int       @map("strata_id")
+  requestedByProfileId   String    @map("requested_by_profile_id") @db.Uuid
+
+  // Relations
+  service             Service              @relation(fields: [serviceId], references: [serviceId], onDelete: Cascade)
+  strata              Strata               @relation(fields: [strataId], references: [strataId], onDelete: Cascade)
+  requestedBy         Profile              @relation("RequestedByProfile", fields: [requestedByProfileId], references: [id], onDelete: Cascade)
+  appointmentRequests AppointmentRequest[]
+  appointments        Appointment[]
+
+  @@map("service_request")
+}
+
+// ============================================
+// Appointment Request & Review Tables
+// ============================================
+
+model AppointmentRequest {
+  appointmentRequestId   Int       @id @default(autoincrement()) @map("appointment_request_id")
+  firstChoiceDate        DateTime  @map("first_choice_date") @db.Date
+  secondChoiceDate       DateTime? @map("second_choice_date") @db.Date
+  specialRequirements    String?   @map("special_requirements") @db.Text
+  status                 String    @db.VarChar(50) // Pending Review, Approved, Rejected, Cancelled
+  requestDate            DateTime  @default(now()) @map("request_date") @db.Timestamptz
+  serviceRequestId       Int       @map("service_request_id")
+  appointmentTypeId      Int       @map("appointment_type_id")
+  firstChoiceTimeSlotId  Int       @map("first_choice_time_slot_id")
+  secondChoiceTimeSlotId Int?      @map("second_choice_time_slot_id")
+  requestedByProfileId   String    @map("requested_by_profile_id") @db.Uuid
+
+  // Relations
+  serviceRequest       ServiceRequest        @relation(fields: [serviceRequestId], references: [serviceRequestId], onDelete: Cascade)
+  appointmentType      AppointmentType       @relation(fields: [appointmentTypeId], references: [appointmentTypeId], onDelete: Cascade)
+  firstChoiceTimeSlot  AppointmentTimeSlot   @relation("FirstChoiceTimeSlot", fields: [firstChoiceTimeSlotId], references: [timeSlotId], onDelete: Cascade)
+  secondChoiceTimeSlot AppointmentTimeSlot?  @relation("SecondChoiceTimeSlot", fields: [secondChoiceTimeSlotId], references: [timeSlotId], onDelete: SetNull)
+  requestedBy          Profile               @relation("AppointmentRequestedBy", fields: [requestedByProfileId], references: [id], onDelete: Cascade)
+  appointmentReviews   AppointmentReview[]
+  appointments         Appointment[]
+
+  @@map("appointment_request")
+}
+
+model AppointmentReview {
+  appointmentReviewId  Int       @id @default(autoincrement()) @map("appointment_review_id")
+  reviewDate           DateTime  @default(now()) @map("review_date") @db.Timestamptz
+  approvedDateChoice   Int?      @map("approved_date_choice") // 1 or 2
+  comments             String?   @db.Text
+  rejectionReason      String?   @map("rejection_reason") @db.Text
+  appointmentRequestId Int       @map("appointment_request_id")
+  reviewedByProfileId  String    @map("reviewed_by_profile_id") @db.Uuid
+  reviewStatusId       Int       @map("review_status_id")
+
+  // Relations
+  appointmentRequest AppointmentRequest @relation(fields: [appointmentRequestId], references: [appointmentRequestId], onDelete: Cascade)
+  reviewedBy         Profile            @relation("ReviewedByProfile", fields: [reviewedByProfileId], references: [id], onDelete: Cascade)
+  reviewStatus       ReviewStatus       @relation(fields: [reviewStatusId], references: [reviewStatusId], onDelete: Cascade)
+
+  @@map("appointment_review")
+}
+
+// ============================================
+// Appointment Table
+// ============================================
+
+model Appointment {
+  appointmentId        Int       @id @default(autoincrement()) @map("appointment_id")
+  appointmentDate      DateTime  @map("appointment_date") @db.Date
+  status               String    @db.VarChar(50) // Scheduled, Completed, Cancelled, Rescheduled
+  completionNote       String?   @map("completion_note") @db.Text
+  completedAt          DateTime? @map("completed_at") @db.Timestamptz
+  appointmentRequestId Int       @map("appointment_request_id")
+  serviceRequestId     Int       @map("service_request_id")
+  appointmentTypeId    Int       @map("appointment_type_id")
+  timeSlotId           Int       @map("time_slot_id")
+  inspectorProfileId   String?   @map("inspector_profile_id") @db.Uuid // Nullable, Assigned Later
+
+  // Relations
+  appointmentRequest AppointmentRequest  @relation(fields: [appointmentRequestId], references: [appointmentRequestId], onDelete: Cascade)
+  serviceRequest     ServiceRequest      @relation(fields: [serviceRequestId], references: [serviceRequestId], onDelete: Cascade)
+  appointmentType    AppointmentType     @relation(fields: [appointmentTypeId], references: [appointmentTypeId], onDelete: Cascade)
+  timeSlot           AppointmentTimeSlot @relation(fields: [timeSlotId], references: [timeSlotId], onDelete: Cascade)
+  inspector          Profile?            @relation("InspectorAppointments", fields: [inspectorProfileId], references: [id], onDelete: SetNull)
+
+  @@map("appointment")
+}
+
+// ============================================
+// Inspector Availability Table
+// ============================================
+
+model InspectorAvailableDate {
+  inspectorAvailableDateId Int      @id @default(autoincrement()) @map("inspector_available_date_id")
+  availableDate            DateTime @map("available_date") @db.Date
+  availableStartTime       DateTime? @map("available_start_time") @db.Time()
+  availableEndTime         DateTime? @map("available_end_time") @db.Time()
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz
+  inspectorProfileId       String   @map("inspector_profile_id") @db.Uuid
+
+  // Relations
+  inspectorProfile Profile @relation("InspectorAvailableDates", fields: [inspectorProfileId], references: [id], onDelete: Cascade)
+
+  @@map("inspector_available_date")
+}
+
+// ============================================
+// Company Holiday Table
+// ============================================
+
+model CompanyHoliday {
+  companyHolidayId    Int      @id @default(autoincrement()) @map("company_holiday_id")
+  holidayDate         DateTime @map("holiday_date") @db.Date
+  holidayName         String   @map("holiday_name") @db.VarChar(100)
+  isRecurringAnnually Boolean  @default(false) @map("is_recurring_annually")
+
+  @@map("company_holiday")
+}
