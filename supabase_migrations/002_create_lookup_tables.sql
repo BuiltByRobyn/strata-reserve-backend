@@ -42,10 +42,10 @@ CREATE TABLE IF NOT EXISTS public.property_type (
 
 -- Seed property types
 INSERT INTO public.property_type (property_type_name, description) VALUES
-  ('bare land', NULL),
-  ('townhome', NULL),
-  ('apartment', NULL),
-  ('other', NULL)
+  ('Bare Land', NULL),
+  ('Townhome', NULL),
+  ('Apartment', NULL),
+  ('Other', NULL)
 ON CONFLICT (property_type_name) DO NOTHING;
 
 -- ============================================
