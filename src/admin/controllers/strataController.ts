@@ -205,14 +205,14 @@ export const assignEmployee = async (c: Context) => {
 
 export const updateEmployeePosition = async (c: Context) => {
   try {
-    const strataEmployeeId = parseInt(c.req.param('employeeId'));
-    if (isNaN(strataEmployeeId)) {
+    const strataProfileId = parseInt(c.req.param('employeeId'));
+    if (isNaN(strataProfileId)) {
       return c.json({ success: false, error: 'Invalid assignment ID' }, 400);
     }
 
     const body = await c.req.json();
-    const assignment = await strataService.updateStrataEmployeePosition(
-      strataEmployeeId,
+    const assignment = await strataService.updateStrataProfilePosition(
+      strataProfileId,
       body.strataPosition?.trim() || ''
     );
 
@@ -225,12 +225,12 @@ export const updateEmployeePosition = async (c: Context) => {
 
 export const removeEmployee = async (c: Context) => {
   try {
-    const strataEmployeeId = parseInt(c.req.param('employeeId'));
-    if (isNaN(strataEmployeeId)) {
+    const strataProfileId = parseInt(c.req.param('employeeId'));
+    if (isNaN(strataProfileId)) {
       return c.json({ success: false, error: 'Invalid assignment ID' }, 400);
     }
 
-    await strataService.removeEmployeeFromStrata(strataEmployeeId);
+    await strataService.removeProfileFromStrata(strataProfileId);
     return c.json({ success: true, message: 'Employee removed successfully' });
   } catch (error) {
     console.error('Error removing employee:', error);

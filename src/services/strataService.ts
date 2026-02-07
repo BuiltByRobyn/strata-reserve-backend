@@ -18,7 +18,7 @@ export interface CreateStrataInput {
 
 export interface UpdateStrataInput extends Partial<CreateStrataInput> {}
 
-export interface CreateStrataEmployeeInput {
+export interface CreateStrataProfileInput {
   strataId: number;
   profileId: string;
   strataPosition?: string;
@@ -47,7 +47,7 @@ export const getStratas = async () => {
       legalType: { select: { legalTypeId: true, legalTypeName: true } },
       propertyType: { select: { propertyTypeId: true, propertyTypeName: true } },
       _count: {
-        select: { strataNotes: true, strataEmployees: true, strataServices: true }
+        select: { strataNotes: true, strataProfiles: true, strataServices: true }
       }
     }
   });
@@ -71,7 +71,7 @@ export const getStrataById = async (id: number) => {
           }
         }
       },
-      strataEmployees: {
+      strataProfiles: {
         include: {
           profile: {
             select: { id: true, firstName: true, lastName: true, displayName: true, email: true }
@@ -151,8 +151,8 @@ export const deleteStrataNote = async (noteId: number) => {
 // ============================================
 // Strata Employees (Assignments)
 // ============================================
-export const assignEmployeeToStrata = async (data: CreateStrataEmployeeInput) => {
-  return prisma.strataEmployee.create({
+export const assignEmployeeToStrata = async (data: CreateStrataProfileInput) => {
+  return prisma.strataProfile.create({
     data: {
       strataId: data.strataId,
       profileId: data.profileId,
@@ -161,21 +161,21 @@ export const assignEmployeeToStrata = async (data: CreateStrataEmployeeInput) =>
   });
 };
 
-export const updateStrataEmployeePosition = async (strataEmployeeId: number, position: string) => {
-  return prisma.strataEmployee.update({
-    where: { strataEmployeeId },
+export const updateStrataProfilePosition = async (strataProfileId: number, position: string) => {
+  return prisma.strataProfile.update({
+    where: { strataProfileId },
     data: { strataPosition: position }
   });
 };
 
-export const removeEmployeeFromStrata = async (strataEmployeeId: number) => {
-  return prisma.strataEmployee.delete({
-    where: { strataEmployeeId }
+export const removeProfileFromStrata = async (strataProfileId: number) => {
+  return prisma.strataProfile.delete({
+    where: { strataProfileId }
   });
 };
 
 export const getStratasByEmployee = async (profileId: string) => {
-  return prisma.strataEmployee.findMany({
+  return prisma.strataProfile.findMany({
     where: { profileId },
     include: {
       strata: {

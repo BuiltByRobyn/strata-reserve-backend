@@ -57,18 +57,18 @@ model Profile {
   isAdmin            Boolean?         @default(false) @map("is_admin")
   createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz
   firstName          String?          @map("first_name") @db.Text
-  middleName         String?          @map("middle_name") @db.Text
   lastName           String?          @map("last_name") @db.Text
   displayName        String?          @map("display_name") @db.Text
   email              String?          @db.Text
   phoneNumber        String?          @map("phone_number") @db.VarChar(20)
   userTypeId         Int?             @map("user_type_id")
   mustChangePassword Boolean?         @default(true) @map("must_change_password")
+  companyName        String?          @map("company_name") @db.VarChar(255)
 
   // Relations
-  userType        UserType?         @relation(fields: [userTypeId], references: [userTypeId], onDelete: SetNull)
-  strataEmployees StrataEmployee[]
-  strataNotes     StrataNotes[]
+  userType       UserType?        @relation(fields: [userTypeId], references: [userTypeId], onDelete: SetNull)
+  strataProfiles StrataProfile[]
+  strataNotes    StrataNotes[]
 
   @@map("profiles")
 }
@@ -102,12 +102,12 @@ model Strata {
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 
   // Relations
-  legalType       LegalType?        @relation(fields: [legalTypeId], references: [legalTypeId], onDelete: SetNull)
-  propertyType    PropertyType?     @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: SetNull)
-  company         Company?          @relation(fields: [companyId], references: [companyId], onDelete: SetNull)
-  strataNotes     StrataNotes[]
-  strataEmployees StrataEmployee[]
-  strataServices  StrataService[]
+  legalType      LegalType?      @relation(fields: [legalTypeId], references: [legalTypeId], onDelete: SetNull)
+  propertyType   PropertyType?   @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: SetNull)
+  company        Company?        @relation(fields: [companyId], references: [companyId], onDelete: SetNull)
+  strataNotes    StrataNotes[]
+  strataProfiles StrataProfile[]
+  strataServices StrataService[]
 
   @@map("strata")
 }
@@ -131,19 +131,19 @@ model StrataNotes {
   @@map("strata_note")
 }
 
-model StrataEmployee {
-  strataEmployeeId Int      @id @default(autoincrement()) @map("strata_employee_id")
-  strataPosition   String?  @map("strata_position") @db.VarChar(100)
-  strataId         Int      @map("strata_id")
-  profileId        String   @map("profile_id") @db.Uuid
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+model StrataProfile {
+  strataProfileId Int      @id @default(autoincrement()) @map("strata_profile_id")
+  strataPosition  String?  @map("strata_position") @db.VarChar(100)
+  strataId        Int      @map("strata_id")
+  profileId       String   @map("profile_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   // Relations
   strata  Strata  @relation(fields: [strataId], references: [strataId], onDelete: Cascade)
   profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@unique([strataId, profileId])
-  @@map("strata_employee")
+  @@map("strata_profiles")
 }
 
 model StrataService {
