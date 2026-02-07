@@ -27,3 +27,5 @@ logs
 *.sln
 *.sw?
 .DS_Store
+
+/src/generated/prisma
