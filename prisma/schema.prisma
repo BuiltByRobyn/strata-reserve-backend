@@ -45,6 +45,10 @@ model Service {
   serviceDescription String?         @map("service_description") @db.Text
   strataServices     StrataService[]
 
+  // Appointment relations
+  appointmentTypes   AppointmentType[]
+  serviceRequests    ServiceRequest[]
+
   @@map("service")
 }
 
@@ -69,6 +73,12 @@ model Profile {
   userType       UserType?        @relation(fields: [userTypeId], references: [userTypeId], onDelete: SetNull)
   strataProfiles StrataProfile[]
   strataNotes    StrataNotes[]
+
+  // Appointment relations
+  requestedServiceRequests  ServiceRequest[]    @relation("RequestedByProfile")
+  requestedAppointments     AppointmentRequest[] @relation("AppointmentRequestedBy")
+  reviewedAppointments      AppointmentReview[] @relation("ReviewedByProfile")
+  inspectorAppointments     Appointment[]       @relation("InspectorAppointments")
 
   @@map("profiles")
 }
@@ -108,6 +118,9 @@ model Strata {
   strataNotes    StrataNotes[]
   strataProfiles StrataProfile[]
   strataServices StrataService[]
+
+  // Appointment relations
+  serviceRequests ServiceRequest[]
 
   @@map("strata")
 }
@@ -158,4 +171,165 @@ model StrataService {
 
   @@unique([strataId, serviceId])
   @@map("strata_service")
+}
+
+// ============================================
+// Appointment Lookup Tables
+// ============================================
+
+model ReviewStatus {
+  reviewStatusId Int    @id @default(autoincrement()) @map("review_status_id")
+  statusName     String @unique @map("status_name") @db.VarChar(50) // Approved, Rejected, Needs Revision
+
+  // Relations
+  appointmentReviews AppointmentReview[]
+
+  @@map("review_status")
+}
+
+model AppointmentTimeSlot {
+  timeSlotId Int    @id @default(autoincrement()) @map("time_slot_id")
+  slotTime   String @map("slot_time") @db.VarChar(8) // hh:mm:ss format
+  slotName   String @map("slot_name") @db.VarChar(10) // 10AM, 2PM, 6PM
+
+  // Relations
+  appointmentTypeTimeSlots AppointmentTypeTimeSlot[]
+  firstChoiceRequests      AppointmentRequest[]      @relation("FirstChoiceTimeSlot")
+  secondChoiceRequests     AppointmentRequest[]      @relation("SecondChoiceTimeSlot")
+  appointments             Appointment[]
+
+  @@map("appointment_time_slot")
+}
+
+// ============================================
+// Appointment Type Tables
+// ============================================
+
+model AppointmentType {
+  appointmentTypeId Int     @id @default(autoincrement()) @map("appointment_type_id")
+  typeName          String  @map("type_name") @db.VarChar(100) // Standard Inspection, Elevator Assessment, Draft Meeting
+  durationType      String  @map("duration_type") @db.VarChar(20) // Half Day, Full Day
+  description       String? @db.Text
+  isDraftMeeting    Boolean @default(false) @map("is_draft_meeting")
+  serviceId         Int     @map("service_id")
+
+  // Relations
+  service                  Service                   @relation(fields: [serviceId], references: [serviceId], onDelete: Cascade)
+  appointmentTypeTimeSlots AppointmentTypeTimeSlot[]
+  appointmentRequests      AppointmentRequest[]
+  appointments             Appointment[]
+
+  @@map("appointment_type")
+}
+
+model AppointmentTypeTimeSlot {
+  appointmentTypeTimeSlotId Int @id @default(autoincrement()) @map("appointment_type_time_slot_id")
+  appointmentTypeId         Int @map("appointment_type_id")
+  timeSlotId                Int @map("time_slot_id")
+
+  // Relations
+  appointmentType AppointmentType     @relation(fields: [appointmentTypeId], references: [appointmentTypeId], onDelete: Cascade)
+  timeSlot        AppointmentTimeSlot @relation(fields: [timeSlotId], references: [timeSlotId], onDelete: Cascade)
+
+  @@unique([appointmentTypeId, timeSlotId])
+  @@map("appointment_type_time_slot")
+}
+
+// ============================================
+// Service Request Tables
+// ============================================
+
+model ServiceRequest {
+  serviceRequestId       Int       @id @default(autoincrement()) @map("service_request_id")
+  requestDate            DateTime  @default(now()) @map("request_date") @db.Timestamptz
+  status                 String    @db.VarChar(50) // Draft, Pending Approval, Approved, Rejected, Appointment Scheduled, Completed
+  submittedForReviewDate DateTime? @map("submitted_for_review_date") @db.Timestamptz
+  notes                  String?   @db.Text
+  archived               Boolean   @default(false)
+  archivedDate           DateTime? @map("archived_date") @db.Timestamptz
+  serviceId              Int       @map("service_id")
+  strataId               Int       @map("strata_id")
+  requestedByProfileId   String    @map("requested_by_profile_id") @db.Uuid
+
+  // Relations
+  service             Service              @relation(fields: [serviceId], references: [serviceId], onDelete: Cascade)
+  strata              Strata               @relation(fields: [strataId], references: [strataId], onDelete: Cascade)
+  requestedBy         Profile              @relation("RequestedByProfile", fields: [requestedByProfileId], references: [id], onDelete: Cascade)
+  appointmentRequests AppointmentRequest[]
+  appointments        Appointment[]
+
+  @@map("service_request")
+}
+
+// ============================================
+// Appointment Request & Review Tables
+// ============================================
+
+model AppointmentRequest {
+  appointmentRequestId   Int       @id @default(autoincrement()) @map("appointment_request_id")
+  firstChoiceDate        DateTime  @map("first_choice_date") @db.Date
+  secondChoiceDate       DateTime? @map("second_choice_date") @db.Date
+  specialRequirements    String?   @map("special_requirements") @db.Text
+  status                 String    @db.VarChar(50) // Pending Review, Approved, Rejected, Cancelled
+  requestDate            DateTime  @default(now()) @map("request_date") @db.Timestamptz
+  serviceRequestId       Int       @map("service_request_id")
+  appointmentTypeId      Int       @map("appointment_type_id")
+  firstChoiceTimeSlotId  Int       @map("first_choice_time_slot_id")
+  secondChoiceTimeSlotId Int?      @map("second_choice_time_slot_id")
+  requestedByProfileId   String    @map("requested_by_profile_id") @db.Uuid
+
+  // Relations
+  serviceRequest       ServiceRequest        @relation(fields: [serviceRequestId], references: [serviceRequestId], onDelete: Cascade)
+  appointmentType      AppointmentType       @relation(fields: [appointmentTypeId], references: [appointmentTypeId], onDelete: Cascade)
+  firstChoiceTimeSlot  AppointmentTimeSlot   @relation("FirstChoiceTimeSlot", fields: [firstChoiceTimeSlotId], references: [timeSlotId], onDelete: Cascade)
+  secondChoiceTimeSlot AppointmentTimeSlot?  @relation("SecondChoiceTimeSlot", fields: [secondChoiceTimeSlotId], references: [timeSlotId], onDelete: SetNull)
+  requestedBy          Profile               @relation("AppointmentRequestedBy", fields: [requestedByProfileId], references: [id], onDelete: Cascade)
+  appointmentReviews   AppointmentReview[]
+  appointments         Appointment[]
+
+  @@map("appointment_request")
+}
+
+model AppointmentReview {
+  appointmentReviewId  Int       @id @default(autoincrement()) @map("appointment_review_id")
+  reviewDate           DateTime  @default(now()) @map("review_date") @db.Timestamptz
+  approvedDateChoice   Int?      @map("approved_date_choice") // 1 or 2
+  comments             String?   @db.Text
+  rejectionReason      String?   @map("rejection_reason") @db.Text
+  appointmentRequestId Int       @map("appointment_request_id")
+  reviewedByProfileId  String    @map("reviewed_by_profile_id") @db.Uuid
+  reviewStatusId       Int       @map("review_status_id")
+
+  // Relations
+  appointmentRequest AppointmentRequest @relation(fields: [appointmentRequestId], references: [appointmentRequestId], onDelete: Cascade)
+  reviewedBy         Profile            @relation("ReviewedByProfile", fields: [reviewedByProfileId], references: [id], onDelete: Cascade)
+  reviewStatus       ReviewStatus       @relation(fields: [reviewStatusId], references: [reviewStatusId], onDelete: Cascade)
+
+  @@map("appointment_review")
+}
+
+// ============================================
+// Appointment Table
+// ============================================
+
+model Appointment {
+  appointmentId        Int       @id @default(autoincrement()) @map("appointment_id")
+  appointmentDate      DateTime  @map("appointment_date") @db.Date
+  status               String    @db.VarChar(50) // Scheduled, Completed, Cancelled, Rescheduled
+  completionNote       String?   @map("completion_note") @db.Text
+  completedAt          DateTime? @map("completed_at") @db.Timestamptz
+  appointmentRequestId Int       @map("appointment_request_id")
+  serviceRequestId     Int       @map("service_request_id")
+  appointmentTypeId    Int       @map("appointment_type_id")
+  timeSlotId           Int       @map("time_slot_id")
+  inspectorProfileId   String?   @map("inspector_profile_id") @db.Uuid // Nullable, Assigned Later
+
+  // Relations
+  appointmentRequest AppointmentRequest  @relation(fields: [appointmentRequestId], references: [appointmentRequestId], onDelete: Cascade)
+  serviceRequest     ServiceRequest      @relation(fields: [serviceRequestId], references: [serviceRequestId], onDelete: Cascade)
+  appointmentType    AppointmentType     @relation(fields: [appointmentTypeId], references: [appointmentTypeId], onDelete: Cascade)
+  timeSlot           AppointmentTimeSlot @relation(fields: [timeSlotId], references: [timeSlotId], onDelete: Cascade)
+  inspector          Profile?            @relation("InspectorAppointments", fields: [inspectorProfileId], references: [id], onDelete: SetNull)
+
+  @@map("appointment")
 }

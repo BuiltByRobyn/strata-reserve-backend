@@ -9,6 +9,7 @@ import { adminProfileRoutes } from './admin/routes/adminProfileRoutes';
 import { adminUsersRoutes } from './admin/routes/adminUsersRoutes';
 import { companyRoutes } from './admin/routes/companyRoutes';
 import { strataRoutes } from './admin/routes/strataRoutes';
+import { appointmentRoutes } from './admin/routes/appointmentRoutes';
 
 // Client routes
 import { clientRoutes } from './client/routes/clientRoutes';
@@ -41,6 +42,7 @@ app.route('/admin', adminProfileRoutes);
 app.route('/admin', adminUsersRoutes);
 app.route('/admin', companyRoutes);
 app.route('/admin', strataRoutes);
+app.route('/admin', appointmentRoutes);
 
 // Client routes
 app.route('/client', clientRoutes);
