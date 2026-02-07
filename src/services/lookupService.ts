@@ -67,3 +67,15 @@ export const getServiceById = async (id: number) => {
     where: { serviceId: id }
   });
 };
+
+export const getDocumentTypes = async () => {
+  return prisma.documentType.findMany({
+    orderBy: { documentTypeId: 'asc' }
+  });
+};
+
+export const getReviewStatuses = async () => {
+  return prisma.reviewStatus.findMany({
+    orderBy: { reviewStatusId: 'asc' }
+  });
+};

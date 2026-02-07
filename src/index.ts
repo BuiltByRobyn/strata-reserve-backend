@@ -12,10 +12,12 @@ import { strataRoutes } from './admin/routes/strataRoutes';
 import { appointmentRoutes } from './admin/routes/appointmentRoutes';
 import { inspectorAvailabilityRoutes } from './admin/routes/inspectorAvailabilityRoutes';
 import { companyHolidayRoutes } from './admin/routes/companyHolidayRoutes';
+import { documentRoutes } from './admin/routes/documentRoutes';
 
 // Client routes
 import { clientRoutes } from './client/routes/clientRoutes';
 import { clientProfileRoutes } from './client/routes/clientProfileRoutes';
+import { clientDocumentRoutes } from './client/routes/clientDocumentRoutes';
 
 // Shared routes
 import { authRoutes } from './shared/routes/authRoutes';
@@ -47,10 +49,12 @@ app.route('/admin', strataRoutes);
 app.route('/admin', appointmentRoutes);
 app.route('/admin', inspectorAvailabilityRoutes);
 app.route('/admin', companyHolidayRoutes);
+app.route('/admin', documentRoutes);
 
 // Client routes
 app.route('/client', clientRoutes);
 app.route('/client', clientProfileRoutes);
+app.route('/client', clientDocumentRoutes);
 
 // Legacy routes (keeping for backward compatibility)
 app.route('/', dashboardRoutes);
