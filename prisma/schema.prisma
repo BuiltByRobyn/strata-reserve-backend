@@ -80,6 +80,9 @@ model Profile {
   reviewedAppointments      AppointmentReview[] @relation("ReviewedByProfile")
   inspectorAppointments     Appointment[]       @relation("InspectorAppointments")
 
+  // Inspector availability relation
+  inspectorAvailableDates InspectorAvailableDate[] @relation("InspectorAvailableDates")
+
   @@map("profiles")
 }
 
@@ -332,4 +335,35 @@ model Appointment {
   inspector          Profile?            @relation("InspectorAppointments", fields: [inspectorProfileId], references: [id], onDelete: SetNull)
 
   @@map("appointment")
+}
+
+// ============================================
+// Inspector Availability Table
+// ============================================
+
+model InspectorAvailableDate {
+  inspectorAvailableDateId Int      @id @default(autoincrement()) @map("inspector_available_date_id")
+  availableDate            DateTime @map("available_date") @db.Date
+  availableStartTime       DateTime? @map("available_start_time") @db.Time()
+  availableEndTime         DateTime? @map("available_end_time") @db.Time()
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz
+  inspectorProfileId       String   @map("inspector_profile_id") @db.Uuid
+
+  // Relations
+  inspectorProfile Profile @relation("InspectorAvailableDates", fields: [inspectorProfileId], references: [id], onDelete: Cascade)
+
+  @@map("inspector_available_date")
+}
+
+// ============================================
+// Company Holiday Table
+// ============================================
+
+model CompanyHoliday {
+  companyHolidayId    Int      @id @default(autoincrement()) @map("company_holiday_id")
+  holidayDate         DateTime @map("holiday_date") @db.Date
+  holidayName         String   @map("holiday_name") @db.VarChar(100)
+  isRecurringAnnually Boolean  @default(false) @map("is_recurring_annually")
+
+  @@map("company_holiday")
 }
