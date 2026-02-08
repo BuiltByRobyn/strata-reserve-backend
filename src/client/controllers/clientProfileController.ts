@@ -1,20 +1,18 @@
-import { Context } from 'hono';
+import { success, asyncHandler } from '../../shared/helpers/responseHelper';
 
-export const getClientProfile = async (c: Context) => {
-  // In a real app, you would get this from the authenticated user
-  return c.json({
+export const getClientProfile = asyncHandler(async (c) => {
+  return success(c, {
     companyName: 'Sample Strata Corporation',
     firstName: 'John',
     lastName: 'Doe',
     email: 'john.doe@sample.com',
     role: 'client'
   });
-};
+}, 'Failed to fetch client profile');
 
-export const updateClientProfile = async (c: Context) => {
+export const updateClientProfile = asyncHandler(async (c) => {
   const body = await c.req.json();
-  
-  return c.json({
+  return success(c, {
     message: 'Profile updated successfully',
     profile: {
       companyName: body.companyName || 'Sample Strata Corporation',
@@ -23,4 +21,4 @@ export const updateClientProfile = async (c: Context) => {
       email: body.email || 'john.doe@sample.com',
     }
   });
-};
+}, 'Failed to update client profile');

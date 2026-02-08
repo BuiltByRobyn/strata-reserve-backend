@@ -1,9 +1,5 @@
-// Appointment Service - CRUD operations for appointment management
 import prisma from '../lib/prismaClient';
 
-// ============================================
-// Get All Appointments
-// ============================================
 export const getAppointments = async () => {
   return prisma.appointment.findMany({
     orderBy: { appointmentDate: 'desc' },
@@ -32,9 +28,6 @@ export const getAppointments = async () => {
   });
 };
 
-// ============================================
-// Get Appointment by ID
-// ============================================
 export const getAppointmentById = async (id: number) => {
   return prisma.appointment.findUnique({
     where: { appointmentId: id },
@@ -75,12 +68,9 @@ export const getAppointmentById = async (id: number) => {
   });
 };
 
-// ============================================
-// Update Appointment Status
-// ============================================
 export const updateAppointmentStatus = async (id: number, status: string, completionNote?: string) => {
   const updateData: { status: string; completionNote?: string; completedAt?: Date } = { status };
-  
+
   if (status === 'Completed') {
     updateData.completedAt = new Date();
     if (completionNote) {
@@ -94,9 +84,6 @@ export const updateAppointmentStatus = async (id: number, status: string, comple
   });
 };
 
-// ============================================
-// Cancel Appointment
-// ============================================
 export const cancelAppointment = async (id: number) => {
   return prisma.appointment.update({
     where: { appointmentId: id },
@@ -104,9 +91,6 @@ export const cancelAppointment = async (id: number) => {
   });
 };
 
-// ============================================
-// Assign Inspector to Appointment
-// ============================================
 export const assignInspector = async (id: number, inspectorProfileId: string) => {
   return prisma.appointment.update({
     where: { appointmentId: id },
@@ -114,17 +98,14 @@ export const assignInspector = async (id: number, inspectorProfileId: string) =>
   });
 };
 
-// ============================================
-// Reschedule Appointment
-// ============================================
 export const rescheduleAppointment = async (
-  id: number, 
-  appointmentDate: Date, 
+  id: number,
+  appointmentDate: Date,
   timeSlotId: number
 ) => {
   return prisma.appointment.update({
     where: { appointmentId: id },
-    data: { 
+    data: {
       appointmentDate,
       timeSlotId,
       status: 'Rescheduled'
@@ -132,18 +113,12 @@ export const rescheduleAppointment = async (
   });
 };
 
-// ============================================
-// Get Appointment Time Slots
-// ============================================
 export const getTimeSlots = async () => {
   return prisma.appointmentTimeSlot.findMany({
     orderBy: { slotTime: 'asc' }
   });
 };
 
-// ============================================
-// Get Appointment Types
-// ============================================
 export const getAppointmentTypes = async () => {
   return prisma.appointmentType.findMany({
     include: {

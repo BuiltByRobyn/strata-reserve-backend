@@ -1,9 +1,5 @@
-// Document Service - CRUD operations for document management
 import prisma from '../lib/prismaClient';
 
-// ============================================
-// Get All Documents (Admin)
-// ============================================
 export const getDocuments = async () => {
   return prisma.serviceRequestDocument.findMany({
     orderBy: { uploadedAt: 'desc' },
@@ -21,9 +17,6 @@ export const getDocuments = async () => {
   });
 };
 
-// ============================================
-// Get Document by ID
-// ============================================
 export const getDocumentById = async (id: number) => {
   return prisma.serviceRequestDocument.findUnique({
     where: { serviceRequestDocumentId: id },
@@ -41,9 +34,6 @@ export const getDocumentById = async (id: number) => {
   });
 };
 
-// ============================================
-// Get Documents by Service Request
-// ============================================
 export const getDocumentsByServiceRequest = async (serviceRequestId: number) => {
   return prisma.serviceRequestDocument.findMany({
     where: { serviceRequestId },
@@ -56,9 +46,6 @@ export const getDocumentsByServiceRequest = async (serviceRequestId: number) => 
   });
 };
 
-// ============================================
-// Get Required Documents for a Service
-// ============================================
 export const getRequiredDocuments = async (serviceId: number, propertyTypeId?: number) => {
   return prisma.requiredDocument.findMany({
     where: {
@@ -72,9 +59,6 @@ export const getRequiredDocuments = async (serviceId: number, propertyTypeId?: n
   });
 };
 
-// ============================================
-// Update Document Status (Admin)
-// ============================================
 export const updateDocumentStatus = async (id: number, reviewStatusId: number, notes?: string) => {
   return prisma.serviceRequestDocument.update({
     where: { serviceRequestDocumentId: id },
@@ -88,18 +72,12 @@ export const updateDocumentStatus = async (id: number, reviewStatusId: number, n
   });
 };
 
-// ============================================
-// Delete Document
-// ============================================
 export const deleteDocument = async (id: number) => {
   return prisma.serviceRequestDocument.delete({
     where: { serviceRequestDocumentId: id }
   });
 };
 
-// ============================================
-// Search Documents
-// ============================================
 export const searchDocuments = async (query: string) => {
   return prisma.serviceRequestDocument.findMany({
     where: {
@@ -125,9 +103,6 @@ export const searchDocuments = async (query: string) => {
   });
 };
 
-// ============================================
-// Get Documents by Profile (Client)
-// ============================================
 export const getDocumentsByProfile = async (profileId: string) => {
   return prisma.serviceRequestDocument.findMany({
     where: {

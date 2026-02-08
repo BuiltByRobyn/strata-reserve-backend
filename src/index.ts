@@ -23,11 +23,6 @@ import { clientDocumentRoutes } from './client/routes/clientDocumentRoutes';
 import { authRoutes } from './shared/routes/authRoutes';
 import { lookupRoutes } from './shared/routes/lookupRoutes';
 
-// Legacy routes (for backward compatibility, will be moved to shared)
-import { dashboardRoutes } from './routes/dashboardRoutes';
-import { uploadRoutes } from './routes/uploadRoutes';
-import { profileRoutes } from './routes/profileRoutes';
-
 const app = new Hono();
 
 // Middleware
@@ -55,11 +50,6 @@ app.route('/admin', documentRoutes);
 app.route('/client', clientRoutes);
 app.route('/client', clientProfileRoutes);
 app.route('/client', clientDocumentRoutes);
-
-// Legacy routes (keeping for backward compatibility)
-app.route('/', dashboardRoutes);
-app.route('/upload', uploadRoutes);
-app.route('/profile', profileRoutes);
 
 const port = 3000;
 console.log(`Server is running on port ${port}`);

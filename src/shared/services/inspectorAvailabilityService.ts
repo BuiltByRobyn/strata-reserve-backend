@@ -1,12 +1,8 @@
-// Inspector Availability Service - CRUD operations for inspector available dates
 import prisma from '../lib/prismaClient';
 
-// ============================================
-// Get All Available Dates
-// ============================================
 export const getAvailableDates = async (inspectorProfileId?: string) => {
   const where = inspectorProfileId ? { inspectorProfileId } : {};
-  
+
   return prisma.inspectorAvailableDate.findMany({
     where,
     orderBy: { availableDate: 'asc' },
@@ -18,9 +14,6 @@ export const getAvailableDates = async (inspectorProfileId?: string) => {
   });
 };
 
-// ============================================
-// Get Available Date by ID
-// ============================================
 export const getAvailableDateById = async (id: number) => {
   return prisma.inspectorAvailableDate.findUnique({
     where: { inspectorAvailableDateId: id },
@@ -32,9 +25,6 @@ export const getAvailableDateById = async (id: number) => {
   });
 };
 
-// ============================================
-// Create Available Date
-// ============================================
 export const createAvailableDate = async (data: {
   availableDate: Date;
   availableStartTime?: Date | null;
@@ -56,11 +46,8 @@ export const createAvailableDate = async (data: {
   });
 };
 
-// ============================================
-// Update Available Date
-// ============================================
 export const updateAvailableDate = async (
-  id: number, 
+  id: number,
   data: {
     availableDate?: Date;
     availableStartTime?: Date | null;
@@ -78,21 +65,15 @@ export const updateAvailableDate = async (
   });
 };
 
-// ============================================
-// Delete Available Date
-// ============================================
 export const deleteAvailableDate = async (id: number) => {
   return prisma.inspectorAvailableDate.delete({
     where: { inspectorAvailableDateId: id }
   });
 };
 
-// ============================================
-// Get Available Dates by Date Range
-// ============================================
 export const getAvailableDatesByRange = async (
-  startDate: Date, 
-  endDate: Date, 
+  startDate: Date,
+  endDate: Date,
   inspectorProfileId?: string
 ) => {
   const where: {
@@ -104,7 +85,7 @@ export const getAvailableDatesByRange = async (
       lte: endDate
     }
   };
-  
+
   if (inspectorProfileId) {
     where.inspectorProfileId = inspectorProfileId;
   }
