@@ -53,3 +53,23 @@ export const getServices = async (c: Context) => {
     return c.json({ success: false, error: 'Failed to fetch services' }, 500);
   }
 };
+
+export const getDocumentTypes = async (c: Context) => {
+  try {
+    const documentTypes = await lookupService.getDocumentTypes();
+    return c.json({ success: true, data: documentTypes });
+  } catch (error) {
+    console.error('Error fetching document types:', error);
+    return c.json({ success: false, error: 'Failed to fetch document types' }, 500);
+  }
+};
+
+export const getReviewStatuses = async (c: Context) => {
+  try {
+    const reviewStatuses = await lookupService.getReviewStatuses();
+    return c.json({ success: true, data: reviewStatuses });
+  } catch (error) {
+    console.error('Error fetching review statuses:', error);
+    return c.json({ success: false, error: 'Failed to fetch review statuses' }, 500);
+  }
+};

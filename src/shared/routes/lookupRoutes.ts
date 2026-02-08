@@ -15,3 +15,6 @@ lookupRoutes.get('/property-types', lookupController.getPropertyTypes);
 
 // Services
 lookupRoutes.get('/services', lookupController.getServices);
+
+lookupRoutes.get('/document-types', lookupController.getDocumentTypes);
+lookupRoutes.get('/review-statuses', lookupController.getReviewStatuses);
