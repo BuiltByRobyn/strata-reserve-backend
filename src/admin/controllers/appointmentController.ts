@@ -1,166 +1,78 @@
-// Appointment Controller - Handles requests for appointment management
-import { Context } from 'hono';
-import * as appointmentService from '../../services/appointmentService';
+import * as appointmentService from '../../shared/services/appointmentService';
+import { success, error, asyncHandler } from '../../shared/helpers/responseHelper';
+import { parseIntParam } from '../../shared/helpers/parseParams';
 
-// ============================================
-// Get All Appointments
-// ============================================
-export const getAppointments = async (c: Context) => {
-  try {
-    const appointments = await appointmentService.getAppointments();
-    return c.json({ success: true, data: appointments });
-  } catch (error) {
-    console.error('Error fetching appointments:', error);
-    return c.json({ success: false, error: 'Failed to fetch appointments' }, 500);
+export const getAppointments = asyncHandler(async (c) => {
+  const appointments = await appointmentService.getAppointments();
+  return success(c, appointments);
+}, 'Failed to fetch appointments');
+
+export const getAppointmentById = asyncHandler(async (c) => {
+  const id = parseIntParam(c, 'id');
+  const appointment = await appointmentService.getAppointmentById(id);
+  if (!appointment) {
+    return error(c, 'Appointment not found', 404);
   }
-};
+  return success(c, appointment);
+}, 'Failed to fetch appointment');
 
-// ============================================
-// Get Appointment by ID
-// ============================================
-export const getAppointmentById = async (c: Context) => {
-  try {
-    const id = parseInt(c.req.param('id'));
-    if (isNaN(id)) {
-      return c.json({ success: false, error: 'Invalid appointment ID' }, 400);
-    }
+export const updateAppointmentStatus = asyncHandler(async (c) => {
+  const id = parseIntParam(c, 'id');
+  const body = await c.req.json();
+  const { status, completionNote } = body;
 
-    const appointment = await appointmentService.getAppointmentById(id);
-    if (!appointment) {
-      return c.json({ success: false, error: 'Appointment not found' }, 404);
-    }
-
-    return c.json({ success: true, data: appointment });
-  } catch (error) {
-    console.error('Error fetching appointment:', error);
-    return c.json({ success: false, error: 'Failed to fetch appointment' }, 500);
+  if (!status) {
+    return error(c, 'Status is required', 400);
   }
-};
 
-// ============================================
-// Update Appointment Status
-// ============================================
-export const updateAppointmentStatus = async (c: Context) => {
-  try {
-    const id = parseInt(c.req.param('id'));
-    if (isNaN(id)) {
-      return c.json({ success: false, error: 'Invalid appointment ID' }, 400);
-    }
-
-    const body = await c.req.json();
-    const { status, completionNote } = body;
-
-    if (!status) {
-      return c.json({ success: false, error: 'Status is required' }, 400);
-    }
-
-    const validStatuses = ['Scheduled', 'Completed', 'Cancelled', 'Rescheduled'];
-    if (!validStatuses.includes(status)) {
-      return c.json({ success: false, error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` }, 400);
-    }
-
-    const appointment = await appointmentService.updateAppointmentStatus(id, status, completionNote);
-    return c.json({ success: true, data: appointment });
-  } catch (error) {
-    console.error('Error updating appointment status:', error);
-    return c.json({ success: false, error: 'Failed to update appointment status' }, 500);
+  const validStatuses = ['Scheduled', 'Completed', 'Cancelled', 'Rescheduled'];
+  if (!validStatuses.includes(status)) {
+    return error(c, `Invalid status. Must be one of: ${validStatuses.join(', ')}`, 400);
   }
-};
 
-// ============================================
-// Cancel Appointment
-// ============================================
-export const cancelAppointment = async (c: Context) => {
-  try {
-    const id = parseInt(c.req.param('id'));
-    if (isNaN(id)) {
-      return c.json({ success: false, error: 'Invalid appointment ID' }, 400);
-    }
+  const appointment = await appointmentService.updateAppointmentStatus(id, status, completionNote);
+  return success(c, appointment);
+}, 'Failed to update appointment status');
 
-    const appointment = await appointmentService.cancelAppointment(id);
-    return c.json({ success: true, data: appointment, message: 'Appointment cancelled successfully' });
-  } catch (error) {
-    console.error('Error cancelling appointment:', error);
-    return c.json({ success: false, error: 'Failed to cancel appointment' }, 500);
+export const cancelAppointment = asyncHandler(async (c) => {
+  const id = parseIntParam(c, 'id');
+  const appointment = await appointmentService.cancelAppointment(id);
+  return success(c, appointment);
+}, 'Failed to cancel appointment');
+
+export const assignInspector = asyncHandler(async (c) => {
+  const id = parseIntParam(c, 'id');
+  const body = await c.req.json();
+  if (!body.inspectorProfileId) {
+    return error(c, 'Inspector profile ID is required', 400);
   }
-};
+  const appointment = await appointmentService.assignInspector(id, body.inspectorProfileId);
+  return success(c, appointment);
+}, 'Failed to assign inspector');
 
-// ============================================
-// Assign Inspector
-// ============================================
-export const assignInspector = async (c: Context) => {
-  try {
-    const id = parseInt(c.req.param('id'));
-    if (isNaN(id)) {
-      return c.json({ success: false, error: 'Invalid appointment ID' }, 400);
-    }
+export const rescheduleAppointment = asyncHandler(async (c) => {
+  const id = parseIntParam(c, 'id');
+  const body = await c.req.json();
+  const { appointmentDate, timeSlotId } = body;
 
-    const body = await c.req.json();
-    const { inspectorProfileId } = body;
-
-    if (!inspectorProfileId) {
-      return c.json({ success: false, error: 'Inspector profile ID is required' }, 400);
-    }
-
-    const appointment = await appointmentService.assignInspector(id, inspectorProfileId);
-    return c.json({ success: true, data: appointment });
-  } catch (error) {
-    console.error('Error assigning inspector:', error);
-    return c.json({ success: false, error: 'Failed to assign inspector' }, 500);
+  if (!appointmentDate || !timeSlotId) {
+    return error(c, 'Appointment date and time slot are required', 400);
   }
-};
 
-// ============================================
-// Reschedule Appointment
-// ============================================
-export const rescheduleAppointment = async (c: Context) => {
-  try {
-    const id = parseInt(c.req.param('id'));
-    if (isNaN(id)) {
-      return c.json({ success: false, error: 'Invalid appointment ID' }, 400);
-    }
+  const appointment = await appointmentService.rescheduleAppointment(
+    id,
+    new Date(appointmentDate),
+    parseInt(timeSlotId)
+  );
+  return success(c, appointment);
+}, 'Failed to reschedule appointment');
 
-    const body = await c.req.json();
-    const { appointmentDate, timeSlotId } = body;
+export const getTimeSlots = asyncHandler(async (c) => {
+  const timeSlots = await appointmentService.getTimeSlots();
+  return success(c, timeSlots);
+}, 'Failed to fetch time slots');
 
-    if (!appointmentDate || !timeSlotId) {
-      return c.json({ success: false, error: 'Appointment date and time slot are required' }, 400);
-    }
-
-    const appointment = await appointmentService.rescheduleAppointment(
-      id, 
-      new Date(appointmentDate), 
-      parseInt(timeSlotId)
-    );
-    return c.json({ success: true, data: appointment });
-  } catch (error) {
-    console.error('Error rescheduling appointment:', error);
-    return c.json({ success: false, error: 'Failed to reschedule appointment' }, 500);
-  }
-};
-
-// ============================================
-// Get Time Slots (for dropdowns)
-// ============================================
-export const getTimeSlots = async (c: Context) => {
-  try {
-    const timeSlots = await appointmentService.getTimeSlots();
-    return c.json({ success: true, data: timeSlots });
-  } catch (error) {
-    console.error('Error fetching time slots:', error);
-    return c.json({ success: false, error: 'Failed to fetch time slots' }, 500);
-  }
-};
-
-// ============================================
-// Get Appointment Types (for dropdowns)
-// ============================================
-export const getAppointmentTypes = async (c: Context) => {
-  try {
-    const appointmentTypes = await appointmentService.getAppointmentTypes();
-    return c.json({ success: true, data: appointmentTypes });
-  } catch (error) {
-    console.error('Error fetching appointment types:', error);
-    return c.json({ success: false, error: 'Failed to fetch appointment types' }, 500);
-  }
-};
+export const getAppointmentTypes = asyncHandler(async (c) => {
+  const appointmentTypes = await appointmentService.getAppointmentTypes();
+  return success(c, appointmentTypes);
+}, 'Failed to fetch appointment types');

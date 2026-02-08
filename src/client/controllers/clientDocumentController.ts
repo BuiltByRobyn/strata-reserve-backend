@@ -1,61 +1,35 @@
-import { Context } from 'hono';
-import * as documentService from '../../services/documentService';
+import * as documentService from '../../shared/services/documentService';
+import { success, error, asyncHandler } from '../../shared/helpers/responseHelper';
+import { parseIntParam, parseIntQuery, parseOptionalIntQuery } from '../../shared/helpers/parseParams';
 
-export const getMyDocuments = async (c: Context) => {
-  try {
-    const user = c.get('user');
-    const documents = await documentService.getDocumentsByProfile(user.id);
-    return c.json({ success: true, data: documents });
-  } catch (error) {
-    console.error('Error fetching client documents:', error);
-    return c.json({ success: false, error: 'Failed to fetch documents' }, 500);
-  }
-};
+export const getMyDocuments = asyncHandler(async (c) => {
+  const user = c.get('user');
+  const documents = await documentService.getDocumentsByProfile(user.id);
+  return success(c, documents);
+}, 'Failed to fetch documents');
 
-export const getRequiredDocuments = async (c: Context) => {
-  try {
-    const serviceRequestId = parseInt(c.req.param('id'));
-    if (isNaN(serviceRequestId)) {
-      return c.json({ success: false, error: 'Invalid service request ID' }, 400);
-    }
+export const getRequiredDocuments = asyncHandler(async (c) => {
+  const serviceRequestId = parseIntParam(c, 'id');
+  const serviceId = parseIntQuery(c, 'serviceId');
+  const propertyTypeId = parseOptionalIntQuery(c, 'propertyTypeId');
 
-    const serviceId = parseInt(c.req.query('serviceId') || '');
-    const propertyTypeId = c.req.query('propertyTypeId') ? parseInt(c.req.query('propertyTypeId')!) : undefined;
+  const [requiredDocs, uploadedDocs] = await Promise.all([
+    documentService.getRequiredDocuments(serviceId, propertyTypeId),
+    documentService.getDocumentsByServiceRequest(serviceRequestId)
+  ]);
 
-    if (isNaN(serviceId)) {
-      return c.json({ success: false, error: 'Service ID is required' }, 400);
-    }
+  const checklist = requiredDocs.map(req => ({
+    ...req,
+    uploadedDocument: uploadedDocs.find(
+      doc => doc.documentTypeId === req.documentTypeId
+    ) || null
+  }));
 
-    const [requiredDocs, uploadedDocs] = await Promise.all([
-      documentService.getRequiredDocuments(serviceId, propertyTypeId),
-      documentService.getDocumentsByServiceRequest(serviceRequestId)
-    ]);
+  return success(c, checklist);
+}, 'Failed to fetch required documents');
 
-    const checklist = requiredDocs.map(req => ({
-      ...req,
-      uploadedDocument: uploadedDocs.find(
-        doc => doc.documentTypeId === req.documentTypeId
-      ) || null
-    }));
-
-    return c.json({ success: true, data: checklist });
-  } catch (error) {
-    console.error('Error fetching required documents:', error);
-    return c.json({ success: false, error: 'Failed to fetch required documents' }, 500);
-  }
-};
-
-export const getDocumentsByServiceRequest = async (c: Context) => {
-  try {
-    const serviceRequestId = parseInt(c.req.param('id'));
-    if (isNaN(serviceRequestId)) {
-      return c.json({ success: false, error: 'Invalid service request ID' }, 400);
-    }
-
-    const documents = await documentService.getDocumentsByServiceRequest(serviceRequestId);
-    return c.json({ success: true, data: documents });
-  } catch (error) {
-    console.error('Error fetching service request documents:', error);
-    return c.json({ success: false, error: 'Failed to fetch documents' }, 500);
-  }
-};
+export const getDocumentsByServiceRequest = asyncHandler(async (c) => {
+  const serviceRequestId = parseIntParam(c, 'id');
+  const documents = await documentService.getDocumentsByServiceRequest(serviceRequestId);
+  return success(c, documents);
+}, 'Failed to fetch documents');

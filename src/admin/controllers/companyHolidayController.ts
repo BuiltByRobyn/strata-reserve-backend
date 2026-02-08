@@ -1,157 +1,82 @@
-// Company Holiday Controller - Handles requests for company holiday management
-import { Context } from 'hono';
-import * as companyHolidayService from '../../services/companyHolidayService';
+import * as companyHolidayService from '../../shared/services/companyHolidayService';
+import { success, created, error, asyncHandler } from '../../shared/helpers/responseHelper';
+import { parseIntParam } from '../../shared/helpers/parseParams';
 
-// ============================================
-// Get All Company Holidays
-// ============================================
-export const getCompanyHolidays = async (c: Context) => {
-  try {
-    const holidays = await companyHolidayService.getCompanyHolidays();
-    return c.json({ success: true, data: holidays });
-  } catch (error) {
-    console.error('Error fetching company holidays:', error);
-    return c.json({ success: false, error: 'Failed to fetch company holidays' }, 500);
+export const getCompanyHolidays = asyncHandler(async (c) => {
+  const holidays = await companyHolidayService.getCompanyHolidays();
+  return success(c, holidays);
+}, 'Failed to fetch company holidays');
+
+export const getCompanyHolidayById = asyncHandler(async (c) => {
+  const id = parseIntParam(c, 'id');
+  const holiday = await companyHolidayService.getCompanyHolidayById(id);
+  if (!holiday) {
+    return error(c, 'Company holiday not found', 404);
   }
-};
+  return success(c, holiday);
+}, 'Failed to fetch company holiday');
 
-// ============================================
-// Get Company Holiday by ID
-// ============================================
-export const getCompanyHolidayById = async (c: Context) => {
-  try {
-    const id = parseInt(c.req.param('id'));
-    if (isNaN(id)) {
-      return c.json({ success: false, error: 'Invalid ID' }, 400);
-    }
+export const createCompanyHoliday = asyncHandler(async (c) => {
+  const body = await c.req.json();
+  const { holidayDate, holidayName, isRecurringAnnually } = body;
 
-    const holiday = await companyHolidayService.getCompanyHolidayById(id);
-    if (!holiday) {
-      return c.json({ success: false, error: 'Company holiday not found' }, 404);
-    }
-
-    return c.json({ success: true, data: holiday });
-  } catch (error) {
-    console.error('Error fetching company holiday:', error);
-    return c.json({ success: false, error: 'Failed to fetch company holiday' }, 500);
+  if (!holidayDate || !holidayName) {
+    return error(c, 'Holiday date and holiday name are required', 400);
   }
-};
 
-// ============================================
-// Create Company Holiday
-// ============================================
-export const createCompanyHoliday = async (c: Context) => {
-  try {
-    const body = await c.req.json();
-    const { holidayDate, holidayName, isRecurringAnnually } = body;
+  const newHoliday = await companyHolidayService.createCompanyHoliday({
+    holidayDate: new Date(holidayDate),
+    holidayName,
+    isRecurringAnnually
+  });
+  return created(c, newHoliday);
+}, 'Failed to create company holiday');
 
-    if (!holidayDate || !holidayName) {
-      return c.json({ 
-        success: false, 
-        error: 'Holiday date and holiday name are required' 
-      }, 400);
-    }
+export const updateCompanyHoliday = asyncHandler(async (c) => {
+  const id = parseIntParam(c, 'id');
+  const body = await c.req.json();
+  const { holidayDate, holidayName, isRecurringAnnually } = body;
 
-    const newHoliday = await companyHolidayService.createCompanyHoliday({
-      holidayDate: new Date(holidayDate),
-      holidayName,
-      isRecurringAnnually
-    });
+  const updateData: {
+    holidayDate?: Date;
+    holidayName?: string;
+    isRecurringAnnually?: boolean;
+  } = {};
 
-    return c.json({ success: true, data: newHoliday }, 201);
-  } catch (error) {
-    console.error('Error creating company holiday:', error);
-    return c.json({ success: false, error: 'Failed to create company holiday' }, 500);
+  if (holidayDate) {
+    updateData.holidayDate = new Date(holidayDate);
   }
-};
-
-// ============================================
-// Update Company Holiday
-// ============================================
-export const updateCompanyHoliday = async (c: Context) => {
-  try {
-    const id = parseInt(c.req.param('id'));
-    if (isNaN(id)) {
-      return c.json({ success: false, error: 'Invalid ID' }, 400);
-    }
-
-    const body = await c.req.json();
-    const { holidayDate, holidayName, isRecurringAnnually } = body;
-
-    const updateData: {
-      holidayDate?: Date;
-      holidayName?: string;
-      isRecurringAnnually?: boolean;
-    } = {};
-
-    if (holidayDate) {
-      updateData.holidayDate = new Date(holidayDate);
-    }
-    if (holidayName !== undefined) {
-      updateData.holidayName = holidayName;
-    }
-    if (isRecurringAnnually !== undefined) {
-      updateData.isRecurringAnnually = isRecurringAnnually;
-    }
-
-    const updatedHoliday = await companyHolidayService.updateCompanyHoliday(id, updateData);
-    return c.json({ success: true, data: updatedHoliday });
-  } catch (error) {
-    console.error('Error updating company holiday:', error);
-    return c.json({ success: false, error: 'Failed to update company holiday' }, 500);
+  if (holidayName !== undefined) {
+    updateData.holidayName = holidayName;
   }
-};
-
-// ============================================
-// Delete Company Holiday
-// ============================================
-export const deleteCompanyHoliday = async (c: Context) => {
-  try {
-    const id = parseInt(c.req.param('id'));
-    if (isNaN(id)) {
-      return c.json({ success: false, error: 'Invalid ID' }, 400);
-    }
-
-    await companyHolidayService.deleteCompanyHoliday(id);
-    return c.json({ success: true, message: 'Company holiday deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting company holiday:', error);
-    return c.json({ success: false, error: 'Failed to delete company holiday' }, 500);
+  if (isRecurringAnnually !== undefined) {
+    updateData.isRecurringAnnually = isRecurringAnnually;
   }
-};
 
-// ============================================
-// Get Holidays by Year
-// ============================================
-export const getHolidaysByYear = async (c: Context) => {
-  try {
-    const year = parseInt(c.req.query('year') || new Date().getFullYear().toString());
-    if (isNaN(year)) {
-      return c.json({ success: false, error: 'Invalid year' }, 400);
-    }
+  const updatedHoliday = await companyHolidayService.updateCompanyHoliday(id, updateData);
+  return success(c, updatedHoliday);
+}, 'Failed to update company holiday');
 
-    const holidays = await companyHolidayService.getHolidaysByYear(year);
-    return c.json({ success: true, data: holidays });
-  } catch (error) {
-    console.error('Error fetching holidays by year:', error);
-    return c.json({ success: false, error: 'Failed to fetch holidays' }, 500);
+export const deleteCompanyHoliday = asyncHandler(async (c) => {
+  const id = parseIntParam(c, 'id');
+  await companyHolidayService.deleteCompanyHoliday(id);
+  return success(c, { message: 'Company holiday deleted successfully' });
+}, 'Failed to delete company holiday');
+
+export const getHolidaysByYear = asyncHandler(async (c) => {
+  const year = parseInt(c.req.query('year') || new Date().getFullYear().toString());
+  if (isNaN(year)) {
+    return error(c, 'Invalid year', 400);
   }
-};
+  const holidays = await companyHolidayService.getHolidaysByYear(year);
+  return success(c, holidays);
+}, 'Failed to fetch holidays');
 
-// ============================================
-// Check if Date is a Holiday
-// ============================================
-export const checkIsHoliday = async (c: Context) => {
-  try {
-    const date = c.req.query('date');
-    if (!date) {
-      return c.json({ success: false, error: 'Date is required' }, 400);
-    }
-
-    const isHoliday = await companyHolidayService.isHoliday(new Date(date));
-    return c.json({ success: true, data: { isHoliday } });
-  } catch (error) {
-    console.error('Error checking if date is holiday:', error);
-    return c.json({ success: false, error: 'Failed to check holiday' }, 500);
+export const checkIsHoliday = asyncHandler(async (c) => {
+  const date = c.req.query('date');
+  if (!date) {
+    return error(c, 'Date is required', 400);
   }
-};
+  const isHoliday = await companyHolidayService.isHoliday(new Date(date));
+  return success(c, { isHoliday });
+}, 'Failed to check holiday');

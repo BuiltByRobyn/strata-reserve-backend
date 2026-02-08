@@ -1,9 +1,5 @@
-// Lookup Service - CRUD operations for lookup tables
 import prisma from '../lib/prismaClient';
 
-// ============================================
-// User Types
-// ============================================
 export const getUserTypes = async () => {
   return prisma.userType.findMany({
     orderBy: { userTypeId: 'asc' }
@@ -16,9 +12,6 @@ export const getUserTypeById = async (id: number) => {
   });
 };
 
-// ============================================
-// Legal Types
-// ============================================
 export const getLegalTypes = async () => {
   return prisma.legalType.findMany({
     orderBy: { legalTypeId: 'asc' }
@@ -31,9 +24,6 @@ export const getLegalTypeById = async (id: number) => {
   });
 };
 
-// ============================================
-// Property Types
-// ============================================
 export const getPropertyTypes = async () => {
   return prisma.propertyType.findMany({
     orderBy: { propertyTypeId: 'asc' }
@@ -53,9 +43,6 @@ export const updatePropertyTypeDescription = async (id: number, description: str
   });
 };
 
-// ============================================
-// Services
-// ============================================
 export const getServices = async () => {
   return prisma.service.findMany({
     orderBy: { serviceId: 'asc' }

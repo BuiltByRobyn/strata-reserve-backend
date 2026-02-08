@@ -1,18 +1,6 @@
-// Profile Service - Extended operations for profiles
 import prisma from '../lib/prismaClient';
+import type { UpdateProfileInput } from '../types/profile.types';
 
-export interface UpdateProfileInput {
-  firstName?: string;
-  lastName?: string;
-  displayName?: string;
-  phoneNumber?: string | null;
-  userTypeId?: number | null;
-  mustChangePassword?: boolean;
-}
-
-// ============================================
-// Get All Profiles (Admin only)
-// ============================================
 export const getProfiles = async () => {
   return prisma.profile.findMany({
     orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
@@ -25,9 +13,6 @@ export const getProfiles = async () => {
   });
 };
 
-// ============================================
-// Get Profile by ID
-// ============================================
 export const getProfileById = async (id: string) => {
   return prisma.profile.findUnique({
     where: { id },
@@ -49,9 +34,6 @@ export const getProfileById = async (id: string) => {
   });
 };
 
-// ============================================
-// Update Profile
-// ============================================
 export const updateProfile = async (id: string, data: UpdateProfileInput) => {
   return prisma.profile.update({
     where: { id },
@@ -59,9 +41,6 @@ export const updateProfile = async (id: string, data: UpdateProfileInput) => {
   });
 };
 
-// ============================================
-// Get Profiles by User Type
-// ============================================
 export const getProfilesByUserType = async (userTypeId: number) => {
   return prisma.profile.findMany({
     where: { userTypeId },
@@ -72,9 +51,6 @@ export const getProfilesByUserType = async (userTypeId: number) => {
   });
 };
 
-// ============================================
-// Search Profiles
-// ============================================
 export const searchProfiles = async (query: string) => {
   return prisma.profile.findMany({
     where: {
@@ -92,9 +68,6 @@ export const searchProfiles = async (query: string) => {
   });
 };
 
-// ============================================
-// Get Profiles Not Assigned to Strata
-// ============================================
 export const getUnassignedProfiles = async (strataId: number) => {
   const assignedProfileIds = await prisma.strataProfile.findMany({
     where: { strataId },

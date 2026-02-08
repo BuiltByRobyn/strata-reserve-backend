@@ -1,75 +1,33 @@
-// Lookup Controller - Handles requests for lookup/reference data
-import { Context } from 'hono';
-import * as lookupService from '../../services/lookupService';
+import * as lookupService from '../services/lookupService';
+import { success } from '../helpers/responseHelper';
+import { asyncHandler } from '../helpers/responseHelper';
 
-// ============================================
-// User Types
-// ============================================
-export const getUserTypes = async (c: Context) => {
-  try {
-    const userTypes = await lookupService.getUserTypes();
-    return c.json({ success: true, data: userTypes });
-  } catch (error) {
-    console.error('Error fetching user types:', error);
-    return c.json({ success: false, error: 'Failed to fetch user types' }, 500);
-  }
-};
+export const getUserTypes = asyncHandler(async (c) => {
+  const userTypes = await lookupService.getUserTypes();
+  return success(c, userTypes);
+}, 'Failed to fetch user types');
 
-// ============================================
-// Legal Types
-// ============================================
-export const getLegalTypes = async (c: Context) => {
-  try {
-    const legalTypes = await lookupService.getLegalTypes();
-    return c.json({ success: true, data: legalTypes });
-  } catch (error) {
-    console.error('Error fetching legal types:', error);
-    return c.json({ success: false, error: 'Failed to fetch legal types' }, 500);
-  }
-};
+export const getLegalTypes = asyncHandler(async (c) => {
+  const legalTypes = await lookupService.getLegalTypes();
+  return success(c, legalTypes);
+}, 'Failed to fetch legal types');
 
-// ============================================
-// Property Types
-// ============================================
-export const getPropertyTypes = async (c: Context) => {
-  try {
-    const propertyTypes = await lookupService.getPropertyTypes();
-    return c.json({ success: true, data: propertyTypes });
-  } catch (error) {
-    console.error('Error fetching property types:', error);
-    return c.json({ success: false, error: 'Failed to fetch property types' }, 500);
-  }
-};
+export const getPropertyTypes = asyncHandler(async (c) => {
+  const propertyTypes = await lookupService.getPropertyTypes();
+  return success(c, propertyTypes);
+}, 'Failed to fetch property types');
 
-// ============================================
-// Services
-// ============================================
-export const getServices = async (c: Context) => {
-  try {
-    const services = await lookupService.getServices();
-    return c.json({ success: true, data: services });
-  } catch (error) {
-    console.error('Error fetching services:', error);
-    return c.json({ success: false, error: 'Failed to fetch services' }, 500);
-  }
-};
+export const getServices = asyncHandler(async (c) => {
+  const services = await lookupService.getServices();
+  return success(c, services);
+}, 'Failed to fetch services');
 
-export const getDocumentTypes = async (c: Context) => {
-  try {
-    const documentTypes = await lookupService.getDocumentTypes();
-    return c.json({ success: true, data: documentTypes });
-  } catch (error) {
-    console.error('Error fetching document types:', error);
-    return c.json({ success: false, error: 'Failed to fetch document types' }, 500);
-  }
-};
+export const getDocumentTypes = asyncHandler(async (c) => {
+  const documentTypes = await lookupService.getDocumentTypes();
+  return success(c, documentTypes);
+}, 'Failed to fetch document types');
 
-export const getReviewStatuses = async (c: Context) => {
-  try {
-    const reviewStatuses = await lookupService.getReviewStatuses();
-    return c.json({ success: true, data: reviewStatuses });
-  } catch (error) {
-    console.error('Error fetching review statuses:', error);
-    return c.json({ success: false, error: 'Failed to fetch review statuses' }, 500);
-  }
-};
+export const getReviewStatuses = asyncHandler(async (c) => {
+  const reviewStatuses = await lookupService.getReviewStatuses();
+  return success(c, reviewStatuses);
+}, 'Failed to fetch review statuses');

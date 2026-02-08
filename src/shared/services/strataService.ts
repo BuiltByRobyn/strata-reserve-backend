@@ -1,44 +1,12 @@
-// Strata Service - CRUD operations for strata properties
 import prisma from '../lib/prismaClient';
+import type {
+  CreateStrataInput,
+  UpdateStrataInput,
+  CreateStrataProfileInput,
+  CreateStrataServiceInput,
+  CreateStrataNoteInput
+} from '../types/strata.types';
 
-export interface CreateStrataInput {
-  strataPlan?: string;
-  complexName?: string;
-  unitNumber?: string;
-  streetName?: string;
-  town?: string;
-  province?: string;
-  postalCode?: string;
-  country?: string;
-  website?: string;
-  legalTypeId?: number;
-  propertyTypeId?: number;
-  companyId?: number;
-}
-
-export interface UpdateStrataInput extends Partial<CreateStrataInput> {}
-
-export interface CreateStrataProfileInput {
-  strataId: number;
-  profileId: string;
-  strataPosition?: string;
-}
-
-export interface CreateStrataServiceInput {
-  strataId: number;
-  serviceId: number;
-}
-
-export interface CreateStrataNoteInput {
-  strataId: number;
-  noteMessage: string;
-  createdByProfileId?: string;
-  createdByUser?: string;
-}
-
-// ============================================
-// Get All Stratas
-// ============================================
 export const getStratas = async () => {
   return prisma.strata.findMany({
     orderBy: { strataPlan: 'asc' },
@@ -53,9 +21,6 @@ export const getStratas = async () => {
   });
 };
 
-// ============================================
-// Get Strata by ID
-// ============================================
 export const getStrataById = async (id: number) => {
   return prisma.strata.findUnique({
     where: { strataId: id },
@@ -87,9 +52,6 @@ export const getStrataById = async (id: number) => {
   });
 };
 
-// ============================================
-// Create Strata
-// ============================================
 export const createStrata = async (data: CreateStrataInput) => {
   return prisma.strata.create({
     data: {
@@ -109,9 +71,6 @@ export const createStrata = async (data: CreateStrataInput) => {
   });
 };
 
-// ============================================
-// Update Strata
-// ============================================
 export const updateStrata = async (id: number, data: UpdateStrataInput) => {
   return prisma.strata.update({
     where: { strataId: id },
@@ -119,18 +78,12 @@ export const updateStrata = async (id: number, data: UpdateStrataInput) => {
   });
 };
 
-// ============================================
-// Delete Strata
-// ============================================
 export const deleteStrata = async (id: number) => {
   return prisma.strata.delete({
     where: { strataId: id }
   });
 };
 
-// ============================================
-// Strata Notes
-// ============================================
 export const addStrataNote = async (data: CreateStrataNoteInput) => {
   return prisma.strataNotes.create({
     data: {
@@ -148,9 +101,6 @@ export const deleteStrataNote = async (noteId: number) => {
   });
 };
 
-// ============================================
-// Strata Employees (Assignments)
-// ============================================
 export const assignEmployeeToStrata = async (data: CreateStrataProfileInput) => {
   return prisma.strataProfile.create({
     data: {
@@ -187,9 +137,6 @@ export const getStratasByEmployee = async (profileId: string) => {
   });
 };
 
-// ============================================
-// Strata Services
-// ============================================
 export const addServiceToStrata = async (data: CreateStrataServiceInput) => {
   return prisma.strataService.create({
     data: {
@@ -205,9 +152,6 @@ export const removeServiceFromStrata = async (strataServiceId: number) => {
   });
 };
 
-// ============================================
-// Search Stratas
-// ============================================
 export const searchStratas = async (query: string) => {
   return prisma.strata.findMany({
     where: {

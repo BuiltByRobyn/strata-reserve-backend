@@ -8,7 +8,7 @@ export const authMiddleware = async (c: Context, next: Next) => {
     return c.json({ error: 'Unauthorized - No token provided' }, 401);
   }
 
-  const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+  const token = authHeader.substring(7);
 
   try {
     const { data: { user }, error } = await supabase.auth.getUser(token);
@@ -17,9 +17,8 @@ export const authMiddleware = async (c: Context, next: Next) => {
       return c.json({ error: 'Unauthorized - Invalid token' }, 401);
     }
 
-    // Attach user to context for use in route handlers
     c.set('user', user);
-    
+
     await next();
   } catch (error) {
     return c.json({ error: 'Unauthorized - Token verification failed' }, 401);
