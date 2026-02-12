@@ -13,11 +13,14 @@ import { appointmentRoutes } from './admin/routes/appointmentRoutes';
 import { inspectorAvailabilityRoutes } from './admin/routes/inspectorAvailabilityRoutes';
 import { companyHolidayRoutes } from './admin/routes/companyHolidayRoutes';
 import { documentRoutes } from './admin/routes/documentRoutes';
+import { serviceRequestRoutes } from './admin/routes/serviceRequestRoutes';
+import { adminSurveyRoutes } from './admin/routes/adminSurveyRoutes';
 
 // Client routes
 import { clientRoutes } from './client/routes/clientRoutes';
 import { clientProfileRoutes } from './client/routes/clientProfileRoutes';
 import { clientDocumentRoutes } from './client/routes/clientDocumentRoutes';
+import { clientSurveyRoutes } from './client/routes/clientSurveyRoutes';
 
 // Shared routes
 import { authRoutes } from './shared/routes/authRoutes';
@@ -45,11 +48,14 @@ app.route('/admin', appointmentRoutes);
 app.route('/admin', inspectorAvailabilityRoutes);
 app.route('/admin', companyHolidayRoutes);
 app.route('/admin', documentRoutes);
+app.route('/admin', serviceRequestRoutes);
+app.route('/admin', adminSurveyRoutes);
 
 // Client routes
 app.route('/client', clientRoutes);
 app.route('/client', clientProfileRoutes);
 app.route('/client', clientDocumentRoutes);
+app.route('/client', clientSurveyRoutes);
 
 const port = 3000;
 console.log(`Server is running on port ${port}`);

@@ -1,0 +1,8 @@
+import { Hono } from 'hono';
+import * as surveyController from '../../client/controllers/clientSurveyController';
+
+export const adminSurveyRoutes = new Hono();
+
+adminSurveyRoutes.get('/service-requests/:serviceRequestId/survey/sections', surveyController.getSurveySections);
+adminSurveyRoutes.get('/service-requests/:serviceRequestId/survey/questions', surveyController.getSurveyQuestions);
+adminSurveyRoutes.get('/service-requests/:serviceRequestId/survey/responses', surveyController.getSurveyResponses);
