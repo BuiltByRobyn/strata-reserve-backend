@@ -1,6 +1,6 @@
 import * as documentService from '../../shared/services/documentService';
 import { success, error, asyncHandler } from '../../shared/helpers/responseHelper';
-import { parseIntParam, parseIntQuery, parseOptionalIntQuery } from '../../shared/helpers/parseParams';
+import { parseIntParam } from '../../shared/helpers/parseParams';
 
 export const getMyDocuments = asyncHandler(async (c) => {
   const user = c.get('user');
@@ -10,11 +10,19 @@ export const getMyDocuments = asyncHandler(async (c) => {
 
 export const getRequiredDocuments = asyncHandler(async (c) => {
   const serviceRequestId = parseIntParam(c, 'id');
-  const serviceId = parseIntQuery(c, 'serviceId');
-  const propertyTypeId = parseOptionalIntQuery(c, 'propertyTypeId');
+
+  const { default: prisma } = await import('../../shared/lib/prismaClient');
+  const sr = await prisma.serviceRequest.findUnique({
+    where: { serviceRequestId },
+    include: { strata: { select: { propertyTypeId: true } } }
+  });
+
+  if (!sr) {
+    return error(c, 'Service request not found', 404);
+  }
 
   const [requiredDocs, uploadedDocs] = await Promise.all([
-    documentService.getRequiredDocuments(serviceId, propertyTypeId),
+    documentService.getRequiredDocuments(sr.serviceId, sr.strata.propertyTypeId ?? undefined),
     documentService.getDocumentsByServiceRequest(serviceRequestId)
   ]);
 
