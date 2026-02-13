@@ -1,4 +1,6 @@
-import { success, asyncHandler } from '../../shared/helpers/responseHelper';
+import { success, error, asyncHandler } from '../../shared/helpers/responseHelper';
+import * as serviceRequestService from '../../shared/services/serviceRequestService';
+import { parseIntQuery } from '../../shared/helpers/parseParams';
 
 export const getClientDashboard = asyncHandler(async (c) => {
   return success(c, {
@@ -23,3 +25,9 @@ export const getClientReports = asyncHandler(async (c) => {
     { id: 3, title: 'Q1 2025 Report', status: 'pending', uploadDate: new Date().toISOString() },
   ]);
 }, 'Failed to fetch client reports');
+
+export const getActiveServiceRequest = asyncHandler(async (c) => {
+  const strataId = parseIntQuery(c, 'strataId');
+  const serviceRequest = await serviceRequestService.getActiveByStrata(strataId);
+  return success(c, serviceRequest);
+}, 'Failed to fetch active service request');
