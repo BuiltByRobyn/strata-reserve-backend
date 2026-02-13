@@ -41,3 +41,11 @@ export const searchDocuments = asyncHandler(async (c) => {
   const documents = await documentService.searchDocuments(query);
   return success(c, documents);
 }, 'Failed to search documents');
+
+export const getDocumentPreview = asyncHandler(async (c) => {
+  const documentId = parseIntParam(c, 'id');
+  
+  const previewData = await documentService.getDocumentPreviewUrl(documentId, '', true);
+  
+  return success(c, previewData);
+}, 'Failed to generate document preview');
