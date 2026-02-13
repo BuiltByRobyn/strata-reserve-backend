@@ -57,7 +57,7 @@ app.route('/client', clientProfileRoutes);
 app.route('/client', clientDocumentRoutes);
 app.route('/client', clientSurveyRoutes);
 
-const port = 3000;
+const port = Number(process.env.PORT) || 3000;
 console.log(`Server is running on port ${port}`);
 console.log(`Admin endpoints available at: http://localhost:${port}/admin/*`);
 console.log(`Client endpoints available at: http://localhost:${port}/client/*`);
