@@ -1,4 +1,6 @@
 import prisma from '../lib/prismaClient';
+import { supabase } from '../lib/supabaseClient';
+import { getDropboxTemporaryLink } from './dropboxService';
 
 export const getDocuments = async () => {
   return prisma.serviceRequestDocument.findMany({
@@ -125,4 +127,53 @@ export const getDocumentsByProfile = async (profileId: string) => {
       reviewStatus: { select: { reviewStatusId: true, statusName: true } }
     }
   });
+};
+
+// NEW: Generate signed URL for document preview
+export const getDocumentPreviewUrl = async (id: number, profileId: string, isAdmin: boolean = false) => {
+  // First, verify the document exists and user has access
+  // Admins can view any document, clients need strata profile relationship
+  const document = await prisma.serviceRequestDocument.findFirst({
+    where: isAdmin 
+      ? { serviceRequestDocumentId: id }
+      : {
+          serviceRequestDocumentId: id,
+          serviceRequest: {
+            strata: {
+              strataProfiles: { some: { profileId } }
+            }
+          }
+        },
+    select: {
+      serviceRequestDocumentId: true,
+      filePath: true,
+      fileName: true,
+      documentType: {
+        select: { typeName: true }
+      }
+    }
+  });
+
+  if (!document) {
+    throw new Error('Document not found or access denied');
+  }
+
+  // The filePath stored is like "ABC 12345/filename.pdf"
+  // Add prefix for Dropbox folder structure
+  const dropboxPath = `/${document.filePath}`;
+
+  try {
+    const result = await getDropboxTemporaryLink(dropboxPath);
+    
+    return {
+      documentId: document.serviceRequestDocumentId,
+      fileName: document.fileName,
+      documentType: document.documentType.typeName,
+      signedUrl: result.link,
+      expiresIn: 3600
+    };
+  } catch (error) {
+    console.error('Error getting Dropbox link:', error);
+    throw new Error('Failed to generate document preview URL');
+  }
 };
