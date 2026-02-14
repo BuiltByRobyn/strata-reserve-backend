@@ -1,3 +1,9 @@
+export interface StrataAssociationInput {
+  strataId: number;
+  strataPosition?: string;
+  sectionIds?: number[];
+}
+
 export interface CreateUserInput {
   firstName: string;
   lastName: string;
@@ -5,10 +11,7 @@ export interface CreateUserInput {
   phoneNumber: string;
   userTypeId: number;
   companyName?: string;
-  strataAssociations: Array<{
-    strataId: number;
-    strataPosition?: string;
-  }>;
+  strataAssociations: StrataAssociationInput[];
 }
 
 export interface UpdateUserInput {
@@ -17,8 +20,5 @@ export interface UpdateUserInput {
   phoneNumber?: string;
   userTypeId?: number;
   companyName?: string;
-  strataAssociations?: Array<{
-    strataId: number;
-    strataPosition?: string;
-  }>;
+  strataAssociations?: StrataAssociationInput[];
 }

@@ -25,6 +25,9 @@ const userInclude = {
           complexName: true,
           company: { select: { companyId: true, companyName: true } }
         }
+      },
+      strataProfileSections: {
+        include: { section: true }
       }
     }
   }
@@ -41,6 +44,9 @@ const userListInclude = {
           complexName: true,
           company: { select: { companyId: true, companyName: true } }
         }
+      },
+      strataProfileSections: {
+        include: { section: true }
       }
     }
   }
@@ -112,13 +118,23 @@ export const createUser = async (data: CreateUserInput) => {
     }
   });
 
-  await prisma.strataProfile.createMany({
-    data: data.strataAssociations.map(sa => ({
-      profileId: userId,
-      strataId: sa.strataId,
-      strataPosition: sa.strataPosition || null
-    }))
-  });
+  for (const sa of data.strataAssociations) {
+    const sp = await prisma.strataProfile.create({
+      data: {
+        profileId: userId,
+        strataId: sa.strataId,
+        strataPosition: sa.strataPosition || null
+      }
+    });
+    if (sa.sectionIds?.length) {
+      await prisma.strataProfileSection.createMany({
+        data: sa.sectionIds.map(sectionId => ({
+          strataProfileId: sp.strataProfileId,
+          sectionId
+        }))
+      });
+    }
+  }
 
   return prisma.profile.findUnique({
     where: { id: userId },
@@ -149,14 +165,22 @@ export const updateUser = async (id: string, data: UpdateUserInput) => {
       where: { profileId: id }
     });
 
-    if (data.strataAssociations.length > 0) {
-      await prisma.strataProfile.createMany({
-        data: data.strataAssociations.map(sa => ({
+    for (const sa of data.strataAssociations) {
+      const sp = await prisma.strataProfile.create({
+        data: {
           profileId: id,
           strataId: sa.strataId,
           strataPosition: sa.strataPosition || null
-        }))
+        }
       });
+      if (sa.sectionIds?.length) {
+        await prisma.strataProfileSection.createMany({
+          data: sa.sectionIds.map(sectionId => ({
+            strataProfileId: sp.strataProfileId,
+            sectionId
+          }))
+        });
+      }
     }
   }
 

@@ -4,12 +4,13 @@ import { parseIntParam } from '../../shared/helpers/parseParams';
 
 export const getSurveyQuestions = asyncHandler(async (c) => {
   const serviceRequestId = parseIntParam(c, 'serviceRequestId');
+  const user = c.get('user');
 
   const { default: prisma } = await import('../../shared/lib/prismaClient');
   const sr = await prisma.serviceRequest.findUnique({
     where: { serviceRequestId },
     include: {
-      strata: { select: { propertyTypeId: true } }
+      strata: { select: { propertyTypeId: true, strataId: true } }
     }
   });
 
@@ -17,9 +18,17 @@ export const getSurveyQuestions = asyncHandler(async (c) => {
     return error(c, 'Service request not found', 404);
   }
 
+  const strataProfile = await prisma.strataProfile.findUnique({
+    where: { strataId_profileId: { strataId: sr.strata.strataId, profileId: user.id } },
+    include: { strataProfileSections: { select: { sectionId: true } } }
+  });
+
+  const sectionIds = strataProfile?.strataProfileSections.map(s => s.sectionId);
+
   const questions = await questionService.getSurveyQuestions(
     sr.serviceId,
-    sr.strata.propertyTypeId ?? undefined
+    sr.strata.propertyTypeId ?? undefined,
+    sectionIds
   );
 
   return success(c, questions);

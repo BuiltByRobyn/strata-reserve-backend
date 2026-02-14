@@ -18,3 +18,6 @@ lookupRoutes.get('/services', lookupController.getServices);
 
 lookupRoutes.get('/document-types', lookupController.getDocumentTypes);
 lookupRoutes.get('/review-statuses', lookupController.getReviewStatuses);
+
+lookupRoutes.get('/sections', lookupController.getSections);
+lookupRoutes.get('/question-types', lookupController.getQuestionTypes);

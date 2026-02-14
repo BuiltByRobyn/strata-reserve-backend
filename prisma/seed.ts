@@ -36,6 +36,63 @@ async function main() {
     })
   }
   console.log('✅ Question types seeded\n')
+
+  console.log('⚖️ Seeding legal types...')
+  const legalTypeNames = ['Standard', 'Bare Land', 'Air Parcel']
+  for (const name of legalTypeNames) {
+    await prisma.legalType.upsert({
+      where: { legalTypeName: name },
+      update: {},
+      create: { legalTypeName: name }
+    })
+  }
+  console.log('✅ Legal types seeded\n')
+
+  console.log('🏠 Seeding property types...')
+  const propertyTypeNames = [
+    'Bare Land',
+    'Bare Land with Septic',
+    'Bare Land with Clubhouse',
+    'Townhomes',
+    'Townhomes with Septic',
+    'Townhomes with Clubhouse',
+    'Apartments',
+    'Apartments with Clubhouse',
+    'Mixed-Use: Apt over Retail',
+    'Mixed-Use: Commercial',
+    'Industrial',
+    'Air Parcel',
+    'Other'
+  ]
+  for (const name of propertyTypeNames) {
+    await prisma.propertyType.upsert({
+      where: { propertyTypeName: name },
+      update: {},
+      create: { propertyTypeName: name }
+    })
+  }
+  console.log('✅ Property types seeded\n')
+
+  console.log('📋 Seeding sections...')
+  const sectionNames = [
+    'Shared - Joint Use',
+    'Residential',
+    'Retail',
+    'Office',
+    'Parking',
+    'Hospitality',
+    'Industrial',
+    'Other'
+  ]
+  for (const name of sectionNames) {
+    await prisma.section.upsert({
+      where: { sectionName: name },
+      update: {},
+      create: { sectionName: name }
+    })
+  }
+  console.log('✅ Sections seeded\n')
+
   console.log('📄 Seeding document types...')
   
   const documentTypes = [
@@ -74,8 +131,8 @@ async function main() {
     return
   }
 
-  const propertyTypes = await prisma.propertyType.findMany()
-  const bareLand = propertyTypes.find(pt => pt.propertyTypeName === 'Bare Land')
+  const allPropertyTypes = await prisma.propertyType.findMany()
+  const bareLand = allPropertyTypes.find(pt => pt.propertyTypeName === 'Bare Land')
   
   const qtTextarea = await prisma.questionType.findFirst({ 
     where: { questionTypeName: 'textarea' } 
@@ -601,14 +658,14 @@ async function main() {
   const allDocTypes = await prisma.documentType.findMany()
   const docType = (name: string) => allDocTypes.find(d => d.typeName === name)
 
-  const industrial = propertyTypes.find(pt => pt.propertyTypeName.toLowerCase().includes('industrial'))
-  const townhome = propertyTypes.find(pt => pt.propertyTypeName.toLowerCase().includes('townhome') || pt.propertyTypeName.toLowerCase().includes('townhouse'))
-  const apartment = propertyTypes.find(pt => pt.propertyTypeName.toLowerCase().includes('apartment'))
-  const joint = propertyTypes.find(pt => pt.propertyTypeName.toLowerCase().includes('joint'))
-  const section1 = propertyTypes.find(pt => pt.propertyTypeName.toLowerCase().includes('section 1') || pt.propertyTypeName === 'S-1')
-  const section2 = propertyTypes.find(pt => pt.propertyTypeName.toLowerCase().includes('section 2') || pt.propertyTypeName === 'S-2')
+  const industrial = allPropertyTypes.find(pt => pt.propertyTypeName === 'Industrial')
+  const townhome = allPropertyTypes.find(pt => pt.propertyTypeName === 'Townhomes')
+  const apartment = allPropertyTypes.find(pt => pt.propertyTypeName === 'Apartments')
+  const airParcel = allPropertyTypes.find(pt => pt.propertyTypeName === 'Air Parcel')
+  const mixedUseApt = allPropertyTypes.find(pt => pt.propertyTypeName === 'Mixed-Use: Apt over Retail')
+  const mixedUseComm = allPropertyTypes.find(pt => pt.propertyTypeName === 'Mixed-Use: Commercial')
 
-  console.log('  Property types found:', propertyTypes.map(pt => pt.propertyTypeName).join(', '))
+  console.log('  Property types found:', allPropertyTypes.map(pt => pt.propertyTypeName).join(', '))
 
   await prisma.requiredDocument.deleteMany({})
 
@@ -638,12 +695,12 @@ async function main() {
   addUniversal('Special General Meeting Minutes')
   addUniversal('Former Depreciation Reports')
 
-  addForPropertyTypes('Engineering/Elevator/Roofing Reports', [industrial, apartment, joint, section1, section2])
+  addForPropertyTypes('Engineering/Elevator/Roofing Reports', [industrial, apartment, mixedUseApt, mixedUseComm, airParcel])
   addForPropertyTypes('Engineering + Specialist Reports', [bareLand])
-  addForPropertyTypes('Architectural/Building Plans', [industrial, townhome, joint, section1, section2])
+  addForPropertyTypes('Architectural/Building Plans', [industrial, townhome, mixedUseApt, mixedUseComm, airParcel])
   addForPropertyTypes('Clubhouse Building Plans', [bareLand])
-  addForPropertyTypes('Shared Utility/Shared Amenity Agreements', [bareLand, industrial, townhome, joint, section1])
-  addForPropertyTypes('Air Parcel Agreement', [industrial, townhome, joint, section1])
+  addForPropertyTypes('Shared Utility/Shared Amenity Agreements', [bareLand, industrial, townhome, mixedUseApt])
+  addForPropertyTypes('Air Parcel Agreement', [airParcel, industrial, townhome, mixedUseApt])
 
   await prisma.requiredDocument.createMany({ data: requiredDocs })
   console.log(`  ✅ ${requiredDocs.length} required document entries seeded`)

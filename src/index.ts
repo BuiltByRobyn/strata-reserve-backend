@@ -16,6 +16,7 @@ import { companyHolidayRoutes } from './admin/routes/companyHolidayRoutes';
 import { documentRoutes } from './admin/routes/documentRoutes';
 import { serviceRequestRoutes } from './admin/routes/serviceRequestRoutes';
 import { adminSurveyRoutes } from './admin/routes/adminSurveyRoutes';
+import { questionRoutes } from './admin/routes/questionRoutes';
 
 // Client routes
 import { clientRoutes } from './client/routes/clientRoutes';
@@ -65,6 +66,7 @@ app.route('/admin', companyHolidayRoutes);
 app.route('/admin', documentRoutes);
 app.route('/admin', serviceRequestRoutes);
 app.route('/admin', adminSurveyRoutes);
+app.route('/admin', questionRoutes);
 
 // Client routes (auth required)
 app.use('/client/*', authMiddleware);

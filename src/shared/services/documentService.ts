@@ -71,13 +71,25 @@ export const searchDocuments = async (query: string) => {
 };
 
 export const getDocumentsByProfile = async (profileId: string) => {
+  const profileSections = await prisma.strataProfileSection.findMany({
+    where: { strataProfile: { profileId } },
+    select: { sectionId: true },
+  });
+  const sectionIds = profileSections.map(s => s.sectionId);
+
   return prisma.serviceRequestDocument.findMany({
     where: {
       serviceRequest: {
         strata: {
           strataProfiles: { some: { profileId } }
         }
-      }
+      },
+      ...(sectionIds.length ? {
+        OR: [
+          { sectionId: null },
+          { sectionId: { in: sectionIds } }
+        ]
+      } : {}),
     },
     orderBy: { uploadedAt: 'desc' },
     include: documentInclude

@@ -66,3 +66,15 @@ export const getReviewStatuses = async () => {
     orderBy: { reviewStatusId: 'asc' }
   });
 };
+
+export const getSections = async () => {
+  return prisma.section.findMany({
+    orderBy: { sectionId: 'asc' }
+  });
+};
+
+export const getQuestionTypes = async () => {
+  return prisma.questionType.findMany({
+    orderBy: { questionTypeId: 'asc' }
+  });
+};
