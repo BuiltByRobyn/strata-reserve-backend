@@ -596,13 +596,64 @@ async function main() {
 
   console.log('  ✅ Council Concerns questions seeded')
 
-  console.log('\n✅ All survey questions seeded!\n')
+  console.log('\n📋 Seeding required documents...\n')
+
+  const allDocTypes = await prisma.documentType.findMany()
+  const docType = (name: string) => allDocTypes.find(d => d.typeName === name)
+
+  const industrial = propertyTypes.find(pt => pt.propertyTypeName.toLowerCase().includes('industrial'))
+  const townhome = propertyTypes.find(pt => pt.propertyTypeName.toLowerCase().includes('townhome') || pt.propertyTypeName.toLowerCase().includes('townhouse'))
+  const apartment = propertyTypes.find(pt => pt.propertyTypeName.toLowerCase().includes('apartment'))
+  const joint = propertyTypes.find(pt => pt.propertyTypeName.toLowerCase().includes('joint'))
+  const section1 = propertyTypes.find(pt => pt.propertyTypeName.toLowerCase().includes('section 1') || pt.propertyTypeName === 'S-1')
+  const section2 = propertyTypes.find(pt => pt.propertyTypeName.toLowerCase().includes('section 2') || pt.propertyTypeName === 'S-2')
+
+  console.log('  Property types found:', propertyTypes.map(pt => pt.propertyTypeName).join(', '))
+
+  await prisma.requiredDocument.deleteMany({})
+
+  const requiredDocs: Array<{ serviceId: number; documentTypeId: number; propertyTypeId: number | null; isRequired: boolean }> = []
+
+  const addUniversal = (docTypeName: string) => {
+    const dt = docType(docTypeName)
+    if (dt) {
+      requiredDocs.push({ serviceId: standardDR.serviceId, documentTypeId: dt.documentTypeId, propertyTypeId: null, isRequired: true })
+    }
+  }
+
+  const addForPropertyTypes = (docTypeName: string, pts: Array<{ propertyTypeId: number } | undefined>) => {
+    const dt = docType(docTypeName)
+    if (!dt) return
+    for (const pt of pts) {
+      if (pt) {
+        requiredDocs.push({ serviceId: standardDR.serviceId, documentTypeId: dt.documentTypeId, propertyTypeId: pt.propertyTypeId, isRequired: true })
+      }
+    }
+  }
+
+  addUniversal('Strata Plan')
+  addUniversal('Current Bylaws')
+  addUniversal('AGM Notice with Proposed Budget/Financial Documents')
+  addUniversal('AGM Minutes with Financials')
+  addUniversal('Special General Meeting Minutes')
+  addUniversal('Former Depreciation Reports')
+
+  addForPropertyTypes('Engineering/Elevator/Roofing Reports', [industrial, apartment, joint, section1, section2])
+  addForPropertyTypes('Engineering + Specialist Reports', [bareLand])
+  addForPropertyTypes('Architectural/Building Plans', [industrial, townhome, joint, section1, section2])
+  addForPropertyTypes('Clubhouse Building Plans', [bareLand])
+  addForPropertyTypes('Shared Utility/Shared Amenity Agreements', [bareLand, industrial, townhome, joint, section1])
+  addForPropertyTypes('Air Parcel Agreement', [industrial, townhome, joint, section1])
+
+  await prisma.requiredDocument.createMany({ data: requiredDocs })
+  console.log(`  ✅ ${requiredDocs.length} required document entries seeded`)
+
+  console.log('\n✅ All seed data complete!\n')
   console.log(`📊 Summary:`)
   console.log(`   - Question Types: ${questionTypes.length}`)
   console.log(`   - Document Types: ${documentTypes.length}`)
   console.log(`   - Survey Questions: 22`)
-  console.log(`   - Property-Specific (Bare Land): 15 questions`)
-  console.log(`   - Universal Questions: 7 questions`)
+  console.log(`   - Required Documents: ${requiredDocs.length}`)
 }
 
 main()

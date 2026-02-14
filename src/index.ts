@@ -2,6 +2,7 @@ import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { logger } from 'hono/logger';
 import { cors } from 'hono/cors';
+import { authMiddleware, adminMiddleware } from './shared/middleware/auth';
 
 // Admin routes
 import { adminRoutes } from './admin/routes/adminRoutes';
@@ -28,17 +29,31 @@ import { lookupRoutes } from './shared/routes/lookupRoutes';
 
 const app = new Hono();
 
+app.onError((err, c) => {
+  console.error('Unhandled error:', err.message);
+  return c.json({ success: false, error: 'Internal server error' }, 500);
+});
+
 // Middleware
 app.use('*', logger());
-app.use('*', cors());
+app.use('*', cors({
+  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  credentials: true,
+}));
+
+// Health check
+app.get('/health', (c) => c.json({ status: 'ok' }, 200));
 
 // Auth routes (shared)
 app.route('/auth', authRoutes);
 
-// API routes (shared - lookups accessible to all authenticated users)
+// API routes (auth required)
+app.use('/api/*', authMiddleware);
 app.route('/api/lookups', lookupRoutes);
 
-// Admin routes
+// Admin routes (auth + admin role required)
+app.use('/admin/*', authMiddleware);
+app.use('/admin/*', adminMiddleware);
 app.route('/admin', adminRoutes);
 app.route('/admin', adminProfileRoutes);
 app.route('/admin', adminUsersRoutes);
@@ -51,7 +66,8 @@ app.route('/admin', documentRoutes);
 app.route('/admin', serviceRequestRoutes);
 app.route('/admin', adminSurveyRoutes);
 
-// Client routes
+// Client routes (auth required)
+app.use('/client/*', authMiddleware);
 app.route('/client', clientRoutes);
 app.route('/client', clientProfileRoutes);
 app.route('/client', clientDocumentRoutes);

@@ -62,47 +62,51 @@ export interface SaveResponseInput {
 }
 
 export const saveResponses = async (responses: SaveResponseInput[]) => {
-  const results = [];
+  if (responses.length === 0) return [];
 
-  for (const resp of responses) {
-    const existing = await prisma.questionResponse.findFirst({
-      where: {
-        serviceRequestId: resp.serviceRequestId,
-        questionId: resp.questionId
-      }
-    });
+  const serviceRequestIds = [...new Set(responses.map(r => r.serviceRequestId))];
 
-    if (existing) {
-      const updated = await prisma.questionResponse.update({
-        where: { responseId: existing.responseId },
-        data: {
-          responseText: resp.responseText ?? null,
-          responseDate: resp.responseDate ? new Date(resp.responseDate) : null,
-          responseNumber: resp.responseNumber ?? null,
-          responseBoolean: resp.responseBoolean ?? null,
-          multipleChoiceOptionId: resp.multipleChoiceOptionId ?? null,
-          answeredByProfileId: resp.answeredByProfileId,
-        }
+  const existingResponses = await prisma.questionResponse.findMany({
+    where: {
+      serviceRequestId: { in: serviceRequestIds },
+      questionId: { in: responses.map(r => r.questionId) }
+    },
+    select: { responseId: true, serviceRequestId: true, questionId: true }
+  });
+
+  const existingMap = new Map(
+    existingResponses.map(r => [`${r.serviceRequestId}-${r.questionId}`, r.responseId])
+  );
+
+  const operations = responses.map(resp => {
+    const key = `${resp.serviceRequestId}-${resp.questionId}`;
+    const existingId = existingMap.get(key);
+    const data = {
+      responseText: resp.responseText ?? null,
+      responseDate: resp.responseDate ? new Date(resp.responseDate) : null,
+      responseNumber: resp.responseNumber ?? null,
+      responseBoolean: resp.responseBoolean ?? null,
+      multipleChoiceOptionId: resp.multipleChoiceOptionId ?? null,
+      answeredByProfileId: resp.answeredByProfileId,
+    };
+
+    if (existingId) {
+      return prisma.questionResponse.update({
+        where: { responseId: existingId },
+        data,
       });
-      results.push(updated);
     } else {
-      const created = await prisma.questionResponse.create({
+      return prisma.questionResponse.create({
         data: {
           serviceRequestId: resp.serviceRequestId,
           questionId: resp.questionId,
-          answeredByProfileId: resp.answeredByProfileId,
-          responseText: resp.responseText ?? null,
-          responseDate: resp.responseDate ? new Date(resp.responseDate) : null,
-          responseNumber: resp.responseNumber ?? null,
-          responseBoolean: resp.responseBoolean ?? null,
-          multipleChoiceOptionId: resp.multipleChoiceOptionId ?? null,
-        }
+          ...data,
+        },
       });
-      results.push(created);
     }
-  }
+  });
 
-  return results;
+  return prisma.$transaction(operations);
 };
 
 export const getSurveySections = async (serviceId: number) => {
