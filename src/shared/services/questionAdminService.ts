@@ -25,30 +25,33 @@ export const getQuestionById = async (id: number) => {
 };
 
 export const createQuestion = async (data: CreateQuestionInput) => {
-  const { serviceIds, propertyTypeIds, legalTypeIds, sectionIds, multipleChoiceOptions, ...questionData } = data;
+  const { serviceIds, propertyTypeIds, legalTypeIds, sectionIds, multipleChoiceOptions, questionText, isRequired, informationText, questionCategory, questionTypeId } = data;
+
+  const dataPayload = {
+    questionText,
+    isRequired,
+    informationText: informationText ?? null,
+    questionCategory,
+    questionTypeId,
+    ...(serviceIds.length > 0
+      ? { questionServices: { create: serviceIds.map(s => ({ serviceId: s.serviceId, sortOrder: s.sortOrder })) } }
+      : {}),
+    ...(propertyTypeIds.length > 0
+      ? { questionPropertyTypes: { create: propertyTypeIds.map(id => ({ propertyTypeId: id })) } }
+      : {}),
+    ...(legalTypeIds.length > 0
+      ? { questionLegalTypes: { create: legalTypeIds.map(id => ({ legalTypeId: id })) } }
+      : {}),
+    ...(sectionIds.length > 0
+      ? { questionSections: { create: sectionIds.map(id => ({ sectionId: id })) } }
+      : {}),
+    ...(multipleChoiceOptions?.length
+      ? { multipleChoiceOptions: { create: multipleChoiceOptions.map(o => ({ optionText: o.optionText, sortOrder: o.sortOrder })) } }
+      : {}),
+  };
 
   return prisma.question.create({
-    data: {
-      ...questionData,
-      informationText: questionData.informationText ?? null,
-      questionServices: {
-        create: serviceIds.map(s => ({ serviceId: s.serviceId, sortOrder: s.sortOrder })),
-      },
-      questionPropertyTypes: {
-        create: propertyTypeIds.map(id => ({ propertyTypeId: id })),
-      },
-      questionLegalTypes: {
-        create: legalTypeIds.map(id => ({ legalTypeId: id })),
-      },
-      questionSections: {
-        create: sectionIds.map(id => ({ sectionId: id })),
-      },
-      ...(multipleChoiceOptions?.length ? {
-        multipleChoiceOptions: {
-          create: multipleChoiceOptions.map(o => ({ optionText: o.optionText, sortOrder: o.sortOrder })),
-        },
-      } : {}),
-    },
+    data: dataPayload,
     include: questionInclude,
   });
 };
