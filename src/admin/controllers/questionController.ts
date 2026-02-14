@@ -1,4 +1,3 @@
-import { PrismaClientKnownRequestError } from '@prisma/client';
 import * as questionAdminService from '../../shared/services/questionAdminService';
 import { success, created, error, asyncHandler } from '../../shared/helpers/responseHelper';
 import { parseIntParam } from '../../shared/helpers/parseParams';
@@ -49,11 +48,12 @@ export const createQuestion = asyncHandler(async (c) => {
       })) : [],
     });
     return created(c, question);
-  } catch (err) {
-    if (err instanceof PrismaClientKnownRequestError) {
-      return error(c, err.message, 400);
+  } catch (err: unknown) {
+    const errObj = err && typeof err === 'object' ? err as { code?: string; message?: string; cause?: { code?: string; message?: string } } : null;
+    if (errObj?.code && typeof errObj.message === 'string') {
+      return error(c, errObj.message, 400);
     }
-    const cause = err && typeof err === 'object' ? (err as { cause?: { code?: string; message?: string } }).cause : undefined;
+    const cause = errObj?.cause;
     if (cause?.code === '23514' && typeof cause?.message === 'string' && cause.message.includes('question_question_category_check')) {
       return error(
         c,
