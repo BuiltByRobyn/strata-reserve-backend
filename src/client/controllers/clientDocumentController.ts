@@ -41,13 +41,3 @@ export const getDocumentsByServiceRequest = asyncHandler(async (c) => {
   const documents = await documentService.getDocumentsByServiceRequest(serviceRequestId);
   return success(c, documents);
 }, 'Failed to fetch documents');
-
-// NEW: Get document preview URL
-export const getDocumentPreview = asyncHandler(async (c) => {
-  const documentId = parseIntParam(c, 'id');
-  const user = c.get('user');
-  
-  const previewData = await documentService.getDocumentPreviewUrl(documentId, user.id);
-  
-  return success(c, previewData);
-}, 'Failed to generate document preview');

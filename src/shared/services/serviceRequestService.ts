@@ -1,5 +1,6 @@
 import prisma from '../lib/prismaClient';
 import type { CreateServiceRequestInput } from '../types/serviceRequest.types';
+import { serviceRequestIncludeList, profileSelectBrief, profileSelectWithEmail, documentIncludeCompact } from '../constants/prismaIncludes';
 
 export const getServiceRequests = async (filters?: { strataId?: number; archived?: boolean }) => {
   return prisma.serviceRequest.findMany({
@@ -8,14 +9,7 @@ export const getServiceRequests = async (filters?: { strataId?: number; archived
       ...(filters?.archived !== undefined ? { archived: filters.archived } : {})
     },
     orderBy: { requestDate: 'desc' },
-    include: {
-      service: { select: { serviceId: true, serviceName: true } },
-      strata: { select: { strataId: true, strataPlan: true, complexName: true } },
-      requestedBy: { select: { id: true, firstName: true, lastName: true, displayName: true } },
-      _count: {
-        select: { questionResponses: true, serviceRequestDocuments: true, appointments: true }
-      }
-    }
+    include: serviceRequestIncludeList
   });
 };
 
@@ -25,20 +19,16 @@ export const getServiceRequestById = async (id: number) => {
     include: {
       service: true,
       strata: true,
-      requestedBy: { select: { id: true, firstName: true, lastName: true, displayName: true, email: true } },
+      requestedBy: { select: profileSelectWithEmail },
       questionResponses: {
         include: {
           question: true,
-          answeredBy: { select: { id: true, firstName: true, lastName: true, displayName: true } },
+          answeredBy: { select: profileSelectBrief },
           multipleChoiceOption: true
         }
       },
       serviceRequestDocuments: {
-        include: {
-          documentType: { select: { documentTypeId: true, typeName: true } },
-          uploadedBy: { select: { id: true, firstName: true, lastName: true, displayName: true } },
-          reviewStatus: { select: { reviewStatusId: true, statusName: true } }
-        }
+        include: documentIncludeCompact
       },
       appointments: true,
       appointmentRequests: true
@@ -49,14 +39,7 @@ export const getServiceRequestById = async (id: number) => {
 export const getActiveByStrata = async (strataId: number) => {
   return prisma.serviceRequest.findFirst({
     where: { strataId, archived: false },
-    include: {
-      service: { select: { serviceId: true, serviceName: true } },
-      strata: { select: { strataId: true, strataPlan: true, complexName: true } },
-      requestedBy: { select: { id: true, firstName: true, lastName: true, displayName: true } },
-      _count: {
-        select: { questionResponses: true, serviceRequestDocuments: true, appointments: true }
-      }
-    }
+    include: serviceRequestIncludeList
   });
 };
 
@@ -80,7 +63,7 @@ export const createServiceRequest = async (data: CreateServiceRequestInput) => {
     include: {
       service: { select: { serviceId: true, serviceName: true } },
       strata: { select: { strataId: true, strataPlan: true, complexName: true } },
-      requestedBy: { select: { id: true, firstName: true, lastName: true, displayName: true } }
+      requestedBy: { select: profileSelectBrief }
     }
   });
 };

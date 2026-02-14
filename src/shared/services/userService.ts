@@ -1,12 +1,18 @@
 import prisma from '../lib/prismaClient';
 import { createClient } from '@supabase/supabase-js';
+import type { Prisma } from '@prisma/client';
 import type { CreateUserInput, UpdateUserInput } from '../types/user.types';
 
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-  { auth: { autoRefreshToken: false, persistSession: false } }
-);
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseServiceKey) {
+  throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required');
+}
+
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: { autoRefreshToken: false, persistSession: false }
+});
 
 const userInclude = {
   userType: true,
@@ -45,7 +51,7 @@ export const getUsers = async (filters?: {
   strataId?: string;
   userTypeId?: string;
 }) => {
-  const whereClause: any = {};
+  const whereClause: Prisma.ProfileWhereInput = {};
 
   if (filters?.search) {
     whereClause.OR = [
@@ -126,11 +132,11 @@ export const updateUser = async (id: string, data: UpdateUserInput) => {
     return null;
   }
 
-  const updateData: any = {};
+  const updateData: Prisma.ProfileUpdateInput = {};
   if (data.firstName !== undefined) updateData.firstName = data.firstName;
   if (data.lastName !== undefined) updateData.lastName = data.lastName;
   if (data.phoneNumber !== undefined) updateData.phoneNumber = data.phoneNumber;
-  if (data.userTypeId !== undefined) updateData.userTypeId = data.userTypeId;
+  if (data.userTypeId !== undefined) updateData.userType = { connect: { userTypeId: data.userTypeId } };
   if (data.companyName !== undefined) updateData.companyName = data.companyName || null;
 
   await prisma.profile.update({
@@ -166,16 +172,16 @@ export const deleteUser = async (id: string) => {
     return null;
   }
 
-  await prisma.strataProfile.deleteMany({
-    where: { profileId: id }
-  });
-
-  await prisma.profile.delete({ where: { id } });
-
+  // Delete from auth first — if this fails, DB stays intact
   const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(id);
   if (authError) {
-    console.error('Auth delete error (user already deleted from DB):', authError);
+    throw new Error(`Failed to delete auth user: ${authError.message}`);
   }
+
+  await prisma.$transaction([
+    prisma.strataProfile.deleteMany({ where: { profileId: id } }),
+    prisma.profile.delete({ where: { id } }),
+  ]);
 
   return true;
 };

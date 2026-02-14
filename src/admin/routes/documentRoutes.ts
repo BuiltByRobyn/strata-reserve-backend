@@ -18,6 +18,3 @@ documentRoutes.put('/documents/:id/status', documentController.updateDocumentSta
 
 // DELETE /admin/documents/:id - Delete document
 documentRoutes.delete('/documents/:id', documentController.deleteDocument);
-
-// GET /admin/documents/:id/preview - Get document preview URL
-documentRoutes.get('/documents/:id/preview', documentController.getDocumentPreview);

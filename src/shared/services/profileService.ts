@@ -69,16 +69,9 @@ export const searchProfiles = async (query: string) => {
 };
 
 export const getUnassignedProfiles = async (strataId: number) => {
-  const assignedProfileIds = await prisma.strataProfile.findMany({
-    where: { strataId },
-    select: { profileId: true }
-  });
-
-  const assignedIds = assignedProfileIds.map(p => p.profileId);
-
   return prisma.profile.findMany({
     where: {
-      id: { notIn: assignedIds }
+      strataProfiles: { none: { strataId } }
     },
     orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
     include: {
