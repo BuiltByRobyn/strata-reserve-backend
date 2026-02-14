@@ -30,17 +30,17 @@ import { lookupRoutes } from './shared/routes/lookupRoutes';
 
 const app = new Hono();
 
-app.onError((err, c) => {
-  console.error('Unhandled error:', err.message);
-  return c.json({ success: false, error: 'Internal server error' }, 500);
-});
-
 // Middleware
 app.use('*', logger());
 app.use('*', cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
   credentials: true,
 }));
+
+app.onError((err, c) => {
+  console.error('Unhandled error:', err.message);
+  return c.json({ success: false, error: 'Internal server error' }, 500);
+});
 
 // Health check
 app.get('/health', (c) => c.json({ status: 'ok' }, 200));
