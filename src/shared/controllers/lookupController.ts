@@ -31,3 +31,13 @@ export const getReviewStatuses = asyncHandler(async (c) => {
   const reviewStatuses = await lookupService.getReviewStatuses();
   return success(c, reviewStatuses);
 }, 'Failed to fetch review statuses');
+
+export const getSections = asyncHandler(async (c) => {
+  const sections = await lookupService.getSections();
+  return success(c, sections);
+}, 'Failed to fetch sections');
+
+export const getQuestionTypes = asyncHandler(async (c) => {
+  const questionTypes = await lookupService.getQuestionTypes();
+  return success(c, questionTypes);
+}, 'Failed to fetch question types');

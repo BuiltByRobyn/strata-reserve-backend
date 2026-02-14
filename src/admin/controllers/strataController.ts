@@ -2,6 +2,8 @@ import * as strataService from '../../shared/services/strataService';
 import { success, created, error, asyncHandler } from '../../shared/helpers/responseHelper';
 import { parseIntParam } from '../../shared/helpers/parseParams';
 
+const STRATA_ID_PATTERN = /^[A-Za-z]{3}\s\d{5}$/;
+
 export const getStratas = asyncHandler(async (c) => {
   const stratas = await strataService.getStratas();
   return success(c, stratas);
@@ -18,6 +20,9 @@ export const getStrataById = asyncHandler(async (c) => {
 
 export const createStrata = asyncHandler(async (c) => {
   const body = await c.req.json();
+  if (body.strataPlan && !STRATA_ID_PATTERN.test(body.strataPlan.trim())) {
+    return error(c, 'Strata Plan must be in format: ABC 12345 (3 letters, space, 5 digits)', 400);
+  }
   const strata = await strataService.createStrata({
     strataPlan: body.strataPlan?.trim(),
     complexName: body.complexName?.trim(),
@@ -30,7 +35,8 @@ export const createStrata = asyncHandler(async (c) => {
     website: body.website?.trim(),
     legalTypeId: body.legalTypeId ? parseInt(body.legalTypeId) : undefined,
     propertyTypeId: body.propertyTypeId ? parseInt(body.propertyTypeId) : undefined,
-    companyId: body.companyId ? parseInt(body.companyId) : undefined
+    companyId: body.companyId ? parseInt(body.companyId) : undefined,
+    sectionIds: Array.isArray(body.sectionIds) ? body.sectionIds.map(Number) : undefined
   });
   return created(c, strata);
 }, 'Failed to create strata');
@@ -38,6 +44,9 @@ export const createStrata = asyncHandler(async (c) => {
 export const updateStrata = asyncHandler(async (c) => {
   const id = parseIntParam(c, 'id');
   const body = await c.req.json();
+  if (body.strataPlan && !STRATA_ID_PATTERN.test(body.strataPlan.trim())) {
+    return error(c, 'Strata Plan must be in format: ABC 12345 (3 letters, space, 5 digits)', 400);
+  }
   const strata = await strataService.updateStrata(id, {
     strataPlan: body.strataPlan?.trim(),
     complexName: body.complexName?.trim(),
@@ -50,7 +59,8 @@ export const updateStrata = asyncHandler(async (c) => {
     website: body.website?.trim(),
     legalTypeId: body.legalTypeId !== undefined ? parseInt(body.legalTypeId) : undefined,
     propertyTypeId: body.propertyTypeId !== undefined ? parseInt(body.propertyTypeId) : undefined,
-    companyId: body.companyId !== undefined ? parseInt(body.companyId) : undefined
+    companyId: body.companyId !== undefined ? parseInt(body.companyId) : undefined,
+    sectionIds: Array.isArray(body.sectionIds) ? body.sectionIds.map(Number) : undefined
   });
   return success(c, strata);
 }, 'Failed to update strata');
@@ -88,6 +98,12 @@ export const deleteStrataNote = asyncHandler(async (c) => {
   return success(c, { message: 'Note deleted successfully' });
 }, 'Failed to delete strata note');
 
+export const getStrataSections = asyncHandler(async (c) => {
+  const strataId = parseIntParam(c, 'id');
+  const sections = await strataService.getSectionsByStrataId(strataId);
+  return success(c, sections);
+}, 'Failed to fetch strata sections');
+
 export const assignEmployee = asyncHandler(async (c) => {
   const strataId = parseIntParam(c, 'id');
   const body = await c.req.json();
@@ -97,7 +113,8 @@ export const assignEmployee = asyncHandler(async (c) => {
   const assignment = await strataService.assignEmployeeToStrata({
     strataId,
     profileId: body.profileId,
-    strataPosition: body.strataPosition?.trim()
+    strataPosition: body.strataPosition?.trim(),
+    sectionIds: Array.isArray(body.sectionIds) ? body.sectionIds.map(Number) : undefined
   });
   return created(c, assignment);
 }, 'Failed to assign employee');

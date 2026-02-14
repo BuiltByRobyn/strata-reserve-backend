@@ -40,6 +40,9 @@ strataRoutes.delete('/strata/:id/notes/:noteId', strataController.deleteStrataNo
 // Strata Employees
 // ============================================
 
+// GET /admin/strata/:id/sections - Get strata sections
+strataRoutes.get('/strata/:id/sections', strataController.getStrataSections);
+
 // POST /admin/strata/:id/employees - Assign employee to strata
 strataRoutes.post('/strata/:id/employees', strataController.assignEmployee);
 

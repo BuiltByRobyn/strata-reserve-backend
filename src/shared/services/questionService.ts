@@ -1,6 +1,6 @@
 import prisma from '../lib/prismaClient';
 
-export const getSurveyQuestions = async (serviceId: number, propertyTypeId?: number) => {
+export const getSurveyQuestions = async (serviceId: number, propertyTypeId?: number, sectionIds?: number[]) => {
   const questions = await prisma.question.findMany({
     where: {
       questionServices: { some: { serviceId } },
@@ -11,7 +11,13 @@ export const getSurveyQuestions = async (serviceId: number, propertyTypeId?: num
         ]
       } : {
         questionPropertyTypes: { none: {} }
-      })
+      }),
+      ...(sectionIds?.length ? {
+        OR: [
+          { questionSections: { none: {} } },
+          { questionSections: { some: { sectionId: { in: sectionIds } } } }
+        ]
+      } : {}),
     },
     include: {
       questionType: true,

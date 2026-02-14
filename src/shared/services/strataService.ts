@@ -14,6 +14,9 @@ export const getStratas = async () => {
       company: { select: { companyId: true, companyName: true } },
       legalType: { select: { legalTypeId: true, legalTypeName: true } },
       propertyType: { select: { propertyTypeId: true, propertyTypeName: true } },
+      strataSections: {
+        include: { section: true }
+      },
       _count: {
         select: { strataNotes: true, strataProfiles: true, strataServices: true }
       }
@@ -40,6 +43,9 @@ export const getStrataById = async (id: number) => {
         include: {
           profile: {
             select: { id: true, firstName: true, lastName: true, displayName: true, email: true }
+          },
+          strataProfileSections: {
+            include: { section: true }
           }
         }
       },
@@ -47,34 +53,56 @@ export const getStrataById = async (id: number) => {
         include: {
           service: { select: { serviceId: true, serviceName: true, serviceDescription: true } }
         }
+      },
+      strataSections: {
+        include: { section: true }
       }
     }
   });
 };
 
 export const createStrata = async (data: CreateStrataInput) => {
+  const { sectionIds, ...strataData } = data;
   return prisma.strata.create({
     data: {
-      strataPlan: data.strataPlan,
-      complexName: data.complexName,
-      unitNumber: data.unitNumber,
-      streetName: data.streetName,
-      town: data.town,
-      province: data.province,
-      postalCode: data.postalCode,
-      country: data.country || 'Canada',
-      website: data.website,
-      legalTypeId: data.legalTypeId,
-      propertyTypeId: data.propertyTypeId,
-      companyId: data.companyId
-    }
+      strataPlan: strataData.strataPlan,
+      complexName: strataData.complexName,
+      unitNumber: strataData.unitNumber,
+      streetName: strataData.streetName,
+      town: strataData.town,
+      province: strataData.province,
+      postalCode: strataData.postalCode,
+      country: strataData.country || 'Canada',
+      website: strataData.website,
+      legalTypeId: strataData.legalTypeId,
+      propertyTypeId: strataData.propertyTypeId,
+      companyId: strataData.companyId,
+      ...(sectionIds?.length ? {
+        strataSections: {
+          create: sectionIds.map(sectionId => ({ sectionId }))
+        }
+      } : {})
+    },
+    include: { strataSections: { include: { section: true } } }
   });
 };
 
 export const updateStrata = async (id: number, data: UpdateStrataInput) => {
+  const { sectionIds, ...strataData } = data;
+
+  if (sectionIds !== undefined) {
+    await prisma.strataSection.deleteMany({ where: { strataId: id } });
+    if (sectionIds.length > 0) {
+      await prisma.strataSection.createMany({
+        data: sectionIds.map(sectionId => ({ strataId: id, sectionId }))
+      });
+    }
+  }
+
   return prisma.strata.update({
     where: { strataId: id },
-    data
+    data: strataData,
+    include: { strataSections: { include: { section: true } } }
   });
 };
 
@@ -102,13 +130,42 @@ export const deleteStrataNote = async (noteId: number) => {
 };
 
 export const assignEmployeeToStrata = async (data: CreateStrataProfileInput) => {
-  return prisma.strataProfile.create({
+  const { sectionIds, ...profileData } = data;
+  const strataProfile = await prisma.strataProfile.create({
     data: {
-      strataId: data.strataId,
-      profileId: data.profileId,
-      strataPosition: data.strataPosition
+      strataId: profileData.strataId,
+      profileId: profileData.profileId,
+      strataPosition: profileData.strataPosition
     }
   });
+
+  if (sectionIds?.length) {
+    await prisma.strataProfileSection.createMany({
+      data: sectionIds.map(sectionId => ({
+        strataProfileId: strataProfile.strataProfileId,
+        sectionId
+      }))
+    });
+  }
+
+  return strataProfile;
+};
+
+export const updateStrataProfileSections = async (strataProfileId: number, sectionIds: number[]) => {
+  await prisma.strataProfileSection.deleteMany({ where: { strataProfileId } });
+  if (sectionIds.length > 0) {
+    await prisma.strataProfileSection.createMany({
+      data: sectionIds.map(sectionId => ({ strataProfileId, sectionId }))
+    });
+  }
+};
+
+export const getSectionsByStrataId = async (strataId: number) => {
+  const sections = await prisma.strataSection.findMany({
+    where: { strataId },
+    include: { section: true }
+  });
+  return sections.map(ss => ss.section);
 };
 
 export const updateStrataProfilePosition = async (strataProfileId: number, position: string) => {
