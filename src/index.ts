@@ -30,11 +30,6 @@ import { lookupRoutes } from './shared/routes/lookupRoutes';
 
 const app = new Hono();
 
-app.onError((err, c) => {
-  console.error('Unhandled error:', err.message);
-  return c.json({ success: false, error: 'Internal server error' }, 500);
-});
-
 // Middleware
 app.use('*', logger());
 const corsOrigins = process.env.CORS_ORIGIN
@@ -46,6 +41,11 @@ app.use('*', cors({
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
 }));
+
+app.onError((err, c) => {
+  console.error('Unhandled error:', err.message);
+  return c.json({ success: false, error: 'Internal server error' }, 500);
+});
 
 // Health check
 app.get('/health', (c) => c.json({ status: 'ok' }, 200));
