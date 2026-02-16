@@ -26,7 +26,7 @@ export const getLegalTypeById = async (id: number) => {
 
 export const getPropertyTypes = async () => {
   return prisma.propertyType.findMany({
-    orderBy: { propertyTypeId: 'asc' }
+    orderBy: { sortOrder: 'asc' }
   });
 };
 

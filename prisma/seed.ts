@@ -49,26 +49,26 @@ async function main() {
   console.log('✅ Legal types seeded\n')
 
   console.log('🏠 Seeding property types...')
-  const propertyTypeNames = [
-    'Bare Land',
-    'Bare Land with Septic',
-    'Bare Land with Clubhouse',
-    'Townhomes',
-    'Townhomes with Septic',
-    'Townhomes with Clubhouse',
-    'Apartments',
-    'Apartments with Clubhouse',
-    'Mixed-Use: Apt over Retail',
-    'Mixed-Use: Commercial',
-    'Industrial',
-    'Air Parcel',
-    'Other'
+  const propertyTypeEntries = [
+    { name: 'Bare Land', sortOrder: 1 },
+    { name: 'Bare Land with Septic', sortOrder: 2 },
+    { name: 'Bare Land with Clubhouse', sortOrder: 3 },
+    { name: 'Townhomes', sortOrder: 4 },
+    { name: 'Townhomes with Septic', sortOrder: 5 },
+    { name: 'Townhomes with Clubhouse', sortOrder: 6 },
+    { name: 'Apartments', sortOrder: 7 },
+    { name: 'Apartments with Clubhouse', sortOrder: 8 },
+    { name: 'Mixed-Use: Apt over Retail', sortOrder: 9 },
+    { name: 'Mixed-Use: Commercial', sortOrder: 10 },
+    { name: 'Industrial', sortOrder: 11 },
+    { name: 'Air Parcel', sortOrder: 12 },
+    { name: 'Other', sortOrder: 13 },
   ]
-  for (const name of propertyTypeNames) {
+  for (const entry of propertyTypeEntries) {
     await prisma.propertyType.upsert({
-      where: { propertyTypeName: name },
-      update: {},
-      create: { propertyTypeName: name }
+      where: { propertyTypeName: entry.name },
+      update: { sortOrder: entry.sortOrder },
+      create: { propertyTypeName: entry.name, sortOrder: entry.sortOrder }
     })
   }
   console.log('✅ Property types seeded\n')
