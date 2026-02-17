@@ -21,6 +21,17 @@ export interface CreateQuestionInput {
   multipleChoiceOptions?: MultipleChoiceOptionInput[];
 }
 
+export interface SaveResponseInput {
+  serviceRequestId: number;
+  answeredByProfileId: string;
+  questionId: number;
+  responseText?: string | null;
+  responseDate?: string | null;
+  responseNumber?: number | null;
+  responseBoolean?: boolean | null;
+  multipleChoiceOptionId?: number | null;
+}
+
 export interface UpdateQuestionInput {
   questionText?: string;
   isRequired?: boolean;
