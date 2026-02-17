@@ -1,4 +1,5 @@
 import prisma from '../lib/prismaClient';
+import type { SaveResponseInput } from '../types/question.types';
 
 export const getSurveyQuestions = async (serviceId: number, propertyTypeId?: number, sectionIds?: number[]) => {
   const questions = await prisma.question.findMany({
@@ -55,17 +56,6 @@ export const getResponsesByServiceRequest = async (serviceRequestId: number) => 
     }
   });
 };
-
-export interface SaveResponseInput {
-  serviceRequestId: number;
-  answeredByProfileId: string;
-  questionId: number;
-  responseText?: string | null;
-  responseDate?: string | null;
-  responseNumber?: number | null;
-  responseBoolean?: boolean | null;
-  multipleChoiceOptionId?: number | null;
-}
 
 export const saveResponses = async (responses: SaveResponseInput[]) => {
   if (responses.length === 0) return [];
