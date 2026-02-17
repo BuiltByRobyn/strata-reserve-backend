@@ -43,6 +43,28 @@ export const getActiveByStrata = async (strataId: number) => {
   });
 };
 
+export const getActiveByProfile = async (profileId: string) => {
+  return prisma.serviceRequest.findFirst({
+    where: {
+      archived: false,
+      OR: [
+        {
+          strata: {
+            strataProfiles: {
+              some: { profileId }
+            }
+          }
+        },
+        {
+          requestedByProfileId: profileId
+        }
+      ]
+    },
+    orderBy: { requestDate: 'desc' },
+    include: serviceRequestIncludeList
+  });
+};
+
 export const createServiceRequest = async (data: CreateServiceRequestInput) => {
   const existing = await prisma.serviceRequest.findFirst({
     where: { strataId: data.strataId, archived: false }
