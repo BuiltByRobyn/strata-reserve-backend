@@ -90,6 +90,17 @@ export const createServiceRequest = async (data: CreateServiceRequestInput) => {
   });
 };
 
+export const submitForReview = async (id: number) => {
+  return prisma.serviceRequest.update({
+    where: { serviceRequestId: id },
+    data: {
+      submittedForReviewDate: new Date(),
+      status: 'Pending Approval',
+    },
+    include: serviceRequestIncludeList,
+  });
+};
+
 export const deleteServiceRequest = async (id: number) => {
   return prisma.serviceRequest.delete({
     where: { serviceRequestId: id }
