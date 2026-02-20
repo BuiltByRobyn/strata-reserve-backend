@@ -30,3 +30,16 @@ export const getActiveServiceRequest = asyncHandler(async (c) => {
   const serviceRequest = await serviceRequestService.getActiveByProfile(user.id);
   return success(c, serviceRequest);
 }, 'Failed to fetch active service request');
+
+export const submitDocumentsForReview = asyncHandler(async (c) => {
+  const user = c.get('user');
+  const id = parseInt(c.req.param('id'));
+
+  const serviceRequest = await serviceRequestService.getActiveByProfile(user.id);
+  if (!serviceRequest || serviceRequest.serviceRequestId !== id) {
+    return error(c, 'Service request not found or access denied', 404);
+  }
+
+  const updated = await serviceRequestService.submitForReview(id);
+  return success(c, updated);
+}, 'Failed to submit documents for review');
