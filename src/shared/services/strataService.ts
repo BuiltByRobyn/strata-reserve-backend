@@ -125,7 +125,7 @@ export const createStrata = async (data: CreateStrataInput) => {
 };
 
 export const updateStrata = async (id: number, data: UpdateStrataInput) => {
-  const { sectionIds, propertyTypeIds, fiscalYearEnd, companyName, ...strataData } = data;
+  const { sectionIds, propertyTypeIds, fiscalYearEnd, ...strataData } = data;
   const fiscalYearEndDate = fiscalYearEnd ? new Date(fiscalYearEnd) : fiscalYearEnd === null ? null : undefined;
 
   if (sectionIds !== undefined) {
