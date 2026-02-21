@@ -22,7 +22,8 @@ export const documentInclude = {
 export const documentIncludeCompact = {
   documentType: { select: { documentTypeId: true, typeName: true } },
   uploadedBy: { select: profileSelectBrief },
-  reviewStatus: { select: { reviewStatusId: true, statusName: true } }
+  reviewStatus: { select: { reviewStatusId: true, statusName: true } },
+  propertyType: { select: { propertyTypeId: true, propertyTypeName: true } }
 } as const;
 
 export const serviceRequestIncludeList = {

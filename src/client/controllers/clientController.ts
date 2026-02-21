@@ -40,6 +40,14 @@ export const submitDocumentsForReview = asyncHandler(async (c) => {
     return error(c, 'Service request not found or access denied', 404);
   }
 
-  const updated = await serviceRequestService.submitForReview(id);
-  return success(c, updated);
+  try {
+    const updated = await serviceRequestService.submitForReview(id);
+    return success(c, updated);
+  } catch (err: unknown) {
+    const typed = err as Error & { code?: string };
+    if (typed?.code === 'VALIDATION_ERROR') {
+      return error(c, typed.message, 400);
+    }
+    throw err;
+  }
 }, 'Failed to submit documents for review');

@@ -31,14 +31,21 @@ export const getDocumentsByServiceRequest = async (serviceRequestId: number) => 
   });
 };
 
-export const getRequiredDocuments = async (serviceId: number, propertyTypeId?: number) => {
+export const getRequiredDocuments = async (serviceId: number, propertyTypeIds?: number[]) => {
   return prisma.requiredDocument.findMany({
     where: {
       serviceId,
-      ...(propertyTypeId ? { OR: [{ propertyTypeId }, { propertyTypeId: null }] } : {})
+      ...(propertyTypeIds?.length ? {
+        OR: [
+          { appliesToAllTypes: true },
+          { propertyTypeId: { in: propertyTypeIds } },
+          { propertyTypeId: null }
+        ]
+      } : {})
     },
     include: {
-      documentType: { select: { documentTypeId: true, typeName: true } }
+      documentType: { select: { documentTypeId: true, typeName: true } },
+      propertyType: { select: { propertyTypeId: true, propertyTypeName: true } }
     },
     orderBy: { requiredDocumentId: 'asc' }
   });
@@ -54,6 +61,13 @@ export const updateDocumentStatus = async (id: number, reviewStatusId: number, n
     include: {
       reviewStatus: { select: { reviewStatusId: true, statusName: true } }
     }
+  });
+};
+
+export const clearDocumentNotes = async (id: number) => {
+  return prisma.serviceRequestDocument.update({
+    where: { serviceRequestDocumentId: id },
+    data: { notes: null }
   });
 };
 
@@ -172,7 +186,11 @@ export const getServiceRequestByIdForProfile = async (profileId: string, service
     select: {
       serviceRequestId: true,
       serviceId: true,
-      strata: { select: { propertyTypeId: true } }
+      strata: {
+        select: {
+          strataPropertyTypes: { select: { propertyTypeId: true } }
+        }
+      }
     }
   });
 };

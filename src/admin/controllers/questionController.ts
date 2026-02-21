@@ -40,8 +40,6 @@ export const createQuestion = asyncHandler(async (c) => {
         sortOrder: Number(s.sortOrder),
       })) : [],
       propertyTypeIds: Array.isArray(body.propertyTypeIds) ? body.propertyTypeIds.map(Number) : [],
-      legalTypeIds: Array.isArray(body.legalTypeIds) ? body.legalTypeIds.map(Number) : [],
-      sectionIds: Array.isArray(body.sectionIds) ? body.sectionIds.map(Number) : [],
       multipleChoiceOptions: Array.isArray(body.multipleChoiceOptions) ? body.multipleChoiceOptions.map((o: { optionText: string; sortOrder: number }) => ({
         optionText: o.optionText,
         sortOrder: Number(o.sortOrder),
@@ -83,8 +81,6 @@ export const updateQuestion = asyncHandler(async (c) => {
       sortOrder: Number(s.sortOrder),
     })) : []) : undefined,
     propertyTypeIds: body.propertyTypeIds !== undefined ? (Array.isArray(body.propertyTypeIds) ? body.propertyTypeIds.map(Number) : []) : undefined,
-    legalTypeIds: body.legalTypeIds !== undefined ? (Array.isArray(body.legalTypeIds) ? body.legalTypeIds.map(Number) : []) : undefined,
-    sectionIds: body.sectionIds !== undefined ? (Array.isArray(body.sectionIds) ? body.sectionIds.map(Number) : []) : undefined,
     multipleChoiceOptions: body.multipleChoiceOptions !== undefined ? (Array.isArray(body.multipleChoiceOptions) ? body.multipleChoiceOptions.map((o: { optionText: string; sortOrder: number }) => ({
       optionText: o.optionText,
       sortOrder: Number(o.sortOrder),

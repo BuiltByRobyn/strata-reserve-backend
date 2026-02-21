@@ -61,3 +61,6 @@ strataRoutes.post('/strata/:id/services', strataController.addService);
 
 // DELETE /admin/strata/:id/services/:serviceId - Remove service from strata
 strataRoutes.delete('/strata/:id/services/:serviceId', strataController.removeService);
+
+// GET /admin/strata/:id/timelines - Get latest timelines for strata (from most recent SR)
+strataRoutes.get('/strata/:id/timelines', strataController.getStrataTimelines);

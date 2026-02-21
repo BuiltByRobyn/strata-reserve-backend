@@ -91,6 +91,40 @@ export const createServiceRequest = async (data: CreateServiceRequestInput) => {
 };
 
 export const submitForReview = async (id: number) => {
+  const sr = await prisma.serviceRequest.findUnique({
+    where: { serviceRequestId: id },
+    include: {
+      strata: { select: { strataPropertyTypes: { select: { propertyTypeId: true } } } },
+    },
+  });
+  if (!sr) throw new Error('Service request not found');
+
+  const propertyTypeIds = sr.strata.strataPropertyTypes.map(spt => spt.propertyTypeId);
+  const questions = await prisma.question.findMany({
+    where: propertyTypeIds.length > 0 ? {
+      OR: [
+        { questionPropertyTypes: { none: {} } },
+        { questionPropertyTypes: { some: { propertyTypeId: { in: propertyTypeIds } } } },
+      ],
+    } : {},
+    select: { questionId: true, isRequired: true },
+  });
+
+  const requiredQuestionIds = questions.filter(q => q.isRequired).map(q => q.questionId);
+
+  const responses = await prisma.questionResponse.findMany({
+    where: { serviceRequestId: id, archivedAt: null },
+    select: { questionId: true },
+  });
+  const answeredIds = new Set(responses.map(r => r.questionId));
+
+  const unanswered = requiredQuestionIds.filter(qId => !answeredIds.has(qId));
+  if (unanswered.length > 0) {
+    const err = new Error(`${unanswered.length} required question(s) have not been answered`) as Error & { code: string };
+    err.code = 'VALIDATION_ERROR';
+    throw err;
+  }
+
   return prisma.serviceRequest.update({
     where: { serviceRequestId: id },
     data: {
@@ -101,7 +135,27 @@ export const submitForReview = async (id: number) => {
   });
 };
 
-export const deleteServiceRequest = async (id: number) => {
+export const deleteServiceRequest = async (id: number, authToken?: string) => {
+  const sr = await prisma.serviceRequest.findUnique({
+    where: { serviceRequestId: id },
+    select: {
+      strata: { select: { strataPlan: true } },
+      serviceRequestDocuments: { select: { filePath: true } }
+    }
+  });
+
+  if (sr?.serviceRequestDocuments.length && authToken) {
+    try {
+      const { supabase } = await import('../lib/supabaseClient');
+      await supabase.functions.invoke('archive-sr-documents', {
+        body: { serviceRequestId: id, strataPlan: sr.strata.strataPlan },
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+    } catch (err) {
+      console.error('Failed to archive Dropbox files:', err);
+    }
+  }
+
   return prisma.serviceRequest.delete({
     where: { serviceRequestId: id }
   });

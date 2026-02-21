@@ -17,8 +17,16 @@ export const getStratas = async () => {
       strataSections: {
         include: { section: true }
       },
+      strataPropertyTypes: {
+        include: { propertyType: { select: { propertyTypeId: true, propertyTypeName: true } } }
+      },
       _count: {
-        select: { strataNotes: true, strataProfiles: true, strataServices: true }
+        select: {
+          strataNotes: true,
+          strataProfiles: true,
+          strataServices: true,
+          serviceRequests: { where: { archived: false } }
+        }
       }
     }
   });
@@ -56,13 +64,33 @@ export const getStrataById = async (id: number) => {
       },
       strataSections: {
         include: { section: true }
+      },
+      strataPropertyTypes: {
+        include: { propertyType: { select: { propertyTypeId: true, propertyTypeName: true } } }
+      },
+      serviceRequests: {
+        select: {
+          serviceRequestDocuments: {
+            where: { notes: { not: null } },
+            select: {
+              serviceRequestDocumentId: true,
+              notes: true,
+              uploadedAt: true,
+              fileName: true,
+              uploadedBy: {
+                select: { id: true, firstName: true, lastName: true, displayName: true }
+              }
+            },
+            orderBy: { uploadedAt: 'desc' }
+          }
+        }
       }
     }
   });
 };
 
 export const createStrata = async (data: CreateStrataInput) => {
-  const { sectionIds, ...strataData } = data;
+  const { sectionIds, propertyTypeIds, fiscalYearEnd, ...strataData } = data;
   return prisma.strata.create({
     data: {
       strataPlan: strataData.strataPlan,
@@ -77,18 +105,28 @@ export const createStrata = async (data: CreateStrataInput) => {
       legalTypeId: strataData.legalTypeId,
       propertyTypeId: strataData.propertyTypeId,
       companyId: strataData.companyId,
+      fiscalYearEnd: fiscalYearEnd ? new Date(fiscalYearEnd) : fiscalYearEnd === null ? null : undefined,
       ...(sectionIds?.length ? {
         strataSections: {
           create: sectionIds.map(sectionId => ({ sectionId }))
         }
+      } : {}),
+      ...(propertyTypeIds?.length ? {
+        strataPropertyTypes: {
+          create: propertyTypeIds.map(propertyTypeId => ({ propertyTypeId }))
+        }
       } : {})
     },
-    include: { strataSections: { include: { section: true } } }
+    include: {
+      strataSections: { include: { section: true } },
+      strataPropertyTypes: { include: { propertyType: true } }
+    }
   });
 };
 
 export const updateStrata = async (id: number, data: UpdateStrataInput) => {
-  const { sectionIds, ...strataData } = data;
+  const { sectionIds, propertyTypeIds, fiscalYearEnd, companyName, ...strataData } = data;
+  const fiscalYearEndDate = fiscalYearEnd ? new Date(fiscalYearEnd) : fiscalYearEnd === null ? null : undefined;
 
   if (sectionIds !== undefined) {
     await prisma.strataSection.deleteMany({ where: { strataId: id } });
@@ -99,10 +137,22 @@ export const updateStrata = async (id: number, data: UpdateStrataInput) => {
     }
   }
 
+  if (propertyTypeIds !== undefined) {
+    await prisma.strataPropertyType.deleteMany({ where: { strataId: id } });
+    if (propertyTypeIds.length > 0) {
+      await prisma.strataPropertyType.createMany({
+        data: propertyTypeIds.map(propertyTypeId => ({ strataId: id, propertyTypeId }))
+      });
+    }
+  }
+
   return prisma.strata.update({
     where: { strataId: id },
-    data: strataData,
-    include: { strataSections: { include: { section: true } } }
+    data: { ...strataData, ...(fiscalYearEndDate !== undefined ? { fiscalYearEnd: fiscalYearEndDate } : {}) },
+    include: {
+      strataSections: { include: { section: true } },
+      strataPropertyTypes: { include: { propertyType: true } }
+    }
   });
 };
 
@@ -219,7 +269,10 @@ export const searchStratas = async (query: string) => {
       ]
     },
     include: {
-      company: { select: { companyId: true, companyName: true } }
+      company: { select: { companyId: true, companyName: true } },
+      strataPropertyTypes: {
+        include: { propertyType: { select: { propertyTypeId: true, propertyTypeName: true } } }
+      }
     },
     orderBy: { strataPlan: 'asc' }
   });

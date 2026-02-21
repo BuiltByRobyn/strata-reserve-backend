@@ -4,13 +4,17 @@ import { parseIntParam } from '../../shared/helpers/parseParams';
 
 export const getSurveyQuestions = asyncHandler(async (c) => {
   const serviceRequestId = parseIntParam(c, 'serviceRequestId');
-  const user = c.get('user');
 
   const { default: prisma } = await import('../../shared/lib/prismaClient');
   const sr = await prisma.serviceRequest.findUnique({
     where: { serviceRequestId },
     include: {
-      strata: { select: { propertyTypeId: true, strataId: true } }
+      strata: {
+        select: {
+          strataId: true,
+          strataPropertyTypes: { select: { propertyTypeId: true } }
+        }
+      }
     }
   });
 
@@ -18,17 +22,10 @@ export const getSurveyQuestions = asyncHandler(async (c) => {
     return error(c, 'Service request not found', 404);
   }
 
-  const strataProfile = await prisma.strataProfile.findUnique({
-    where: { strataId_profileId: { strataId: sr.strata.strataId, profileId: user.id } },
-    include: { strataProfileSections: { select: { sectionId: true } } }
-  });
-
-  const sectionIds = strataProfile?.strataProfileSections.map(s => s.sectionId);
+  const propertyTypeIds = sr.strata.strataPropertyTypes.map(spt => spt.propertyTypeId);
 
   const questions = await questionService.getSurveyQuestions(
-    sr.serviceId,
-    sr.strata.propertyTypeId ?? undefined,
-    sectionIds
+    propertyTypeIds.length > 0 ? propertyTypeIds : undefined
   );
 
   return success(c, questions);
@@ -63,6 +60,12 @@ export const saveSurveyResponses = asyncHandler(async (c) => {
   const results = await questionService.saveResponses(inputs);
   return success(c, results);
 }, 'Failed to save survey responses');
+
+export const getArchivedSurveyResponses = asyncHandler(async (c) => {
+  const serviceRequestId = parseIntParam(c, 'serviceRequestId');
+  const responses = await questionService.getArchivedResponsesByServiceRequest(serviceRequestId);
+  return success(c, responses);
+}, 'Failed to fetch archived survey responses');
 
 export const getSurveySections = asyncHandler(async (c) => {
   const serviceRequestId = parseIntParam(c, 'serviceRequestId');

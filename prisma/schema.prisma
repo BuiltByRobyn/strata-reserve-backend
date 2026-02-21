@@ -29,12 +29,15 @@ model LegalType {
 
 model PropertyType {
   propertyTypeId        Int                    @id @default(autoincrement()) @map("property_type_id")
-  propertyTypeName      String                 @unique @map("property_type_name") @db.VarChar(50)
+  propertyTypeName      String                 @unique @map("property_type_name") @db.VarChar(100)
   description           String?                @db.Text
   sortOrder             Int                    @default(0) @map("sort_order")
   stratas               Strata[]
   questionPropertyTypes QuestionPropertyType[]
   requiredDocuments     RequiredDocument[]
+  strataPropertyTypes   StrataPropertyType[]
+  srDocRequirements     ServiceRequestDocumentRequirement[]
+  serviceRequestDocuments ServiceRequestDocument[]
 
   @@map("property_type")
 }
@@ -124,9 +127,10 @@ model Strata {
   website        String?  @db.VarChar(255)
   legalTypeId    Int?     @map("legal_type_id")
   propertyTypeId Int?     @map("property_type_id")
-  companyId      Int?     @map("company_id")
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+  companyId      Int?      @map("company_id")
+  fiscalYearEnd  DateTime? @map("fiscal_year_end") @db.Date
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 
   legalType      LegalType?      @relation(fields: [legalTypeId], references: [legalTypeId], onDelete: SetNull)
   propertyType   PropertyType?   @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: SetNull)
@@ -135,6 +139,7 @@ model Strata {
   strataProfiles StrataProfile[]
   strataServices StrataService[]
   strataSections StrataSection[]
+  strataPropertyTypes StrataPropertyType[]
 
   serviceRequests ServiceRequest[]
 
@@ -184,6 +189,18 @@ model StrataSection {
 
   @@unique([strataId, sectionId])
   @@map("strata_section")
+}
+
+model StrataPropertyType {
+  strataPropertyTypeId Int @id @default(autoincrement()) @map("strata_property_type_id")
+  strataId             Int @map("strata_id")
+  propertyTypeId       Int @map("property_type_id")
+
+  strata       Strata       @relation(fields: [strataId], references: [strataId], onDelete: Cascade)
+  propertyType PropertyType @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: Cascade)
+
+  @@unique([strataId, propertyTypeId])
+  @@map("strata_property_type")
 }
 
 model StrataProfileSection {
@@ -286,6 +303,13 @@ model ServiceRequest {
   strataId               Int       @map("strata_id")
   requestedByProfileId   String    @map("requested_by_profile_id") @db.Uuid
 
+  fiscalYearEnd              DateTime? @map("fiscal_year_end") @db.Date
+  lastAgmDate                DateTime? @map("last_agm_date") @db.Date
+  noAgmToDate                Boolean   @default(false) @map("no_agm_to_date")
+  lastDepreciationReportDate DateTime? @map("last_depreciation_report_date") @db.Date
+  noReportToDate             Boolean   @default(false) @map("no_report_to_date")
+  targetDate                 DateTime? @map("target_date") @db.Date
+
   service             Service              @relation(fields: [serviceId], references: [serviceId], onDelete: Cascade)
   strata              Strata               @relation(fields: [strataId], references: [strataId], onDelete: Cascade)
   requestedBy         Profile              @relation("RequestedByProfile", fields: [requestedByProfileId], references: [id], onDelete: Cascade)
@@ -294,6 +318,7 @@ model ServiceRequest {
 
   questionResponses       QuestionResponse[]
   serviceRequestDocuments ServiceRequestDocument[]
+  documentRequirements    ServiceRequestDocumentRequirement[]
 
   @@map("service_request")
 }
@@ -374,15 +399,28 @@ model Appointment {
 
 model InspectorAvailableDate {
   inspectorAvailableDateId Int       @id @default(autoincrement()) @map("inspector_available_date_id")
-  availableDate            DateTime  @map("available_date") @db.Date
+  availableStartDate       DateTime  @map("available_start_date") @db.Date
+  availableEndDate         DateTime  @map("available_end_date") @db.Date
   availableStartTime       DateTime? @map("available_start_time") @db.Time()
   availableEndTime         DateTime? @map("available_end_time") @db.Time()
   createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz
   inspectorProfileId       String    @map("inspector_profile_id") @db.Uuid
 
   inspectorProfile Profile @relation("InspectorAvailableDates", fields: [inspectorProfileId], references: [id], onDelete: Cascade)
+  locations        InspectorAvailableLocation[]
 
   @@map("inspector_available_date")
+}
+
+model InspectorAvailableLocation {
+  inspectorAvailableLocationId Int    @id @default(autoincrement()) @map("inspector_available_location_id")
+  inspectorAvailableDateId     Int    @map("inspector_available_date_id")
+  locationCode                 String @map("location_code") @db.VarChar(10)
+
+  availableDate InspectorAvailableDate @relation(fields: [inspectorAvailableDateId], references: [inspectorAvailableDateId], onDelete: Cascade)
+
+  @@unique([inspectorAvailableDateId, locationCode])
+  @@map("inspector_available_location")
 }
 
 // ============================================
@@ -419,6 +457,7 @@ model Question {
   questionCategory String   @map("question_category") @db.VarChar(50)
   questionTypeId   Int      @map("question_type_id")
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 
   questionType          QuestionType           @relation(fields: [questionTypeId], references: [questionTypeId], onDelete: Cascade)
   questionServices      QuestionService[]
@@ -500,6 +539,7 @@ model QuestionResponse {
   responseBoolean        Boolean?  @map("response_boolean")
   createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+  archivedAt             DateTime? @map("archived_at") @db.Timestamptz
   serviceRequestId       Int       @map("service_request_id")
   answeredByProfileId    String    @map("answered_by_profile_id") @db.Uuid
   questionId             Int       @map("question_id")
@@ -523,6 +563,7 @@ model DocumentType {
   createdAt               DateTime                 @default(now()) @map("created_at") @db.Timestamptz
   requiredDocuments       RequiredDocument[]
   serviceRequestDocuments ServiceRequestDocument[]
+  srDocRequirements       ServiceRequestDocumentRequirement[]
 
   @@map("document_type")
 }
@@ -530,6 +571,7 @@ model DocumentType {
 model RequiredDocument {
   requiredDocumentId Int     @id @default(autoincrement()) @map("required_document_id")
   isRequired         Boolean @default(true) @map("is_required")
+  appliesToAllTypes  Boolean @default(false) @map("applies_to_all_types")
   propertyTypeId     Int?    @map("property_type_id")
   serviceId          Int     @map("service_id")
   documentTypeId     Int     @map("document_type_id")
@@ -554,12 +596,31 @@ model ServiceRequestDocument {
   uploadedByProfileId      String   @map("uploaded_by_profile_id") @db.Uuid
   reviewStatusId           Int?     @map("review_status_id")
   sectionId                Int?     @map("section_id")
+  propertyTypeId           Int?     @map("property_type_id")
 
   serviceRequest ServiceRequest @relation(fields: [serviceRequestId], references: [serviceRequestId], onDelete: Cascade)
   documentType   DocumentType   @relation(fields: [documentTypeId], references: [documentTypeId], onDelete: Cascade)
   uploadedBy     Profile        @relation("UploadedByProfile", fields: [uploadedByProfileId], references: [id], onDelete: Cascade)
   reviewStatus   ReviewStatus?  @relation(fields: [reviewStatusId], references: [reviewStatusId], onDelete: SetNull)
   section        Section?       @relation(fields: [sectionId], references: [sectionId], onDelete: SetNull)
+  propertyType   PropertyType?  @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: SetNull)
 
   @@map("service_request_document")
+}
+
+model ServiceRequestDocumentRequirement {
+  srDocRequirementId Int     @id @default(autoincrement()) @map("sr_doc_requirement_id")
+  serviceRequestId   Int     @map("service_request_id")
+  documentTypeId     Int     @map("document_type_id")
+  propertyTypeId     Int?    @map("property_type_id")
+  isRequired         Boolean @default(true) @map("is_required")
+  quantity           Int     @default(1)
+  notes              String? @db.Text
+
+  serviceRequest ServiceRequest @relation(fields: [serviceRequestId], references: [serviceRequestId], onDelete: Cascade)
+  documentType   DocumentType   @relation(fields: [documentTypeId], references: [documentTypeId], onDelete: Cascade)
+  propertyType   PropertyType?  @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: SetNull)
+
+  @@unique([serviceRequestId, documentTypeId, propertyTypeId])
+  @@map("sr_document_requirement")
 }
