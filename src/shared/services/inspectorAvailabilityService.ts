@@ -1,67 +1,84 @@
 import prisma from '../lib/prismaClient';
 
+const availabilityInclude = {
+  inspectorProfile: {
+    select: { id: true, firstName: true, lastName: true, displayName: true, email: true, phoneNumber: true }
+  },
+  locations: { select: { locationCode: true } }
+};
+
 export const getAvailableDates = async (inspectorProfileId?: string) => {
   const where = inspectorProfileId ? { inspectorProfileId } : {};
 
   return prisma.inspectorAvailableDate.findMany({
     where,
-    orderBy: { availableDate: 'asc' },
-    include: {
-      inspectorProfile: {
-        select: { id: true, firstName: true, lastName: true, displayName: true }
-      }
-    }
+    orderBy: { availableStartDate: 'asc' },
+    include: availabilityInclude
   });
 };
 
 export const getAvailableDateById = async (id: number) => {
   return prisma.inspectorAvailableDate.findUnique({
     where: { inspectorAvailableDateId: id },
-    include: {
-      inspectorProfile: {
-        select: { id: true, firstName: true, lastName: true, displayName: true, email: true }
-      }
-    }
+    include: availabilityInclude
   });
 };
 
 export const createAvailableDate = async (data: {
-  availableDate: Date;
+  availableStartDate: Date;
+  availableEndDate: Date;
   availableStartTime?: Date | null;
   availableEndTime?: Date | null;
   inspectorProfileId: string;
+  locationCodes?: string[];
 }) => {
   return prisma.inspectorAvailableDate.create({
     data: {
-      availableDate: data.availableDate,
+      availableStartDate: data.availableStartDate,
+      availableEndDate: data.availableEndDate,
       availableStartTime: data.availableStartTime,
       availableEndTime: data.availableEndTime,
-      inspectorProfileId: data.inspectorProfileId
+      inspectorProfileId: data.inspectorProfileId,
+      ...(data.locationCodes?.length ? {
+        locations: {
+          create: data.locationCodes.map(code => ({ locationCode: code }))
+        }
+      } : {})
     },
-    include: {
-      inspectorProfile: {
-        select: { id: true, firstName: true, lastName: true, displayName: true }
-      }
-    }
+    include: availabilityInclude
   });
 };
 
 export const updateAvailableDate = async (
   id: number,
   data: {
-    availableDate?: Date;
+    availableStartDate?: Date;
+    availableEndDate?: Date;
     availableStartTime?: Date | null;
     availableEndTime?: Date | null;
+    locationCodes?: string[];
   }
 ) => {
+  const { locationCodes, ...dateData } = data;
+
+  if (locationCodes !== undefined) {
+    await prisma.inspectorAvailableLocation.deleteMany({
+      where: { inspectorAvailableDateId: id }
+    });
+    if (locationCodes.length > 0) {
+      await prisma.inspectorAvailableLocation.createMany({
+        data: locationCodes.map(code => ({
+          inspectorAvailableDateId: id,
+          locationCode: code
+        }))
+      });
+    }
+  }
+
   return prisma.inspectorAvailableDate.update({
     where: { inspectorAvailableDateId: id },
-    data,
-    include: {
-      inspectorProfile: {
-        select: { id: true, firstName: true, lastName: true, displayName: true }
-      }
-    }
+    data: dateData,
+    include: availabilityInclude
   });
 };
 
@@ -74,29 +91,19 @@ export const deleteAvailableDate = async (id: number) => {
 export const getAvailableDatesByRange = async (
   startDate: Date,
   endDate: Date,
-  inspectorProfileId?: string
+  inspectorProfileId?: string,
+  locationCodes?: string[]
 ) => {
-  const where: {
-    availableDate: { gte: Date; lte: Date };
-    inspectorProfileId?: string;
-  } = {
-    availableDate: {
-      gte: startDate,
-      lte: endDate
-    }
-  };
-
-  if (inspectorProfileId) {
-    where.inspectorProfileId = inspectorProfileId;
-  }
-
   return prisma.inspectorAvailableDate.findMany({
-    where,
-    orderBy: { availableDate: 'asc' },
-    include: {
-      inspectorProfile: {
-        select: { id: true, firstName: true, lastName: true, displayName: true }
-      }
-    }
+    where: {
+      availableStartDate: { lte: endDate },
+      availableEndDate: { gte: startDate },
+      ...(inspectorProfileId ? { inspectorProfileId } : {}),
+      ...(locationCodes?.length ? {
+        locations: { some: { locationCode: { in: locationCodes } } }
+      } : {})
+    },
+    orderBy: { availableStartDate: 'asc' },
+    include: availabilityInclude
   });
 };

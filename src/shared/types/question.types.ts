@@ -1,3 +1,12 @@
+export interface QuestionDef {
+  text: string;
+  category: string;
+  type: 'textarea' | 'boolean' | 'none_or_explain' | 'checkbox' | 'multiple_choice' | 'text' | 'number';
+  propertyTypes: string[];
+  informationText?: string;
+  multipleChoiceOptions?: string[];
+}
+
 export interface QuestionServiceInput {
   serviceId: number;
   sortOrder: number;
@@ -16,8 +25,6 @@ export interface CreateQuestionInput {
   questionTypeId: number;
   serviceIds: QuestionServiceInput[];
   propertyTypeIds: number[];
-  legalTypeIds: number[];
-  sectionIds: number[];
   multipleChoiceOptions?: MultipleChoiceOptionInput[];
 }
 
@@ -40,7 +47,5 @@ export interface UpdateQuestionInput {
   questionTypeId?: number;
   serviceIds?: QuestionServiceInput[];
   propertyTypeIds?: number[];
-  legalTypeIds?: number[];
-  sectionIds?: number[];
   multipleChoiceOptions?: MultipleChoiceOptionInput[];
 }

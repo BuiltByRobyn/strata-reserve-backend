@@ -1,32 +1,17 @@
 import prisma from '../lib/prismaClient';
 import type { SaveResponseInput } from '../types/question.types';
 
-export const getSurveyQuestions = async (serviceId: number, propertyTypeId?: number, sectionIds?: number[]) => {
+export const getSurveyQuestions = async (propertyTypeIds?: number[]) => {
   const questions = await prisma.question.findMany({
-    where: {
-      questionServices: { some: { serviceId } },
-      ...(propertyTypeId ? {
-        OR: [
-          { questionPropertyTypes: { none: {} } },
-          { questionPropertyTypes: { some: { propertyTypeId } } }
-        ]
-      } : {
-        questionPropertyTypes: { none: {} }
-      }),
-      ...(sectionIds?.length ? {
-        OR: [
-          { questionSections: { none: {} } },
-          { questionSections: { some: { sectionId: { in: sectionIds } } } }
-        ]
-      } : {}),
-    },
+    where: propertyTypeIds?.length ? {
+      OR: [
+        { questionPropertyTypes: { none: {} } },
+        { questionPropertyTypes: { some: { propertyTypeId: { in: propertyTypeIds } } } }
+      ]
+    } : {},
     include: {
       questionType: true,
       multipleChoiceOptions: { orderBy: { sortOrder: 'asc' } },
-      questionServices: {
-        where: { serviceId },
-        select: { sortOrder: true }
-      }
     },
     orderBy: { questionId: 'asc' }
   });
@@ -38,22 +23,47 @@ export const getSurveyQuestions = async (serviceId: number, propertyTypeId?: num
     informationText: q.informationText,
     questionCategory: q.questionCategory,
     questionType: q.questionType.questionTypeName,
-    sortOrder: q.questionServices[0]?.sortOrder ?? 0,
+    sortOrder: q.questionId,
     multipleChoiceOptions: q.multipleChoiceOptions.map(o => ({
       optionId: o.multipleChoiceOptionId,
       optionText: o.optionText,
       sortOrder: o.sortOrder
     }))
-  })).sort((a, b) => a.sortOrder - b.sortOrder);
+  }));
 };
 
 export const getResponsesByServiceRequest = async (serviceRequestId: number) => {
   return prisma.questionResponse.findMany({
-    where: { serviceRequestId },
+    where: { serviceRequestId, archivedAt: null },
     include: {
       answeredBy: { select: { id: true, firstName: true, lastName: true, displayName: true } },
       multipleChoiceOption: { select: { multipleChoiceOptionId: true, optionText: true } }
     }
+  });
+};
+
+export const getArchivedResponsesByServiceRequest = async (serviceRequestId: number) => {
+  return prisma.questionResponse.findMany({
+    where: { serviceRequestId, archivedAt: { not: null } },
+    include: {
+      answeredBy: { select: { id: true, firstName: true, lastName: true, displayName: true } },
+      multipleChoiceOption: { select: { multipleChoiceOptionId: true, optionText: true } },
+      question: {
+        select: {
+          questionId: true,
+          questionText: true,
+          isRequired: true,
+          informationText: true,
+          questionCategory: true,
+          questionType: { select: { questionTypeName: true } },
+          multipleChoiceOptions: {
+            orderBy: { sortOrder: 'asc' },
+            select: { multipleChoiceOptionId: true, optionText: true, sortOrder: true },
+          },
+        },
+      },
+    },
+    orderBy: { archivedAt: 'desc' },
   });
 };
 
@@ -65,7 +75,8 @@ export const saveResponses = async (responses: SaveResponseInput[]) => {
   const existingResponses = await prisma.questionResponse.findMany({
     where: {
       serviceRequestId: { in: serviceRequestIds },
-      questionId: { in: responses.map(r => r.questionId) }
+      questionId: { in: responses.map(r => r.questionId) },
+      archivedAt: null,
     },
     select: { responseId: true, serviceRequestId: true, questionId: true }
   });
@@ -74,35 +85,44 @@ export const saveResponses = async (responses: SaveResponseInput[]) => {
     existingResponses.map(r => [`${r.serviceRequestId}-${r.questionId}`, r.responseId])
   );
 
-  const operations = responses.map(resp => {
-    const key = `${resp.serviceRequestId}-${resp.questionId}`;
-    const existingId = existingMap.get(key);
-    const data = {
-      responseText: resp.responseText ?? null,
-      responseDate: resp.responseDate ? new Date(resp.responseDate) : null,
-      responseNumber: resp.responseNumber ?? null,
-      responseBoolean: resp.responseBoolean ?? null,
-      multipleChoiceOptionId: resp.multipleChoiceOptionId ?? null,
-      answeredByProfileId: resp.answeredByProfileId,
-    };
+  return prisma.$transaction(async (tx) => {
+    const results = [];
+    for (const resp of responses) {
+      const key = `${resp.serviceRequestId}-${resp.questionId}`;
+      const existingId = existingMap.get(key);
+      const data = {
+        responseText: resp.responseText ?? null,
+        responseDate: resp.responseDate ? new Date(resp.responseDate) : null,
+        responseNumber: resp.responseNumber ?? null,
+        responseBoolean: resp.responseBoolean ?? null,
+        multipleChoiceOptionId: resp.multipleChoiceOptionId ?? null,
+        answeredByProfileId: resp.answeredByProfileId,
+      };
 
-    if (existingId) {
-      return prisma.questionResponse.update({
-        where: { responseId: existingId },
-        data,
-      });
-    } else {
-      return prisma.questionResponse.create({
-        data: {
-          serviceRequestId: resp.serviceRequestId,
-          questionId: resp.questionId,
-          ...data,
-        },
-      });
+      if (existingId) {
+        await tx.questionResponse.update({
+          where: { responseId: existingId },
+          data: { archivedAt: new Date() },
+        });
+        results.push(await tx.questionResponse.create({
+          data: {
+            serviceRequestId: resp.serviceRequestId,
+            questionId: resp.questionId,
+            ...data,
+          },
+        }));
+      } else {
+        results.push(await tx.questionResponse.create({
+          data: {
+            serviceRequestId: resp.serviceRequestId,
+            questionId: resp.questionId,
+            ...data,
+          },
+        }));
+      }
     }
+    return results;
   });
-
-  return prisma.$transaction(operations);
 };
 
 export const getSurveySections = async (serviceId: number) => {

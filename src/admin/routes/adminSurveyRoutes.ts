@@ -6,3 +6,4 @@ export const adminSurveyRoutes = new Hono();
 adminSurveyRoutes.get('/service-requests/:serviceRequestId/survey/sections', surveyController.getSurveySections);
 adminSurveyRoutes.get('/service-requests/:serviceRequestId/survey/questions', surveyController.getSurveyQuestions);
 adminSurveyRoutes.get('/service-requests/:serviceRequestId/survey/responses', surveyController.getSurveyResponses);
+adminSurveyRoutes.get('/service-requests/:serviceRequestId/survey/responses/archived', surveyController.getArchivedSurveyResponses);

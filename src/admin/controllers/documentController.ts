@@ -30,6 +30,12 @@ export const updateDocumentStatus = asyncHandler(async (c) => {
   return success(c, document);
 }, 'Failed to update document status');
 
+export const clearDocumentNotes = asyncHandler(async (c) => {
+  const id = parseIntParam(c, 'id');
+  await documentService.clearDocumentNotes(id);
+  return success(c, { message: 'Document notes cleared' });
+}, 'Failed to clear document notes');
+
 export const deleteDocument = asyncHandler(async (c) => {
   const id = parseIntParam(c, 'id');
   await documentService.deleteDocument(id);

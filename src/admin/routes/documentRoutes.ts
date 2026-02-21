@@ -16,5 +16,8 @@ documentRoutes.get('/documents/:id', documentController.getDocumentById);
 // PUT /admin/documents/:id/status - Update document review status
 documentRoutes.put('/documents/:id/status', documentController.updateDocumentStatus);
 
+// DELETE /admin/documents/:id/notes - Clear document notes
+documentRoutes.delete('/documents/:id/notes', documentController.clearDocumentNotes);
+
 // DELETE /admin/documents/:id - Delete document
 documentRoutes.delete('/documents/:id', documentController.deleteDocument);

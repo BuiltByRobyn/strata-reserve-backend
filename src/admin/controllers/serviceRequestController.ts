@@ -49,6 +49,8 @@ export const createServiceRequest = asyncHandler(async (c) => {
 
 export const deleteServiceRequest = asyncHandler(async (c) => {
   const id = parseIntQuery(c, 'id');
-  await serviceRequestService.deleteServiceRequest(id);
+  const authHeader = c.req.header('Authorization');
+  const token = authHeader?.replace('Bearer ', '');
+  await serviceRequestService.deleteServiceRequest(id, token);
   return success(c, { message: 'Service request and all related data deleted successfully' });
 }, 'Failed to delete service request');

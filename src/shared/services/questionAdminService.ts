@@ -5,8 +5,6 @@ const questionInclude = {
   questionType: true,
   questionServices: { include: { service: true }, orderBy: { sortOrder: 'asc' as const } },
   questionPropertyTypes: { include: { propertyType: true } },
-  questionLegalTypes: { include: { legalType: true } },
-  questionSections: { include: { section: true } },
   multipleChoiceOptions: { orderBy: { sortOrder: 'asc' as const } },
 };
 
@@ -25,7 +23,7 @@ export const getQuestionById = async (id: number) => {
 };
 
 export const createQuestion = async (data: CreateQuestionInput) => {
-  const { serviceIds, propertyTypeIds, legalTypeIds, sectionIds, multipleChoiceOptions, questionText, isRequired, informationText, questionCategory, questionTypeId } = data;
+  const { serviceIds, propertyTypeIds, multipleChoiceOptions, questionText, isRequired, informationText, questionCategory, questionTypeId } = data;
 
   const dataPayload = {
     questionText,
@@ -39,12 +37,6 @@ export const createQuestion = async (data: CreateQuestionInput) => {
     ...(propertyTypeIds.length > 0
       ? { questionPropertyTypes: { create: propertyTypeIds.map(id => ({ propertyTypeId: id })) } }
       : {}),
-    ...(legalTypeIds.length > 0
-      ? { questionLegalTypes: { create: legalTypeIds.map(id => ({ legalTypeId: id })) } }
-      : {}),
-    ...(sectionIds.length > 0
-      ? { questionSections: { create: sectionIds.map(id => ({ sectionId: id })) } }
-      : {}),
     ...(multipleChoiceOptions?.length
       ? { multipleChoiceOptions: { create: multipleChoiceOptions.map(o => ({ optionText: o.optionText, sortOrder: o.sortOrder })) } }
       : {}),
@@ -57,9 +49,14 @@ export const createQuestion = async (data: CreateQuestionInput) => {
 };
 
 export const updateQuestion = async (id: number, data: UpdateQuestionInput) => {
-  const { serviceIds, propertyTypeIds, legalTypeIds, sectionIds, multipleChoiceOptions, ...questionData } = data;
+  const { serviceIds, propertyTypeIds, multipleChoiceOptions, ...questionData } = data;
 
   return prisma.$transaction(async (tx) => {
+    await tx.questionResponse.updateMany({
+      where: { questionId: id, archivedAt: null },
+      data: { archivedAt: new Date() },
+    });
+
     if (serviceIds !== undefined) {
       await tx.questionService.deleteMany({ where: { questionId: id } });
       if (serviceIds.length > 0) {
@@ -74,24 +71,6 @@ export const updateQuestion = async (id: number, data: UpdateQuestionInput) => {
       if (propertyTypeIds.length > 0) {
         await tx.questionPropertyType.createMany({
           data: propertyTypeIds.map(ptId => ({ questionId: id, propertyTypeId: ptId })),
-        });
-      }
-    }
-
-    if (legalTypeIds !== undefined) {
-      await tx.questionLegalType.deleteMany({ where: { questionId: id } });
-      if (legalTypeIds.length > 0) {
-        await tx.questionLegalType.createMany({
-          data: legalTypeIds.map(ltId => ({ questionId: id, legalTypeId: ltId })),
-        });
-      }
-    }
-
-    if (sectionIds !== undefined) {
-      await tx.questionSection.deleteMany({ where: { questionId: id } });
-      if (sectionIds.length > 0) {
-        await tx.questionSection.createMany({
-          data: sectionIds.map(sId => ({ questionId: id, sectionId: sId })),
         });
       }
     }

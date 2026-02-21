@@ -11,7 +11,9 @@ export interface CreateStrataInput {
   legalTypeId?: number;
   propertyTypeId?: number;
   companyId?: number;
+  fiscalYearEnd?: string | null;
   sectionIds?: number[];
+  propertyTypeIds?: number[];
 }
 
 export interface UpdateStrataInput extends Partial<CreateStrataInput> {}

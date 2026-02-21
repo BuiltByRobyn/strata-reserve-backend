@@ -2,6 +2,8 @@ import * as inspectorAvailabilityService from '../../shared/services/inspectorAv
 import { success, created, error, asyncHandler } from '../../shared/helpers/responseHelper';
 import { parseIntParam } from '../../shared/helpers/parseParams';
 
+const VALID_LOCATION_CODES = ['OK', 'TH', 'LM', 'LLVI', 'NB', 'Virtual'];
+
 export const getAvailableDates = asyncHandler(async (c) => {
   const inspectorProfileId = c.req.query('inspectorProfileId');
   const availableDates = await inspectorAvailabilityService.getAvailableDates(inspectorProfileId);
@@ -19,17 +21,26 @@ export const getAvailableDateById = asyncHandler(async (c) => {
 
 export const createAvailableDate = asyncHandler(async (c) => {
   const body = await c.req.json();
-  const { availableDate, availableStartTime, availableEndTime, inspectorProfileId } = body;
+  const { availableStartDate, availableEndDate, availableStartTime, availableEndTime, inspectorProfileId, locationCodes } = body;
 
-  if (!availableDate || !inspectorProfileId) {
-    return error(c, 'Available date and inspector profile ID are required', 400);
+  if (!availableStartDate || !availableEndDate || !inspectorProfileId) {
+    return error(c, 'Start date, end date, and inspector profile ID are required', 400);
+  }
+
+  if (locationCodes?.length) {
+    const invalid = locationCodes.filter((code: string) => !VALID_LOCATION_CODES.includes(code));
+    if (invalid.length > 0) {
+      return error(c, `Invalid location codes: ${invalid.join(', ')}. Valid: ${VALID_LOCATION_CODES.join(', ')}`, 400);
+    }
   }
 
   const newAvailableDate = await inspectorAvailabilityService.createAvailableDate({
-    availableDate: new Date(availableDate),
+    availableStartDate: new Date(availableStartDate),
+    availableEndDate: new Date(availableEndDate),
     availableStartTime: availableStartTime ? new Date(`1970-01-01T${availableStartTime}`) : null,
     availableEndTime: availableEndTime ? new Date(`1970-01-01T${availableEndTime}`) : null,
-    inspectorProfileId
+    inspectorProfileId,
+    locationCodes: locationCodes || [],
   });
   return created(c, newAvailableDate);
 }, 'Failed to create available date');
@@ -37,27 +48,32 @@ export const createAvailableDate = asyncHandler(async (c) => {
 export const updateAvailableDate = asyncHandler(async (c) => {
   const id = parseIntParam(c, 'id');
   const body = await c.req.json();
-  const { availableDate, availableStartTime, availableEndTime } = body;
+  const { availableStartDate, availableEndDate, availableStartTime, availableEndTime, locationCodes } = body;
+
+  if (locationCodes?.length) {
+    const invalid = locationCodes.filter((code: string) => !VALID_LOCATION_CODES.includes(code));
+    if (invalid.length > 0) {
+      return error(c, `Invalid location codes: ${invalid.join(', ')}`, 400);
+    }
+  }
 
   const updateData: {
-    availableDate?: Date;
+    availableStartDate?: Date;
+    availableEndDate?: Date;
     availableStartTime?: Date | null;
     availableEndTime?: Date | null;
+    locationCodes?: string[];
   } = {};
 
-  if (availableDate) {
-    updateData.availableDate = new Date(availableDate);
-  }
+  if (availableStartDate) updateData.availableStartDate = new Date(availableStartDate);
+  if (availableEndDate) updateData.availableEndDate = new Date(availableEndDate);
   if (availableStartTime !== undefined) {
-    updateData.availableStartTime = availableStartTime
-      ? new Date(`1970-01-01T${availableStartTime}`)
-      : null;
+    updateData.availableStartTime = availableStartTime ? new Date(`1970-01-01T${availableStartTime}`) : null;
   }
   if (availableEndTime !== undefined) {
-    updateData.availableEndTime = availableEndTime
-      ? new Date(`1970-01-01T${availableEndTime}`)
-      : null;
+    updateData.availableEndTime = availableEndTime ? new Date(`1970-01-01T${availableEndTime}`) : null;
   }
+  if (locationCodes !== undefined) updateData.locationCodes = locationCodes;
 
   const updatedAvailableDate = await inspectorAvailabilityService.updateAvailableDate(id, updateData);
   return success(c, updatedAvailableDate);
@@ -73,15 +89,19 @@ export const getAvailableDatesByRange = asyncHandler(async (c) => {
   const startDate = c.req.query('startDate');
   const endDate = c.req.query('endDate');
   const inspectorProfileId = c.req.query('inspectorProfileId');
+  const locationCodesParam = c.req.query('locationCodes');
 
   if (!startDate || !endDate) {
     return error(c, 'Start date and end date are required', 400);
   }
 
+  const locationCodes = locationCodesParam ? locationCodesParam.split(',') : undefined;
+
   const availableDates = await inspectorAvailabilityService.getAvailableDatesByRange(
     new Date(startDate),
     new Date(endDate),
-    inspectorProfileId
+    inspectorProfileId,
+    locationCodes
   );
   return success(c, availableDates);
 }, 'Failed to fetch available dates');

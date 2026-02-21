@@ -1,4 +1,5 @@
 import * as strataService from '../../shared/services/strataService';
+import * as timelinesService from '../../shared/services/timelinesService';
 import { success, created, error, asyncHandler } from '../../shared/helpers/responseHelper';
 import { parseIntParam } from '../../shared/helpers/parseParams';
 
@@ -36,7 +37,9 @@ export const createStrata = asyncHandler(async (c) => {
     legalTypeId: body.legalTypeId ? parseInt(body.legalTypeId) : undefined,
     propertyTypeId: body.propertyTypeId ? parseInt(body.propertyTypeId) : undefined,
     companyId: body.companyId ? parseInt(body.companyId) : undefined,
-    sectionIds: Array.isArray(body.sectionIds) ? body.sectionIds.map(Number) : undefined
+    fiscalYearEnd: body.fiscalYearEnd || undefined,
+    sectionIds: Array.isArray(body.sectionIds) ? body.sectionIds.map(Number) : undefined,
+    propertyTypeIds: Array.isArray(body.propertyTypeIds) ? body.propertyTypeIds.map(Number) : undefined
   });
   return created(c, strata);
 }, 'Failed to create strata');
@@ -60,7 +63,9 @@ export const updateStrata = asyncHandler(async (c) => {
     legalTypeId: body.legalTypeId !== undefined ? parseInt(body.legalTypeId) : undefined,
     propertyTypeId: body.propertyTypeId !== undefined ? parseInt(body.propertyTypeId) : undefined,
     companyId: body.companyId !== undefined ? parseInt(body.companyId) : undefined,
-    sectionIds: Array.isArray(body.sectionIds) ? body.sectionIds.map(Number) : undefined
+    fiscalYearEnd: body.fiscalYearEnd !== undefined ? body.fiscalYearEnd : undefined,
+    sectionIds: Array.isArray(body.sectionIds) ? body.sectionIds.map(Number) : undefined,
+    propertyTypeIds: Array.isArray(body.propertyTypeIds) ? body.propertyTypeIds.map(Number) : undefined
   });
   return success(c, strata);
 }, 'Failed to update strata');
@@ -153,3 +158,23 @@ export const removeService = asyncHandler(async (c) => {
   await strataService.removeServiceFromStrata(strataServiceId);
   return success(c, { message: 'Service removed successfully' });
 }, 'Failed to remove service');
+
+export const getStrataTimelines = asyncHandler(async (c) => {
+  const strataId = parseIntParam(c, 'id');
+  const timelines = await timelinesService.getLatestTimelinesByStrata(strataId);
+  return success(c, timelines);
+}, 'Failed to fetch strata timelines');
+
+export const updateServiceRequestTimelines = asyncHandler(async (c) => {
+  const serviceRequestId = parseIntParam(c, 'serviceRequestId');
+  const body = await c.req.json();
+  const updated = await timelinesService.updateTimelines(serviceRequestId, {
+    fiscalYearEnd: body.fiscalYearEnd,
+    lastAgmDate: body.lastAgmDate,
+    noAgmToDate: body.noAgmToDate,
+    lastDepreciationReportDate: body.lastDepreciationReportDate,
+    noReportToDate: body.noReportToDate,
+    targetDate: body.targetDate,
+  });
+  return success(c, updated);
+}, 'Failed to update timelines');

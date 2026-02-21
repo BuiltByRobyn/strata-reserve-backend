@@ -1,4 +1,5 @@
 import * as documentService from '../../shared/services/documentService';
+import * as srDocRequirementService from '../../shared/services/srDocRequirementService';
 import { success, error, asyncHandler } from '../../shared/helpers/responseHelper';
 import { parseIntParam } from '../../shared/helpers/parseParams';
 
@@ -38,7 +39,7 @@ export const getRequiredDocuments = asyncHandler(async (c) => {
   }
 
   const [requiredDocs, uploadedDocs] = await Promise.all([
-    documentService.getRequiredDocuments(sr.serviceId, sr.strata.propertyTypeId ?? undefined),
+    srDocRequirementService.getRequirementsBySR(serviceRequestId),
     documentService.getDocumentsByServiceRequestForProfile(user.id, serviceRequestId)
   ]);
 
