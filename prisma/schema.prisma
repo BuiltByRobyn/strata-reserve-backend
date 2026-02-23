@@ -36,6 +36,7 @@ model PropertyType {
   questionPropertyTypes QuestionPropertyType[]
   requiredDocuments     RequiredDocument[]
   strataPropertyTypes   StrataPropertyType[]
+  strataProfilePropertyTypes StrataProfilePropertyType[]
   srDocRequirements     ServiceRequestDocumentRequirement[]
   serviceRequestDocuments ServiceRequestDocument[]
 
@@ -99,6 +100,8 @@ model Profile {
 
   questionResponses QuestionResponse[]       @relation("AnsweredByProfile")
   uploadedDocuments ServiceRequestDocument[] @relation("UploadedByProfile")
+
+  reviewedPropertyTypeRequests PropertyTypeRequest[] @relation("ReviewedPropertyTypeRequests")
 
   @@map("profiles")
 }
@@ -171,9 +174,11 @@ model StrataProfile {
   profileId       String   @map("profile_id") @db.Uuid
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
 
-  strata                Strata                 @relation(fields: [strataId], references: [strataId], onDelete: Cascade)
-  profile               Profile                @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  strataProfileSections StrataProfileSection[]
+  strata                     Strata                      @relation(fields: [strataId], references: [strataId], onDelete: Cascade)
+  profile                    Profile                     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  strataProfileSections      StrataProfileSection[]
+  strataProfilePropertyTypes StrataProfilePropertyType[]
+  propertyTypeRequests       PropertyTypeRequest[]
 
   @@unique([strataId, profileId])
   @@map("strata_profiles")
@@ -213,6 +218,34 @@ model StrataProfileSection {
 
   @@unique([strataProfileId, sectionId])
   @@map("strata_profile_section")
+}
+
+model StrataProfilePropertyType {
+  strataProfilePropertyTypeId Int @id @default(autoincrement()) @map("strata_profile_property_type_id")
+  strataProfileId             Int @map("strata_profile_id")
+  propertyTypeId              Int @map("property_type_id")
+
+  strataProfile StrataProfile @relation(fields: [strataProfileId], references: [strataProfileId], onDelete: Cascade)
+  propertyType  PropertyType  @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: Cascade)
+
+  @@unique([strataProfileId, propertyTypeId])
+  @@map("strata_profile_property_type")
+}
+
+model PropertyTypeRequest {
+  propertyTypeRequestId    Int       @id @default(autoincrement()) @map("property_type_request_id")
+  strataProfileId          Int       @map("strata_profile_id")
+  requestedPropertyTypeIds Int[]     @map("requested_property_type_ids")
+  status                   String    @default("Pending") @db.VarChar(50)
+  rejectionReason          String?   @map("rejection_reason") @db.Text
+  reviewedByProfileId      String?   @map("reviewed_by_profile_id") @db.Uuid
+  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  reviewedAt               DateTime? @map("reviewed_at") @db.Timestamptz
+
+  strataProfile StrataProfile @relation(fields: [strataProfileId], references: [strataProfileId], onDelete: Cascade)
+  reviewedBy    Profile?      @relation("ReviewedPropertyTypeRequests", fields: [reviewedByProfileId], references: [id], onDelete: SetNull)
+
+  @@map("property_type_request")
 }
 
 model StrataService {

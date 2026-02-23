@@ -2,6 +2,7 @@ export interface StrataAssociationInput {
   strataId: number;
   strataPosition?: string;
   sectionIds?: number[];
+  propertyTypeIds?: number[];
 }
 
 export interface CreateUserInput {
