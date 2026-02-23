@@ -18,6 +18,7 @@ import { serviceRequestRoutes } from './admin/routes/serviceRequestRoutes';
 import { adminSurveyRoutes } from './admin/routes/adminSurveyRoutes';
 import { questionRoutes } from './admin/routes/questionRoutes';
 import { srDocRequirementRoutes } from './admin/routes/srDocRequirementRoutes';
+import { propertyTypeRequestRoutes } from './admin/routes/propertyTypeRequestRoutes';
 
 // Client routes
 import { clientRoutes } from './client/routes/clientRoutes';
@@ -74,6 +75,7 @@ app.route('/admin', serviceRequestRoutes);
 app.route('/admin', adminSurveyRoutes);
 app.route('/admin', questionRoutes);
 app.route('/admin', srDocRequirementRoutes);
+app.route('/admin', propertyTypeRequestRoutes);
 
 // Client routes (auth required)
 app.use('/client/*', authMiddleware);

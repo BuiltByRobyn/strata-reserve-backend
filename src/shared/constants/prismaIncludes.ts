@@ -28,7 +28,19 @@ export const documentIncludeCompact = {
 
 export const serviceRequestIncludeList = {
   service: { select: { serviceId: true, serviceName: true } },
-  strata: { select: { strataId: true, strataPlan: true, complexName: true } },
+  strata: {
+    select: {
+      strataId: true,
+      strataPlan: true,
+      complexName: true,
+      strataPropertyTypes: {
+        select: {
+          propertyTypeId: true,
+          propertyType: { select: { propertyTypeId: true, propertyTypeName: true } }
+        }
+      }
+    }
+  },
   requestedBy: { select: profileSelectBrief },
   _count: {
     select: { questionResponses: true, serviceRequestDocuments: true, appointments: true }

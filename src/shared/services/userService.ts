@@ -23,11 +23,17 @@ const userInclude = {
           strataId: true,
           strataPlan: true,
           complexName: true,
-          company: { select: { companyId: true, companyName: true } }
+          company: { select: { companyId: true, companyName: true } },
+          strataPropertyTypes: {
+            select: { propertyTypeId: true, propertyType: { select: { propertyTypeId: true, propertyTypeName: true } } }
+          }
         }
       },
       strataProfileSections: {
         include: { section: true }
+      },
+      strataProfilePropertyTypes: {
+        include: { propertyType: true }
       }
     }
   }
@@ -42,11 +48,17 @@ const userListInclude = {
           strataId: true,
           strataPlan: true,
           complexName: true,
-          company: { select: { companyId: true, companyName: true } }
+          company: { select: { companyId: true, companyName: true } },
+          strataPropertyTypes: {
+            select: { propertyTypeId: true, propertyType: { select: { propertyTypeId: true, propertyTypeName: true } } }
+          }
         }
       },
       strataProfileSections: {
         include: { section: true }
+      },
+      strataProfilePropertyTypes: {
+        include: { propertyType: true }
       }
     }
   }
@@ -134,6 +146,14 @@ export const createUser = async (data: CreateUserInput) => {
         }))
       });
     }
+    if (sa.propertyTypeIds?.length) {
+      await prisma.strataProfilePropertyType.createMany({
+        data: sa.propertyTypeIds.map(propertyTypeId => ({
+          strataProfileId: sp.strataProfileId,
+          propertyTypeId
+        }))
+      });
+    }
   }
 
   return prisma.profile.findUnique({
@@ -178,6 +198,14 @@ export const updateUser = async (id: string, data: UpdateUserInput) => {
           data: sa.sectionIds.map(sectionId => ({
             strataProfileId: sp.strataProfileId,
             sectionId
+          }))
+        });
+      }
+      if (sa.propertyTypeIds?.length) {
+        await prisma.strataProfilePropertyType.createMany({
+          data: sa.propertyTypeIds.map(propertyTypeId => ({
+            strataProfileId: sp.strataProfileId,
+            propertyTypeId
           }))
         });
       }
