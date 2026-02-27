@@ -46,7 +46,8 @@ export const getRequiredDocuments = asyncHandler(async (c) => {
   const checklist = requiredDocs.map(req => ({
     ...req,
     uploadedDocument: uploadedDocs.find(
-      doc => doc.documentTypeId === req.documentTypeId
+      doc => doc.documentTypeId === req.documentTypeId &&
+        (req.propertyTypeId === null || doc.propertyTypeId === req.propertyTypeId)
     ) || null
   }));
 

@@ -31,26 +31,6 @@ export const getDocumentsByServiceRequest = async (serviceRequestId: number) => 
   });
 };
 
-export const getRequiredDocuments = async (serviceId: number, propertyTypeIds?: number[]) => {
-  return prisma.requiredDocument.findMany({
-    where: {
-      serviceId,
-      ...(propertyTypeIds?.length ? {
-        OR: [
-          { appliesToAllTypes: true },
-          { propertyTypeId: { in: propertyTypeIds } },
-          { propertyTypeId: null }
-        ]
-      } : {})
-    },
-    include: {
-      documentType: { select: { documentTypeId: true, typeName: true } },
-      propertyType: { select: { propertyTypeId: true, propertyTypeName: true } }
-    },
-    orderBy: { requiredDocumentId: 'asc' }
-  });
-};
-
 export const updateDocumentStatus = async (id: number, reviewStatusId: number, notes?: string) => {
   return prisma.serviceRequestDocument.update({
     where: { serviceRequestDocumentId: id },
