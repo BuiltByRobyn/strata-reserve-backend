@@ -1,4 +1,5 @@
 import { success, error, asyncHandler } from '../../shared/helpers/responseHelper';
+import { parseIntParam } from '../../shared/helpers/parseParams';
 import * as propertyTypeRequestService from '../../shared/services/propertyTypeRequestService';
 
 export const getPendingRequests = asyncHandler(async (c) => {
@@ -7,7 +8,7 @@ export const getPendingRequests = asyncHandler(async (c) => {
 }, 'Failed to fetch pending property type requests');
 
 export const approveRequest = asyncHandler(async (c) => {
-  const id = parseInt(c.req.param('id'));
+  const id = parseIntParam(c, 'id');
   const user = c.get('user');
 
   const result = await propertyTypeRequestService.approve(id, user.id);
@@ -15,7 +16,7 @@ export const approveRequest = asyncHandler(async (c) => {
 }, 'Failed to approve property type request');
 
 export const rejectRequest = asyncHandler(async (c) => {
-  const id = parseInt(c.req.param('id'));
+  const id = parseIntParam(c, 'id');
   const user = c.get('user');
   const { rejectionReason } = await c.req.json<{ rejectionReason: string }>();
 

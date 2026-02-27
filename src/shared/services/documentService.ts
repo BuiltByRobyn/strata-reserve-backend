@@ -9,6 +9,12 @@ const getVisibleSectionIdsForProfile = async (profileId: string): Promise<number
   return profileSections.map((s) => s.sectionId);
 };
 
+const sectionVisibilityWhere = (sectionIds: number[]) => {
+  return sectionIds.length
+    ? { OR: [{ sectionId: null }, { sectionId: { in: sectionIds } }] }
+    : {};
+};
+
 export const getDocuments = async () => {
   return prisma.serviceRequestDocument.findMany({
     orderBy: { uploadedAt: 'desc' },
@@ -82,12 +88,7 @@ export const getDocumentsByProfile = async (profileId: string) => {
           strataProfiles: { some: { profileId } }
         }
       },
-      ...(sectionIds.length ? {
-        OR: [
-          { sectionId: null },
-          { sectionId: { in: sectionIds } }
-        ]
-      } : {}),
+      ...sectionVisibilityWhere(sectionIds),
     },
     orderBy: { uploadedAt: 'desc' },
     include: documentInclude
@@ -105,12 +106,7 @@ export const getDocumentByIdForProfile = async (profileId: string, id: number) =
           strataProfiles: { some: { profileId } }
         }
       },
-      ...(sectionIds.length ? {
-        OR: [
-          { sectionId: null },
-          { sectionId: { in: sectionIds } }
-        ]
-      } : {}),
+      ...sectionVisibilityWhere(sectionIds),
     },
     include: documentInclude
   });
@@ -134,12 +130,7 @@ export const searchDocumentsByProfile = async (profileId: string, query: string)
             }
           }
         },
-        ...(sectionIds.length ? [{
-          OR: [
-            { sectionId: null },
-            { sectionId: { in: sectionIds } }
-          ]
-        }] : []),
+        ...(sectionIds.length ? [sectionVisibilityWhere(sectionIds)] : []),
         {
           OR: [
             { fileName: { contains: trimmedQuery, mode: 'insensitive' } },
@@ -186,12 +177,7 @@ export const getDocumentsByServiceRequestForProfile = async (profileId: string, 
           strataProfiles: { some: { profileId } }
         }
       },
-      ...(sectionIds.length ? {
-        OR: [
-          { sectionId: null },
-          { sectionId: { in: sectionIds } }
-        ]
-      } : {}),
+      ...sectionVisibilityWhere(sectionIds),
     },
     orderBy: { uploadedAt: 'desc' },
     include: documentIncludeCompact

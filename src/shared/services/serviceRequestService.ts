@@ -3,14 +3,26 @@ import type { CreateServiceRequestInput } from '../types/serviceRequest.types';
 import { serviceRequestIncludeList, profileSelectBrief, profileSelectWithEmail, documentIncludeCompact } from '../constants/prismaIncludes';
 
 export const getServiceRequests = async (filters?: { strataId?: number; archived?: boolean }) => {
-  return prisma.serviceRequest.findMany({
+  const results = await prisma.serviceRequest.findMany({
     where: {
       ...(filters?.strataId ? { strataId: filters.strataId } : {}),
       ...(filters?.archived !== undefined ? { archived: filters.archived } : {})
     },
     orderBy: { requestDate: 'desc' },
-    include: serviceRequestIncludeList
+    include: {
+      ...serviceRequestIncludeList,
+      serviceRequestDocuments: {
+        orderBy: { uploadedAt: 'desc' },
+        take: 1,
+        select: { uploadedAt: true }
+      }
+    }
   });
+
+  return results.map(({ serviceRequestDocuments, ...sr }) => ({
+    ...sr,
+    latestDocumentUploadDate: serviceRequestDocuments[0]?.uploadedAt ?? null,
+  }));
 };
 
 export const getServiceRequestById = async (id: number) => {

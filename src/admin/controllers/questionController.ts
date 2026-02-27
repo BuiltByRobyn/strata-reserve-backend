@@ -1,5 +1,5 @@
 import * as questionAdminService from '../../shared/services/questionAdminService';
-import { success, created, error, asyncHandler } from '../../shared/helpers/responseHelper';
+import { success, created, error, asyncHandler, getByIdHandler, deleteHandler } from '../../shared/helpers/responseHelper';
 import { parseIntParam } from '../../shared/helpers/parseParams';
 
 export const getQuestions = asyncHandler(async (c) => {
@@ -7,14 +7,7 @@ export const getQuestions = asyncHandler(async (c) => {
   return success(c, questions);
 }, 'Failed to fetch questions');
 
-export const getQuestionById = asyncHandler(async (c) => {
-  const id = parseIntParam(c, 'id');
-  const question = await questionAdminService.getQuestionById(id);
-  if (!question) {
-    return error(c, 'Question not found', 404);
-  }
-  return success(c, question);
-}, 'Failed to fetch question');
+export const getQuestionById = getByIdHandler(questionAdminService.getQuestionById, 'Question');
 
 export const createQuestion = asyncHandler(async (c) => {
   const body = await c.req.json();
@@ -89,8 +82,4 @@ export const updateQuestion = asyncHandler(async (c) => {
   return success(c, question);
 }, 'Failed to update question');
 
-export const deleteQuestion = asyncHandler(async (c) => {
-  const id = parseIntParam(c, 'id');
-  await questionAdminService.deleteQuestion(id);
-  return success(c, { message: 'Question deleted successfully' });
-}, 'Failed to delete question');
+export const deleteQuestion = deleteHandler(questionAdminService.deleteQuestion, 'Question');
