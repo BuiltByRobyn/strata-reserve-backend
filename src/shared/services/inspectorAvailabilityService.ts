@@ -49,6 +49,31 @@ export const createAvailableDate = async (data: {
   });
 };
 
+const checkConflictingAppointments = async (id: number) => {
+  const availability = await prisma.inspectorAvailableDate.findUnique({
+    where: { inspectorAvailableDateId: id }
+  });
+
+  if (!availability) return;
+
+  const conflictingAppointment = await prisma.appointment.findFirst({
+    where: {
+      inspectorProfileId: availability.inspectorProfileId,
+      appointmentDate: {
+        gte: availability.availableStartDate,
+        lte: availability.availableEndDate
+      },
+      status: {
+        not: 'Cancelled'
+      }
+    }
+  });
+
+  if (conflictingAppointment) {
+    throw new Error('Cannot change availability. Existing appointments found on these dates. Please reschedule them first.');
+  }
+};
+
 export const updateAvailableDate = async (
   id: number,
   data: {
@@ -59,6 +84,8 @@ export const updateAvailableDate = async (
     locationCodes?: string[];
   }
 ) => {
+  await checkConflictingAppointments(id);
+
   const { locationCodes, ...dateData } = data;
 
   if (locationCodes !== undefined) {
@@ -83,6 +110,8 @@ export const updateAvailableDate = async (
 };
 
 export const deleteAvailableDate = async (id: number) => {
+  await checkConflictingAppointments(id);
+
   return prisma.inspectorAvailableDate.delete({
     where: { inspectorAvailableDateId: id }
   });

@@ -37,8 +37,8 @@ export const createAvailableDate = asyncHandler(async (c) => {
   const newAvailableDate = await inspectorAvailabilityService.createAvailableDate({
     availableStartDate: new Date(availableStartDate),
     availableEndDate: new Date(availableEndDate),
-    availableStartTime: availableStartTime ? new Date(`1970-01-01T${availableStartTime}`) : null,
-    availableEndTime: availableEndTime ? new Date(`1970-01-01T${availableEndTime}`) : null,
+    availableStartTime: availableStartTime ? new Date(`1970-01-01T${availableStartTime}Z`) : null,
+    availableEndTime: availableEndTime ? new Date(`1970-01-01T${availableEndTime}Z`) : null,
     inspectorProfileId,
     locationCodes: locationCodes || [],
   });
@@ -68,21 +68,35 @@ export const updateAvailableDate = asyncHandler(async (c) => {
   if (availableStartDate) updateData.availableStartDate = new Date(availableStartDate);
   if (availableEndDate) updateData.availableEndDate = new Date(availableEndDate);
   if (availableStartTime !== undefined) {
-    updateData.availableStartTime = availableStartTime ? new Date(`1970-01-01T${availableStartTime}`) : null;
+    updateData.availableStartTime = availableStartTime ? new Date(`1970-01-01T${availableStartTime}Z`) : null;
   }
   if (availableEndTime !== undefined) {
-    updateData.availableEndTime = availableEndTime ? new Date(`1970-01-01T${availableEndTime}`) : null;
+    updateData.availableEndTime = availableEndTime ? new Date(`1970-01-01T${availableEndTime}Z`) : null;
   }
   if (locationCodes !== undefined) updateData.locationCodes = locationCodes;
 
-  const updatedAvailableDate = await inspectorAvailabilityService.updateAvailableDate(id, updateData);
-  return success(c, updatedAvailableDate);
+  try {
+    const updatedAvailableDate = await inspectorAvailabilityService.updateAvailableDate(id, updateData);
+    return success(c, updatedAvailableDate);
+  } catch (err: any) {
+    if (err.message === 'Cannot change availability. Existing appointments found on these dates. Please reschedule them first.') {
+      return error(c, err.message, 400);
+    }
+    throw err;
+  }
 }, 'Failed to update available date');
 
 export const deleteAvailableDate = asyncHandler(async (c) => {
   const id = parseIntParam(c, 'id');
-  await inspectorAvailabilityService.deleteAvailableDate(id);
-  return success(c, { message: 'Available date deleted successfully' });
+  try {
+    await inspectorAvailabilityService.deleteAvailableDate(id);
+    return success(c, { message: 'Available date deleted successfully' });
+  } catch (err: any) {
+    if (err.message === 'Cannot change availability. Existing appointments found on these dates. Please reschedule them first.') {
+      return error(c, err.message, 400);
+    }
+    throw err;
+  }
 }, 'Failed to delete available date');
 
 export const getAvailableDatesByRange = asyncHandler(async (c) => {
