@@ -1,5 +1,5 @@
 import * as documentService from '../../shared/services/documentService';
-import { success, error, asyncHandler } from '../../shared/helpers/responseHelper';
+import { success, error, asyncHandler, getByIdHandler, deleteHandler } from '../../shared/helpers/responseHelper';
 import { parseIntParam } from '../../shared/helpers/parseParams';
 
 export const getDocuments = asyncHandler(async (c) => {
@@ -7,14 +7,7 @@ export const getDocuments = asyncHandler(async (c) => {
   return success(c, documents);
 }, 'Failed to fetch documents');
 
-export const getDocumentById = asyncHandler(async (c) => {
-  const id = parseIntParam(c, 'id');
-  const document = await documentService.getDocumentById(id);
-  if (!document) {
-    return error(c, 'Document not found', 404);
-  }
-  return success(c, document);
-}, 'Failed to fetch document');
+export const getDocumentById = getByIdHandler(documentService.getDocumentById, 'Document');
 
 export const updateDocumentStatus = asyncHandler(async (c) => {
   const id = parseIntParam(c, 'id');
@@ -36,11 +29,7 @@ export const clearDocumentNotes = asyncHandler(async (c) => {
   return success(c, { message: 'Document notes cleared' });
 }, 'Failed to clear document notes');
 
-export const deleteDocument = asyncHandler(async (c) => {
-  const id = parseIntParam(c, 'id');
-  await documentService.deleteDocument(id);
-  return success(c, { message: 'Document deleted successfully' });
-}, 'Failed to delete document');
+export const deleteDocument = deleteHandler(documentService.deleteDocument, 'Document');
 
 export const searchDocuments = asyncHandler(async (c) => {
   const query = c.req.query('q') || '';

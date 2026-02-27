@@ -1,11 +1,11 @@
 import * as questionService from '../../shared/services/questionService';
 import { success, error, asyncHandler } from '../../shared/helpers/responseHelper';
 import { parseIntParam } from '../../shared/helpers/parseParams';
+import prisma from '../../shared/lib/prismaClient';
 
 export const getSurveyQuestions = asyncHandler(async (c) => {
   const serviceRequestId = parseIntParam(c, 'serviceRequestId');
 
-  const { default: prisma } = await import('../../shared/lib/prismaClient');
   const sr = await prisma.serviceRequest.findUnique({
     where: { serviceRequestId },
     include: {
@@ -70,7 +70,6 @@ export const getArchivedSurveyResponses = asyncHandler(async (c) => {
 export const getSurveySections = asyncHandler(async (c) => {
   const serviceRequestId = parseIntParam(c, 'serviceRequestId');
 
-  const { default: prisma } = await import('../../shared/lib/prismaClient');
   const sr = await prisma.serviceRequest.findUnique({
     where: { serviceRequestId },
     select: { serviceId: true }

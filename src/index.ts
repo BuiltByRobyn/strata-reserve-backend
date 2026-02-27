@@ -3,6 +3,7 @@ import { Hono } from 'hono';
 import { logger } from 'hono/logger';
 import { cors } from 'hono/cors';
 import { authMiddleware, adminMiddleware } from './shared/middleware/auth';
+import prisma from './shared/lib/prismaClient';
 
 // Admin routes
 import { adminRoutes } from './admin/routes/adminRoutes';
@@ -85,12 +86,16 @@ app.route('/client', clientDocumentRoutes);
 app.route('/client', clientSurveyRoutes);
 
 const port = Number(process.env.PORT) || 3000;
-console.log(`Server is running on port ${port}`);
-console.log(`Admin endpoints available at: http://localhost:${port}/admin/*`);
-console.log(`Client endpoints available at: http://localhost:${port}/client/*`);
-console.log(`API endpoints available at: http://localhost:${port}/api/*`);
 
 serve({
   fetch: app.fetch,
   port,
+  hostname: '0.0.0.0',
+});
+
+console.log(`Server is running on port ${port}`);
+
+process.on('SIGTERM', async () => {
+  await prisma.$disconnect();
+  process.exit(0);
 });

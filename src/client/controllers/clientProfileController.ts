@@ -1,8 +1,8 @@
 import { success, error, asyncHandler } from '../../shared/helpers/responseHelper';
+import prisma from '../../shared/lib/prismaClient';
 
 export const getClientProfile = asyncHandler(async (c) => {
   const user = c.get('user');
-  const { default: prisma } = await import('../../shared/lib/prismaClient');
 
   const profile = await prisma.profile.findUnique({
     where: { id: user.id },
@@ -39,12 +39,7 @@ export const getClientProfile = asyncHandler(async (c) => {
 export const updateClientProfile = asyncHandler(async (c) => {
   const user = c.get('user');
   const body = await c.req.json();
-  const { default: prisma } = await import('../../shared/lib/prismaClient');
 
-  console.log('[updateClientProfile] user.id:', user?.id);
-  console.log('[updateClientProfile] body:', JSON.stringify(body));
-
-  // Update profile fields
   const updatedProfile = await prisma.profile.update({
     where: { id: user.id },
     data: {
@@ -54,15 +49,11 @@ export const updateClientProfile = asyncHandler(async (c) => {
     }
   });
 
-  console.log('[updateClientProfile] profile updated:', updatedProfile.firstName, updatedProfile.lastName);
-
-  // Update strata position if provided
   if (body.strataPosition !== undefined) {
-    const result = await prisma.strataProfile.updateMany({
+    await prisma.strataProfile.updateMany({
       where: { profileId: user.id },
       data: { strataPosition: body.strataPosition }
     });
-    console.log('[updateClientProfile] strataProfile updateMany count:', result.count);
   }
 
   return success(c, {

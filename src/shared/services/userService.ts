@@ -1,67 +1,48 @@
 import prisma from '../lib/prismaClient';
-import { createClient } from '@supabase/supabase-js';
+import { supabase as supabaseAdmin } from '../lib/supabaseClient';
+import { strataProfilesInclude } from '../constants/prismaIncludes';
 import type { Prisma } from '@prisma/client';
-import type { CreateUserInput, UpdateUserInput } from '../types/user.types';
+import type { CreateUserInput, UpdateUserInput, StrataAssociationInput } from '../types/user.types';
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required');
-}
-
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: { autoRefreshToken: false, persistSession: false }
-});
-
-const userInclude = {
-  userType: true,
-  strataProfiles: {
-    include: {
-      strata: {
-        select: {
-          strataId: true,
-          strataPlan: true,
-          complexName: true,
-          company: { select: { companyId: true, companyName: true } },
-          strataPropertyTypes: {
-            select: { propertyTypeId: true, propertyType: { select: { propertyTypeId: true, propertyTypeName: true } } }
-          }
-        }
-      },
-      strataProfileSections: {
-        include: { section: true }
-      },
-      strataProfilePropertyTypes: {
-        include: { propertyType: true }
+const createStrataAssociations = async (
+  profileId: string,
+  associations: StrataAssociationInput[]
+): Promise<void> => {
+  for (const sa of associations) {
+    const sp = await prisma.strataProfile.create({
+      data: {
+        profileId,
+        strataId: sa.strataId,
+        strataPosition: sa.strataPosition || null
       }
+    });
+    if (sa.sectionIds?.length) {
+      await prisma.strataProfileSection.createMany({
+        data: sa.sectionIds.map(sectionId => ({
+          strataProfileId: sp.strataProfileId,
+          sectionId
+        }))
+      });
+    }
+    if (sa.propertyTypeIds?.length) {
+      await prisma.strataProfilePropertyType.createMany({
+        data: sa.propertyTypeIds.map(propertyTypeId => ({
+          strataProfileId: sp.strataProfileId,
+          propertyTypeId
+        }))
+      });
     }
   }
 };
 
+const userInclude = {
+  userType: true,
+  strataProfiles: strataProfilesInclude
+};
+
 const userListInclude = {
   userType: { select: { userTypeId: true, userTypeName: true } },
-  strataProfiles: {
-    include: {
-      strata: {
-        select: {
-          strataId: true,
-          strataPlan: true,
-          complexName: true,
-          company: { select: { companyId: true, companyName: true } },
-          strataPropertyTypes: {
-            select: { propertyTypeId: true, propertyType: { select: { propertyTypeId: true, propertyTypeName: true } } }
-          }
-        }
-      },
-      strataProfileSections: {
-        include: { section: true }
-      },
-      strataProfilePropertyTypes: {
-        include: { propertyType: true }
-      }
-    }
-  }
+  strataProfiles: strataProfilesInclude
 };
 
 export const getUsers = async (filters?: {
@@ -130,31 +111,7 @@ export const createUser = async (data: CreateUserInput) => {
     }
   });
 
-  for (const sa of data.strataAssociations) {
-    const sp = await prisma.strataProfile.create({
-      data: {
-        profileId: userId,
-        strataId: sa.strataId,
-        strataPosition: sa.strataPosition || null
-      }
-    });
-    if (sa.sectionIds?.length) {
-      await prisma.strataProfileSection.createMany({
-        data: sa.sectionIds.map(sectionId => ({
-          strataProfileId: sp.strataProfileId,
-          sectionId
-        }))
-      });
-    }
-    if (sa.propertyTypeIds?.length) {
-      await prisma.strataProfilePropertyType.createMany({
-        data: sa.propertyTypeIds.map(propertyTypeId => ({
-          strataProfileId: sp.strataProfileId,
-          propertyTypeId
-        }))
-      });
-    }
-  }
+  await createStrataAssociations(userId, data.strataAssociations);
 
   return prisma.profile.findUnique({
     where: { id: userId },
@@ -185,31 +142,7 @@ export const updateUser = async (id: string, data: UpdateUserInput) => {
       where: { profileId: id }
     });
 
-    for (const sa of data.strataAssociations) {
-      const sp = await prisma.strataProfile.create({
-        data: {
-          profileId: id,
-          strataId: sa.strataId,
-          strataPosition: sa.strataPosition || null
-        }
-      });
-      if (sa.sectionIds?.length) {
-        await prisma.strataProfileSection.createMany({
-          data: sa.sectionIds.map(sectionId => ({
-            strataProfileId: sp.strataProfileId,
-            sectionId
-          }))
-        });
-      }
-      if (sa.propertyTypeIds?.length) {
-        await prisma.strataProfilePropertyType.createMany({
-          data: sa.propertyTypeIds.map(propertyTypeId => ({
-            strataProfileId: sp.strataProfileId,
-            propertyTypeId
-          }))
-        });
-      }
-    }
+    await createStrataAssociations(id, data.strataAssociations);
   }
 
   return prisma.profile.findUnique({

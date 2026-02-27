@@ -1,5 +1,5 @@
 import * as appointmentService from '../../shared/services/appointmentService';
-import { success, error, asyncHandler } from '../../shared/helpers/responseHelper';
+import { success, error, asyncHandler, getByIdHandler } from '../../shared/helpers/responseHelper';
 import { parseIntParam } from '../../shared/helpers/parseParams';
 
 export const getAppointments = asyncHandler(async (c) => {
@@ -7,14 +7,7 @@ export const getAppointments = asyncHandler(async (c) => {
   return success(c, appointments);
 }, 'Failed to fetch appointments');
 
-export const getAppointmentById = asyncHandler(async (c) => {
-  const id = parseIntParam(c, 'id');
-  const appointment = await appointmentService.getAppointmentById(id);
-  if (!appointment) {
-    return error(c, 'Appointment not found', 404);
-  }
-  return success(c, appointment);
-}, 'Failed to fetch appointment');
+export const getAppointmentById = getByIdHandler(appointmentService.getAppointmentById, 'Appointment');
 
 export const updateAppointmentStatus = asyncHandler(async (c) => {
   const id = parseIntParam(c, 'id');

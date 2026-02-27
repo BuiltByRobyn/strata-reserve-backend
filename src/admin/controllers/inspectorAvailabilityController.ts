@@ -1,8 +1,16 @@
 import * as inspectorAvailabilityService from '../../shared/services/inspectorAvailabilityService';
-import { success, created, error, asyncHandler } from '../../shared/helpers/responseHelper';
+import { success, created, error, asyncHandler, getByIdHandler } from '../../shared/helpers/responseHelper';
 import { parseIntParam } from '../../shared/helpers/parseParams';
+import { VALID_LOCATION_CODES } from '../../shared/constants/validation';
 
-const VALID_LOCATION_CODES = ['OK', 'TH', 'LM', 'LLVI', 'NB', 'Virtual'];
+const validateLocationCodes = (locationCodes: string[] | undefined): string | null => {
+  if (!locationCodes?.length) return null;
+  const invalid = locationCodes.filter((code: string) => !(VALID_LOCATION_CODES as readonly string[]).includes(code));
+  if (invalid.length > 0) {
+    return `Invalid location codes: ${invalid.join(', ')}. Valid: ${VALID_LOCATION_CODES.join(', ')}`;
+  }
+  return null;
+};
 
 export const getAvailableDates = asyncHandler(async (c) => {
   const inspectorProfileId = c.req.query('inspectorProfileId');
@@ -10,14 +18,7 @@ export const getAvailableDates = asyncHandler(async (c) => {
   return success(c, availableDates);
 }, 'Failed to fetch available dates');
 
-export const getAvailableDateById = asyncHandler(async (c) => {
-  const id = parseIntParam(c, 'id');
-  const availableDate = await inspectorAvailabilityService.getAvailableDateById(id);
-  if (!availableDate) {
-    return error(c, 'Available date not found', 404);
-  }
-  return success(c, availableDate);
-}, 'Failed to fetch available date');
+export const getAvailableDateById = getByIdHandler(inspectorAvailabilityService.getAvailableDateById, 'Available date');
 
 export const createAvailableDate = asyncHandler(async (c) => {
   const body = await c.req.json();
@@ -27,11 +28,9 @@ export const createAvailableDate = asyncHandler(async (c) => {
     return error(c, 'Start date, end date, and inspector profile ID are required', 400);
   }
 
-  if (locationCodes?.length) {
-    const invalid = locationCodes.filter((code: string) => !VALID_LOCATION_CODES.includes(code));
-    if (invalid.length > 0) {
-      return error(c, `Invalid location codes: ${invalid.join(', ')}. Valid: ${VALID_LOCATION_CODES.join(', ')}`, 400);
-    }
+  const locationError = validateLocationCodes(locationCodes);
+  if (locationError) {
+    return error(c, locationError, 400);
   }
 
   const newAvailableDate = await inspectorAvailabilityService.createAvailableDate({
@@ -50,11 +49,9 @@ export const updateAvailableDate = asyncHandler(async (c) => {
   const body = await c.req.json();
   const { availableStartDate, availableEndDate, availableStartTime, availableEndTime, locationCodes } = body;
 
-  if (locationCodes?.length) {
-    const invalid = locationCodes.filter((code: string) => !VALID_LOCATION_CODES.includes(code));
-    if (invalid.length > 0) {
-      return error(c, `Invalid location codes: ${invalid.join(', ')}`, 400);
-    }
+  const locationError = validateLocationCodes(locationCodes);
+  if (locationError) {
+    return error(c, locationError, 400);
   }
 
   const updateData: {

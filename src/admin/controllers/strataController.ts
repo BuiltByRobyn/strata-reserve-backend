@@ -1,23 +1,15 @@
 import * as strataService from '../../shared/services/strataService';
 import * as timelinesService from '../../shared/services/timelinesService';
-import { success, created, error, asyncHandler } from '../../shared/helpers/responseHelper';
+import { success, created, error, asyncHandler, getByIdHandler, deleteHandler } from '../../shared/helpers/responseHelper';
 import { parseIntParam } from '../../shared/helpers/parseParams';
-
-const STRATA_ID_PATTERN = /^[A-Za-z]{3}\s\d{5}$/;
+import { STRATA_ID_PATTERN } from '../../shared/constants/validation';
 
 export const getStratas = asyncHandler(async (c) => {
   const stratas = await strataService.getStratas();
   return success(c, stratas);
 }, 'Failed to fetch stratas');
 
-export const getStrataById = asyncHandler(async (c) => {
-  const id = parseIntParam(c, 'id');
-  const strata = await strataService.getStrataById(id);
-  if (!strata) {
-    return error(c, 'Strata not found', 404);
-  }
-  return success(c, strata);
-}, 'Failed to fetch strata');
+export const getStrataById = getByIdHandler(strataService.getStrataById, 'Strata');
 
 export const createStrata = asyncHandler(async (c) => {
   const body = await c.req.json();
@@ -70,11 +62,7 @@ export const updateStrata = asyncHandler(async (c) => {
   return success(c, strata);
 }, 'Failed to update strata');
 
-export const deleteStrata = asyncHandler(async (c) => {
-  const id = parseIntParam(c, 'id');
-  await strataService.deleteStrata(id);
-  return success(c, { message: 'Strata deleted successfully' });
-}, 'Failed to delete strata');
+export const deleteStrata = deleteHandler(strataService.deleteStrata, 'Strata');
 
 export const searchStratas = asyncHandler(async (c) => {
   const query = c.req.query('q') || '';

@@ -1,5 +1,5 @@
 import * as companyHolidayService from '../../shared/services/companyHolidayService';
-import { success, created, error, asyncHandler } from '../../shared/helpers/responseHelper';
+import { success, created, error, asyncHandler, getByIdHandler, deleteHandler } from '../../shared/helpers/responseHelper';
 import { parseIntParam } from '../../shared/helpers/parseParams';
 
 export const getCompanyHolidays = asyncHandler(async (c) => {
@@ -7,14 +7,7 @@ export const getCompanyHolidays = asyncHandler(async (c) => {
   return success(c, holidays);
 }, 'Failed to fetch company holidays');
 
-export const getCompanyHolidayById = asyncHandler(async (c) => {
-  const id = parseIntParam(c, 'id');
-  const holiday = await companyHolidayService.getCompanyHolidayById(id);
-  if (!holiday) {
-    return error(c, 'Company holiday not found', 404);
-  }
-  return success(c, holiday);
-}, 'Failed to fetch company holiday');
+export const getCompanyHolidayById = getByIdHandler(companyHolidayService.getCompanyHolidayById, 'Company holiday');
 
 export const createCompanyHoliday = asyncHandler(async (c) => {
   const body = await c.req.json();
@@ -57,11 +50,7 @@ export const updateCompanyHoliday = asyncHandler(async (c) => {
   return success(c, updatedHoliday);
 }, 'Failed to update company holiday');
 
-export const deleteCompanyHoliday = asyncHandler(async (c) => {
-  const id = parseIntParam(c, 'id');
-  await companyHolidayService.deleteCompanyHoliday(id);
-  return success(c, { message: 'Company holiday deleted successfully' });
-}, 'Failed to delete company holiday');
+export const deleteCompanyHoliday = deleteHandler(companyHolidayService.deleteCompanyHoliday, 'Company holiday');
 
 export const getHolidaysByYear = asyncHandler(async (c) => {
   const year = parseInt(c.req.query('year') || new Date().getFullYear().toString());

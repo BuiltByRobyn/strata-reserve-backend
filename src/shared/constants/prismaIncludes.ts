@@ -51,3 +51,25 @@ export const strataSelectBrief = {
   strataId: true, strataPlan: true, complexName: true,
   company: { select: { companyId: true, companyName: true } }
 } as const;
+
+export const strataProfilesInclude = {
+  include: {
+    strata: {
+      select: {
+        strataId: true,
+        strataPlan: true,
+        complexName: true,
+        company: { select: { companyId: true, companyName: true } },
+        strataPropertyTypes: {
+          select: { propertyTypeId: true, propertyType: { select: { propertyTypeId: true, propertyTypeName: true } } }
+        }
+      }
+    },
+    strataProfileSections: {
+      include: { section: true }
+    },
+    strataProfilePropertyTypes: {
+      include: { propertyType: true }
+    }
+  }
+} as const;
