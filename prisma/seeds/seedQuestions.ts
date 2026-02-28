@@ -13,6 +13,9 @@ const pool = new Pool({ connectionString })
 const adapter = new PrismaPg(pool)
 const prisma = new PrismaClient({ adapter })
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Apartment / Townhouse / Commercial (Common Questions)
+// ─────────────────────────────────────────────────────────────────────────────
 const APARTMENT_TOWNHOUSE_COMMERCIAL: QuestionDef[] = [
   { text: 'When was the last time you completed any work on the exterior siding? This includes painting the building. Who was the supplier? And what was the cost?', category: 'Exterior', type: 'textarea', propertyTypes: ['Apartments', 'Townhomes', 'Mixed-Use: Commercial'] },
   { text: 'If you have brick or stone veneer, when was the last time you completed any work? Who was the supplier? And what was the cost?', category: 'Exterior', type: 'textarea', propertyTypes: ['Apartments', 'Townhomes', 'Mixed-Use: Commercial'] },
@@ -48,12 +51,14 @@ const APARTMENT_TOWNHOUSE_COMMERCIAL: QuestionDef[] = [
   { text: 'When was the last time you completed any repair or replacement work on the landscaping, exterior lighting or internal roadways, driveways or parkade ramps? Who was the supplier? And what was the cost?', category: 'Exterior', type: 'textarea', propertyTypes: ['Apartments', 'Townhomes', 'Mixed-Use: Commercial'] },
   { text: 'When was the last time you completed any repair or replacement work on the security gate, or the motor? Who was the supplier? And what was the cost?', category: 'Exterior', type: 'textarea', propertyTypes: ['Apartments', 'Townhomes', 'Mixed-Use: Commercial'] },
   { text: 'When was the last time you completed any work on the fences? Who was the supplier? And what was the cost? Do you share costs for the maintenance of fences, etc.?', category: 'Exterior', type: 'textarea', propertyTypes: ['Apartments', 'Townhomes', 'Mixed-Use: Commercial'] },
-  { text: 'Are you planning any work in the future around the items discussed above? When was the last time you completed any repair or replacement work on the loading doors, or the motor? Who was the supplier? And what was the cost?', category: 'Exterior', type: 'textarea', propertyTypes: ['Apartments', 'Townhomes', 'Mixed-Use: Commercial'] },
-  { text: 'When was the last time you completed any repair or replacement work on the water, sanitary or sewer systems, or the sump pump? Who was the supplier? And what was the cost?', category: 'Services', type: 'textarea', propertyTypes: ['Apartments', 'Townhomes', 'Mixed-Use: Commercial'] },
-  { text: 'When was the last time you completed any work on the fire panel or emergency alarm system? Who was the supplier? And what was the cost?', category: 'Services', type: 'textarea', propertyTypes: ['Apartments', 'Townhomes', 'Mixed-Use: Commercial'] },
+  { text: 'When was the last time you completed any repair or replacement work on the loading doors, or the motor? Who was the supplier? And what was the cost?', category: 'Exterior', type: 'textarea', propertyTypes: ['Apartments', 'Townhomes', 'Mixed-Use: Commercial'] },
   { text: 'Has anything been replaced in the past few years that is not included in the above questions?', category: 'Services', type: 'textarea', propertyTypes: ['Apartments', 'Townhomes', 'Mixed-Use: Commercial'] },
+  { text: 'Are you planning any work in the future around the items discussed above?', category: 'Services', type: 'textarea', propertyTypes: ['Apartments', 'Townhomes', 'Mixed-Use: Commercial'] },
 ]
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Amenity Area or Clubhouse (Interiors)
+// ─────────────────────────────────────────────────────────────────────────────
 const AMENITY_CLUBHOUSE_INTERIOR: QuestionDef[] = [
   { text: 'Is there an Amenity Room (including Guest Suites)?', category: 'Amenity Room', type: 'boolean', propertyTypes: ['Amenity/Clubhouse Interior'] },
   { text: 'When was the last time you painted the interior of the amenity areas? Who was the supplier? And what was the cost?', category: 'Amenity Room', type: 'textarea', propertyTypes: ['Amenity/Clubhouse Interior'] },
@@ -62,11 +67,17 @@ const AMENITY_CLUBHOUSE_INTERIOR: QuestionDef[] = [
   { text: 'Are any of the services doors in need of work, and have any of them been replaced? Who was the supplier? And what was the cost?', category: 'Amenity Room', type: 'textarea', propertyTypes: ['Amenity/Clubhouse Interior'] },
   { text: 'When was the last time you completed any repair or replacement work on the amenity rooms not discussed above, and please specify the specific rooms? Who was the supplier? And what was the cost?', category: 'Amenity Room', type: 'textarea', propertyTypes: ['Amenity/Clubhouse Interior'] },
   { text: 'What is the history of the Furniture and Equipment and the Common Rooms and Areas?', category: 'Amenity Room', type: 'textarea', propertyTypes: ['Amenity/Clubhouse Interior'] },
-  { text: 'When did you last replace or do work on the boiler for hydronic heat, domestic hot water heat, or domestic hot water storage tanks? Who was the supplier? And what was the cost?', category: 'Amenity Room', type: 'textarea', propertyTypes: ['Amenity/Clubhouse Interior'] },
+  // Boiler questions split into individual questions (per updated survey)
+  { text: 'When did you last replace or do work on the boiler for hydronic heat (if one)? Hydronic heat is water-based baseboard heat. Who was the supplier? And what was the cost?', category: 'Amenity Room', type: 'textarea', propertyTypes: ['Amenity/Clubhouse Interior'] },
+  { text: 'When did you last replace the boiler for domestic hot water heat (if one)? Bathrooms and kitchen. Who was the supplier? And what was the cost?', category: 'Amenity Room', type: 'textarea', propertyTypes: ['Amenity/Clubhouse Interior'] },
+  { text: 'When did you last replace the domestic hot water storage tanks (if one)? Who was the supplier? And what was the cost?', category: 'Amenity Room', type: 'textarea', propertyTypes: ['Amenity/Clubhouse Interior'] },
   { text: 'Has anything been replaced in the amenities area during the past few years that is not included in the above questions?', category: 'Amenity Room', type: 'textarea', propertyTypes: ['Amenity/Clubhouse Interior'] },
   { text: 'Are you planning any repair or replacement work in the future around the items discussed above?', category: 'Amenity Room', type: 'textarea', propertyTypes: ['Amenity/Clubhouse Interior'] },
 ]
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Clubhouse (Exterior) – Separate Building
+// ─────────────────────────────────────────────────────────────────────────────
 const CLUBHOUSE_EXTERIOR: QuestionDef[] = [
   { text: 'When was the last time you completed any repair or replacement work on the exterior siding? This includes painting the buildings. Who was the supplier? And what was the cost?', category: 'Clubhouse', type: 'textarea', propertyTypes: ['Clubhouse Exterior'] },
   { text: 'If you have brick or stone veneer, when was the last time you completed any repair or replacement work? Who was the supplier? And what was the cost?', category: 'Clubhouse', type: 'textarea', propertyTypes: ['Clubhouse Exterior'] },
@@ -80,18 +91,27 @@ const CLUBHOUSE_EXTERIOR: QuestionDef[] = [
   { text: 'When was the last time you replaced the flashing? Who was the supplier? And what was the cost?', category: 'Clubhouse', type: 'textarea', propertyTypes: ['Clubhouse Exterior'] },
 ]
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Common Septic Field
+// ─────────────────────────────────────────────────────────────────────────────
 const COMMON_SEPTIC_FIELD: QuestionDef[] = [
   { text: 'Is there a Common Septic Field? Please describe the system.', category: 'Services', type: 'textarea', propertyTypes: ['Common Septic Field'] },
-  { text: 'Are there pumps to carry the wastewater from the residences to the septic tanks? If the pumps are owned by the Strata, how many? Have they been replaced? Who was the supplier? And what was the cost?', category: 'Services', type: 'textarea', propertyTypes: ['Common Septic Field'] },
+  { text: 'Are there pumps to carry the wastewater from the residences to the septic tanks? If the pumps are owned by Owners, go to Question 6.', category: 'Services', type: 'textarea', propertyTypes: ['Common Septic Field'] },
+  { text: 'If the pumps are owned by the Strata, how many? Have they been replaced? Who was the supplier? And what was the cost?', category: 'Services', type: 'textarea', propertyTypes: ['Common Septic Field'] },
   { text: 'Are the septic tanks on the strata lots? If so, proceed to Question 6.', category: 'Services', type: 'textarea', propertyTypes: ['Common Septic Field'] },
   { text: 'Are there community septic tanks to hold the wastewater from the residences? If so, how many? Please describe the system and recent work completed.', category: 'Services', type: 'textarea', propertyTypes: ['Common Septic Field'] },
   { text: 'How many pumps are there to carry the wastewater from the septic tanks to the community septic field distribution (holding) tanks or biodigester system (if applicable)? Have they been replaced? Who was the supplier? And what was the cost?', category: 'Services', type: 'textarea', propertyTypes: ['Common Septic Field'] },
-  { text: 'Is there a biodigester system in place? If Yes, please describe the system and recent work completed. How many pumps and septic tanks are involved? Who was the supplier? And what was the cost?', category: 'Services', type: 'textarea', propertyTypes: ['Common Septic Field'] },
+  { text: 'Is there a biodigester system in place? If No, go to Question 8. If Yes, please describe the system and recent work completed.', category: 'Services', type: 'textarea', propertyTypes: ['Common Septic Field'] },
+  { text: 'How many pumps are there to carry the wastewater from the biodigester to the distribution (holding) tanks? Have they been replaced? Who was the supplier? And what was the cost?', category: 'Services', type: 'textarea', propertyTypes: ['Common Septic Field'] },
+  { text: 'How many septic tanks hold the wastewater from the biodigester to the community septic field distribution (holding) tanks? If so, how many? Please describe the system and recent work completed.', category: 'Services', type: 'textarea', propertyTypes: ['Common Septic Field'] },
   { text: 'Is the community Septic Tank original from construction? Has it been replaced? Who was the supplier? And what was the cost?', category: 'Services', type: 'textarea', propertyTypes: ['Common Septic Field'] },
   { text: 'Does the Septic System have Pumps to move the wastewater from community septic field distribution (holding) tanks to the district sewer system? Please describe costs and history.', category: 'Services', type: 'textarea', propertyTypes: ['Common Septic Field'] },
   { text: 'Are you planning any work in the future with the Septic System?', category: 'Services', type: 'textarea', propertyTypes: ['Common Septic Field'] },
 ]
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Bare Land Complex
+// ─────────────────────────────────────────────────────────────────────────────
 const BARE_LAND: QuestionDef[] = [
   { text: 'When was the last time you completed any work on the security system? Who was the supplier? And what was the cost?', category: 'Exterior', type: 'textarea', propertyTypes: ['Bare Land'] },
   { text: 'When was the last time you completed any repair or replacement work on the security gate, or the motor? Who was the supplier? And what was the cost?', category: 'Exterior', type: 'textarea', propertyTypes: ['Bare Land'] },
@@ -101,9 +121,11 @@ const BARE_LAND: QuestionDef[] = [
   { text: 'When was the last time you completed any repair or replacement work on the landscaping, exterior lighting or internal roadways, driveways or parkade ramps? Who was the supplier? And what was the cost?', category: 'Exterior', type: 'textarea', propertyTypes: ['Bare Land'] },
   { text: 'Are you planning any repair or replacement work in the future around the items discussed above?', category: 'Exterior', type: 'textarea', propertyTypes: ['Bare Land'] },
   { text: 'Has anything been replaced in the past few years that is not included in the above questions?', category: 'Exterior', type: 'textarea', propertyTypes: ['Bare Land'] },
-  { text: 'Are you planning any work in the future around the items discussed above?', category: 'Exterior', type: 'textarea', propertyTypes: ['Bare Land'] },
 ]
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Industrial Complex Maintenance History
+// ─────────────────────────────────────────────────────────────────────────────
 const INDUSTRIAL: QuestionDef[] = [
   { text: 'When was the last time you completed any repair or replacement work on the loading doors, or the motor? Who was the supplier? And what was the cost?', category: 'Exterior', type: 'textarea', propertyTypes: ['Industrial'] },
   { text: 'When was the last time you completed any repair or replacement work on the water, sanitary or sewer systems, or the sump pump? Who was the supplier? And what was the cost?', category: 'Services', type: 'textarea', propertyTypes: ['Industrial'] },
@@ -113,6 +135,9 @@ const INDUSTRIAL: QuestionDef[] = [
   { text: 'Has anything been replaced in the commercial section during the past few years that is not included in the above questions?', category: 'Exterior', type: 'textarea', propertyTypes: ['Industrial'] },
 ]
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Administration (unchanged)
+// ─────────────────────────────────────────────────────────────────────────────
 const ADMINISTRATION: QuestionDef[] = [
   { text: 'Are there recent Engineers Reports?', category: 'Legal', type: 'none_or_explain', propertyTypes: ['Administration'] },
   { text: 'Are there prior Depreciation Reports?', category: 'Legal', type: 'none_or_explain', propertyTypes: ['Administration'] },
@@ -134,6 +159,8 @@ const ALL_QUESTIONS = [
   ...ADMINISTRATION,
 ]
 
+// Ensure all referenced property types exist in the DB before inserting questions.
+// Existing types (from seed.ts) are matched by name via upsert (no-op on update).
 const NEW_PROPERTY_TYPE_NAMES = [
   'Apartments',
   'Townhomes',
@@ -141,6 +168,8 @@ const NEW_PROPERTY_TYPE_NAMES = [
   'Amenity/Clubhouse Interior',
   'Clubhouse Exterior',
   'Common Septic Field',
+  'Bare Land',
+  'Industrial',
   'Administration',
 ]
 
@@ -186,6 +215,7 @@ async function main() {
       continue
     }
 
+    // Skip if an identical question already exists (preserves parent/sub-question links)
     const existing = await prisma.question.findFirst({
       where: { questionText: q.text }
     })

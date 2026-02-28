@@ -14,6 +14,9 @@ export const getSurveyQuestions = asyncHandler(async (c) => {
           strataId: true,
           strataPropertyTypes: { select: { propertyTypeId: true } }
         }
+      },
+      surveyRequirements: {
+        select: { propertyTypeId: true }
       }
     }
   });
@@ -22,11 +25,14 @@ export const getSurveyQuestions = asyncHandler(async (c) => {
     return error(c, 'Service request not found', 404);
   }
 
-  const propertyTypeIds = sr.strata.strataPropertyTypes.map(spt => spt.propertyTypeId);
+  const explicitPropertyTypeIds = sr.surveyRequirements.map(req => req.propertyTypeId);
+  
+  // Strict mode: if no property types are configured, return 0 questions
+  if (explicitPropertyTypeIds.length === 0) {
+    return success(c, []);
+  }
 
-  const questions = await questionService.getSurveyQuestions(
-    propertyTypeIds.length > 0 ? propertyTypeIds : undefined
-  );
+  const questions = await questionService.getSurveyQuestions(explicitPropertyTypeIds);
 
   return success(c, questions);
 }, 'Failed to fetch survey questions');
@@ -82,3 +88,45 @@ export const getSurveySections = asyncHandler(async (c) => {
   const sections = await questionService.getSurveySections(sr.serviceId);
   return success(c, sections);
 }, 'Failed to fetch survey sections');
+
+export const getSurveyRequirements = asyncHandler(async (c) => {
+  const serviceRequestId = parseIntParam(c, 'serviceRequestId');
+  
+  const reqs = await prisma.serviceRequestSurveyRequirement.findMany({
+    where: { serviceRequestId }
+  });
+  
+  return success(c, reqs);
+}, 'Failed to fetch survey requirements');
+
+export const saveSurveyRequirements = asyncHandler(async (c) => {
+  const serviceRequestId = parseIntParam(c, 'serviceRequestId');
+  const body = await c.req.json();
+  
+  if (!Array.isArray(body.propertyTypeIds)) {
+    return error(c, 'propertyTypeIds array is required', 400);
+  }
+  
+  const propertyTypeIds = body.propertyTypeIds as number[];
+  
+  const results = await prisma.$transaction(async (tx) => {
+    await tx.serviceRequestSurveyRequirement.deleteMany({
+      where: { serviceRequestId }
+    });
+    
+    if (propertyTypeIds.length > 0) {
+      await tx.serviceRequestSurveyRequirement.createMany({
+        data: propertyTypeIds.map(id => ({
+          serviceRequestId,
+          propertyTypeId: id
+        }))
+      });
+    }
+    
+    return tx.serviceRequestSurveyRequirement.findMany({
+      where: { serviceRequestId }
+    });
+  });
+  
+  return success(c, results);
+}, 'Failed to save survey requirements');

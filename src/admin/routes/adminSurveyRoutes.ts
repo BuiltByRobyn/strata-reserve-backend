@@ -7,3 +7,5 @@ adminSurveyRoutes.get('/service-requests/:serviceRequestId/survey/sections', sur
 adminSurveyRoutes.get('/service-requests/:serviceRequestId/survey/questions', surveyController.getSurveyQuestions);
 adminSurveyRoutes.get('/service-requests/:serviceRequestId/survey/responses', surveyController.getSurveyResponses);
 adminSurveyRoutes.get('/service-requests/:serviceRequestId/survey/responses/archived', surveyController.getArchivedSurveyResponses);
+adminSurveyRoutes.get('/service-requests/:serviceRequestId/survey-requirements', surveyController.getSurveyRequirements);
+adminSurveyRoutes.put('/service-requests/:serviceRequestId/survey-requirements', surveyController.saveSurveyRequirements);

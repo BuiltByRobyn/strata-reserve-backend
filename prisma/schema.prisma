@@ -39,6 +39,7 @@ model PropertyType {
   strataProfilePropertyTypes StrataProfilePropertyType[]
   srDocRequirements     ServiceRequestDocumentRequirement[]
   serviceRequestDocuments ServiceRequestDocument[]
+  surveyRequirements      ServiceRequestSurveyRequirement[]
 
   @@map("property_type")
 }
@@ -352,8 +353,21 @@ model ServiceRequest {
   questionResponses       QuestionResponse[]
   serviceRequestDocuments ServiceRequestDocument[]
   documentRequirements    ServiceRequestDocumentRequirement[]
+  surveyRequirements      ServiceRequestSurveyRequirement[]
 
   @@map("service_request")
+}
+
+model ServiceRequestSurveyRequirement {
+  srSurveyRequirementId Int @id @default(autoincrement()) @map("sr_survey_requirement_id")
+  serviceRequestId      Int @map("service_request_id")
+  propertyTypeId        Int @map("property_type_id")
+
+  serviceRequest ServiceRequest @relation(fields: [serviceRequestId], references: [serviceRequestId], onDelete: Cascade)
+  propertyType   PropertyType   @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: Cascade)
+
+  @@unique([serviceRequestId, propertyTypeId])
+  @@map("sr_survey_requirement")
 }
 
 // ============================================
