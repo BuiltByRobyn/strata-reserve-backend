@@ -1,3 +1,9 @@
+export interface SubQuestionDef {
+  label: string;  // e.g. 'a', 'b', 'c'
+  text: string;
+  type: 'textarea' | 'text' | 'number';
+}
+
 export interface QuestionDef {
   text: string;
   category: string;
@@ -5,6 +11,7 @@ export interface QuestionDef {
   propertyTypes: string[];
   informationText?: string;
   multipleChoiceOptions?: string[];
+  subQuestions?: SubQuestionDef[];
 }
 
 export interface QuestionServiceInput {

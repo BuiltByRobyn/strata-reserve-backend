@@ -144,6 +144,34 @@ export const updateStrata = async (id: number, data: UpdateStrataInput) => {
         data: propertyTypeIds.map(propertyTypeId => ({ strataId: id, propertyTypeId }))
       });
     }
+    // Sync scalar field
+    strataData.propertyTypeId = propertyTypeIds.length > 0 ? propertyTypeIds[0] : null;
+
+    // Cascade: Remove survey and document requirements for this strata's service requests 
+    // that belong to property types no longer associated with the strata.
+    if (propertyTypeIds.length === 0) {
+      // If all property types removed, remove all related requirements
+      await prisma.serviceRequestSurveyRequirement.deleteMany({
+        where: { serviceRequest: { strataId: id } }
+      });
+      await prisma.serviceRequestDocumentRequirement.deleteMany({
+        where: { serviceRequest: { strataId: id }, propertyTypeId: { not: null } }
+      });
+    } else {
+      // Remove requirements not in the new list
+      await prisma.serviceRequestSurveyRequirement.deleteMany({
+        where: {
+          serviceRequest: { strataId: id },
+          propertyTypeId: { notIn: propertyTypeIds }
+        }
+      });
+      await prisma.serviceRequestDocumentRequirement.deleteMany({
+        where: {
+          serviceRequest: { strataId: id },
+          propertyTypeId: { notIn: propertyTypeIds, not: null }
+        }
+      });
+    }
   }
 
   return prisma.strata.update({
