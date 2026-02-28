@@ -18,6 +18,8 @@ export const getSurveyQuestions = async (propertyTypeIds?: number[]) => {
 
   return questions.map(q => ({
     questionId: q.questionId,
+    parentQuestionId: q.parentQuestionId,
+    subLabel: q.subLabel,
     questionText: q.questionText,
     isRequired: q.isRequired,
     informationText: q.informationText,

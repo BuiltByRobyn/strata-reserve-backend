@@ -18,6 +18,8 @@ export interface MultipleChoiceOptionInput {
 }
 
 export interface CreateQuestionInput {
+  parentQuestionId?: number | null;
+  subLabel?: string | null;
   questionText: string;
   isRequired: boolean;
   informationText?: string | null;
@@ -40,6 +42,8 @@ export interface SaveResponseInput {
 }
 
 export interface UpdateQuestionInput {
+  parentQuestionId?: number | null;
+  subLabel?: string | null;
   questionText?: string;
   isRequired?: boolean;
   informationText?: string | null;

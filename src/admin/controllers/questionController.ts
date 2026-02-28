@@ -28,6 +28,8 @@ export const createQuestion = asyncHandler(async (c) => {
       informationText: body.informationText?.trim() || null,
       questionCategory: body.questionCategory.trim(),
       questionTypeId: Number(body.questionTypeId),
+      parentQuestionId: body.parentQuestionId != null ? Number(body.parentQuestionId) : null,
+      subLabel: body.subLabel?.trim() || null,
       serviceIds: Array.isArray(body.serviceIds) ? body.serviceIds.map((s: { serviceId: number; sortOrder: number }) => ({
         serviceId: Number(s.serviceId),
         sortOrder: Number(s.sortOrder),
@@ -69,6 +71,8 @@ export const updateQuestion = asyncHandler(async (c) => {
     informationText: body.informationText !== undefined ? (body.informationText?.trim() || null) : undefined,
     questionCategory: body.questionCategory?.trim(),
     questionTypeId: body.questionTypeId ? Number(body.questionTypeId) : undefined,
+    parentQuestionId: body.parentQuestionId !== undefined ? (body.parentQuestionId != null ? Number(body.parentQuestionId) : null) : undefined,
+    subLabel: body.subLabel !== undefined ? (body.subLabel?.trim() || null) : undefined,
     serviceIds: body.serviceIds !== undefined ? (Array.isArray(body.serviceIds) ? body.serviceIds.map((s: { serviceId: number; sortOrder: number }) => ({
       serviceId: Number(s.serviceId),
       sortOrder: Number(s.sortOrder),

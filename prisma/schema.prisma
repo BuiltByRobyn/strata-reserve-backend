@@ -484,6 +484,8 @@ model QuestionType {
 
 model Question {
   questionId       Int      @id @default(autoincrement()) @map("question_id")
+  parentQuestionId Int?     @map("parent_question_id")
+  subLabel         String?  @map("sub_label") @db.VarChar(10)
   questionText     String   @map("question_text") @db.Text
   isRequired       Boolean  @map("is_required")
   informationText  String?  @map("information_text") @db.Text
@@ -491,6 +493,9 @@ model Question {
   questionTypeId   Int      @map("question_type_id")
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  parentQuestion   Question?  @relation("SubQuestions", fields: [parentQuestionId], references: [questionId], onDelete: SetNull)
+  subQuestions     Question[] @relation("SubQuestions")
 
   questionType          QuestionType           @relation(fields: [questionTypeId], references: [questionTypeId], onDelete: Cascade)
   questionServices      QuestionService[]
