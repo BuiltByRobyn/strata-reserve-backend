@@ -17,6 +17,7 @@ model UserType {
   profiles     Profile[]
 
   @@map("user_type")
+  @@schema("public")
 }
 
 model LegalType {
@@ -25,6 +26,7 @@ model LegalType {
   stratas            Strata[]
 
   @@map("legal_type")
+  @@schema("public")
 }
 
 model PropertyType {
@@ -43,6 +45,7 @@ model PropertyType {
   questionResponses     QuestionResponse[]
 
   @@map("property_type")
+  @@schema("public")
 }
 
 model Section {
@@ -54,6 +57,7 @@ model Section {
   serviceRequestDocuments ServiceRequestDocument[]
 
   @@map("section")
+  @@schema("public")
 }
 
 model Service {
@@ -67,6 +71,7 @@ model Service {
   questionServices  QuestionService[]
 
   @@map("service")
+  @@schema("public")
 }
 
 // ============================================
@@ -103,6 +108,7 @@ model Profile {
   reviewedPropertyTypeRequests PropertyTypeRequest[] @relation("ReviewedPropertyTypeRequests")
 
   @@map("profiles")
+  @@schema("public")
 }
 
 model Company {
@@ -114,6 +120,7 @@ model Company {
   stratas          Strata[]
 
   @@map("company")
+  @@schema("public")
 }
 
 model Strata {
@@ -145,6 +152,7 @@ model Strata {
   serviceRequests ServiceRequest[]
 
   @@map("strata")
+  @@schema("public")
 }
 
 // ============================================
@@ -163,6 +171,7 @@ model StrataNotes {
   createdBy Profile? @relation(fields: [createdByProfileId], references: [id], onDelete: SetNull)
 
   @@map("strata_note")
+  @@schema("public")
 }
 
 model StrataProfile {
@@ -180,6 +189,7 @@ model StrataProfile {
 
   @@unique([strataId, profileId])
   @@map("strata_profiles")
+  @@schema("public")
 }
 
 model StrataSection {
@@ -192,6 +202,7 @@ model StrataSection {
 
   @@unique([strataId, sectionId])
   @@map("strata_section")
+  @@schema("public")
 }
 
 model StrataPropertyType {
@@ -204,6 +215,7 @@ model StrataPropertyType {
 
   @@unique([strataId, propertyTypeId])
   @@map("strata_property_type")
+  @@schema("public")
 }
 
 model StrataProfileSection {
@@ -216,6 +228,7 @@ model StrataProfileSection {
 
   @@unique([strataProfileId, sectionId])
   @@map("strata_profile_section")
+  @@schema("public")
 }
 
 model StrataProfilePropertyType {
@@ -228,6 +241,7 @@ model StrataProfilePropertyType {
 
   @@unique([strataProfileId, propertyTypeId])
   @@map("strata_profile_property_type")
+  @@schema("public")
 }
 
 model PropertyTypeRequest {
@@ -244,6 +258,7 @@ model PropertyTypeRequest {
   reviewedBy    Profile?      @relation("ReviewedPropertyTypeRequests", fields: [reviewedByProfileId], references: [id], onDelete: SetNull)
 
   @@map("property_type_request")
+  @@schema("public")
 }
 
 
@@ -260,6 +275,7 @@ model ReviewStatus {
   serviceRequestDocuments ServiceRequestDocument[]
 
   @@map("review_status")
+  @@schema("public")
 }
 
 model AppointmentTimeSlot {
@@ -273,6 +289,7 @@ model AppointmentTimeSlot {
   appointments             Appointment[]
 
   @@map("appointment_time_slot")
+  @@schema("public")
 }
 
 // ============================================
@@ -293,6 +310,7 @@ model AppointmentType {
   appointments             Appointment[]
 
   @@map("appointment_type")
+  @@schema("public")
 }
 
 model AppointmentTypeTimeSlot {
@@ -305,6 +323,7 @@ model AppointmentTypeTimeSlot {
 
   @@unique([appointmentTypeId, timeSlotId])
   @@map("appointment_type_time_slot")
+  @@schema("public")
 }
 
 // ============================================
@@ -343,6 +362,7 @@ model ServiceRequest {
   srSurveyQuestions       SrSurveyQuestion[]
 
   @@map("service_request")
+  @@schema("public")
 }
 
 model ServiceRequestSurveyRequirement {
@@ -355,6 +375,7 @@ model ServiceRequestSurveyRequirement {
 
   @@unique([serviceRequestId, propertyTypeId])
   @@map("sr_survey_requirement")
+  @@schema("public")
 }
 
 // ============================================
@@ -383,6 +404,7 @@ model AppointmentRequest {
   appointments         Appointment[]
 
   @@map("appointment_request")
+  @@schema("public")
 }
 
 model AppointmentReview {
@@ -400,6 +422,7 @@ model AppointmentReview {
   reviewStatus       ReviewStatus       @relation(fields: [reviewStatusId], references: [reviewStatusId], onDelete: Cascade)
 
   @@map("appointment_review")
+  @@schema("public")
 }
 
 // ============================================
@@ -425,6 +448,7 @@ model Appointment {
   inspector          Profile?            @relation("InspectorAppointments", fields: [inspectorProfileId], references: [id], onDelete: SetNull)
 
   @@map("appointment")
+  @@schema("public")
 }
 
 // ============================================
@@ -444,6 +468,7 @@ model InspectorAvailableDate {
   locations        InspectorAvailableLocation[]
 
   @@map("inspector_available_date")
+  @@schema("public")
 }
 
 model InspectorAvailableLocation {
@@ -455,6 +480,7 @@ model InspectorAvailableLocation {
 
   @@unique([inspectorAvailableDateId, locationCode])
   @@map("inspector_available_location")
+  @@schema("public")
 }
 
 // ============================================
@@ -468,6 +494,7 @@ model CompanyHoliday {
   isRecurringAnnually Boolean  @default(false) @map("is_recurring_annually")
 
   @@map("company_holiday")
+  @@schema("public")
 }
 
 // ============================================
@@ -481,6 +508,7 @@ model QuestionType {
   questions        Question[]
 
   @@map("question_type")
+  @@schema("public")
 }
 
 model Question {
@@ -506,6 +534,7 @@ model Question {
   srSurveyQuestions     SrSurveyQuestion[]
 
   @@map("question")
+  @@schema("public")
 }
 
 model QuestionService {
@@ -519,6 +548,7 @@ model QuestionService {
 
   @@unique([questionId, serviceId])
   @@map("question_service")
+  @@schema("public")
 }
 
 model MultipleChoiceOption {
@@ -531,6 +561,7 @@ model MultipleChoiceOption {
   questionResponses QuestionResponse[]
 
   @@map("multiple_choice_option")
+  @@schema("public")
 }
 
 model QuestionPropertyType {
@@ -543,6 +574,7 @@ model QuestionPropertyType {
 
   @@unique([questionId, propertyTypeId])
   @@map("question_property_type")
+  @@schema("public")
 }
 
 
@@ -569,6 +601,7 @@ model QuestionResponse {
   multipleChoiceOption MultipleChoiceOption? @relation(fields: [multipleChoiceOptionId], references: [multipleChoiceOptionId], onDelete: SetNull)
 
   @@map("question_response")
+  @@schema("public")
 }
 
 model SrSurveyQuestion {
@@ -583,6 +616,7 @@ model SrSurveyQuestion {
 
   @@unique([serviceRequestId, questionId, propertyTypeId])
   @@map("sr_survey_question")
+  @@schema("public")
 }
 
 // ============================================
@@ -597,6 +631,7 @@ model DocumentType {
   srDocRequirements       ServiceRequestDocumentRequirement[]
 
   @@map("document_type")
+  @@schema("public")
 }
 
 model ServiceRequestDocument {
@@ -621,6 +656,7 @@ model ServiceRequestDocument {
   propertyType   PropertyType?  @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: SetNull)
 
   @@map("service_request_document")
+  @@schema("public")
 }
 
 model ServiceRequestDocumentRequirement {
@@ -638,4 +674,5 @@ model ServiceRequestDocumentRequirement {
 
   @@unique([serviceRequestId, documentTypeId, propertyTypeId])
   @@map("sr_document_requirement")
+  @@schema("public")
 }
