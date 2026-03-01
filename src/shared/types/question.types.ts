@@ -1,3 +1,9 @@
+export interface SubQuestionDef {
+  label: string;  // e.g. 'a', 'b', 'c'
+  text: string;
+  type: 'textarea' | 'text' | 'number';
+}
+
 export interface QuestionDef {
   text: string;
   category: string;
@@ -5,6 +11,7 @@ export interface QuestionDef {
   propertyTypes: string[];
   informationText?: string;
   multipleChoiceOptions?: string[];
+  subQuestions?: SubQuestionDef[];
 }
 
 export interface QuestionServiceInput {
@@ -18,6 +25,8 @@ export interface MultipleChoiceOptionInput {
 }
 
 export interface CreateQuestionInput {
+  parentQuestionId?: number | null;
+  subLabel?: string | null;
   questionText: string;
   isRequired: boolean;
   informationText?: string | null;
@@ -32,6 +41,7 @@ export interface SaveResponseInput {
   serviceRequestId: number;
   answeredByProfileId: string;
   questionId: number;
+  propertyTypeId: number;
   responseText?: string | null;
   responseDate?: string | null;
   responseNumber?: number | null;
@@ -40,6 +50,8 @@ export interface SaveResponseInput {
 }
 
 export interface UpdateQuestionInput {
+  parentQuestionId?: number | null;
+  subLabel?: string | null;
   questionText?: string;
   isRequired?: boolean;
   informationText?: string | null;

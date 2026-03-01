@@ -1,4 +1,5 @@
 import { serve } from '@hono/node-server';
+// v2 - reload to pick up updated Prisma client schema (parentQuestionId, subLabel)
 import { Hono } from 'hono';
 import { logger } from 'hono/logger';
 import { cors } from 'hono/cors';
@@ -20,6 +21,7 @@ import { adminSurveyRoutes } from './admin/routes/adminSurveyRoutes';
 import { questionRoutes } from './admin/routes/questionRoutes';
 import { srDocRequirementRoutes } from './admin/routes/srDocRequirementRoutes';
 import { propertyTypeRequestRoutes } from './admin/routes/propertyTypeRequestRoutes';
+import { srSurveyQuestionRoutes } from './admin/routes/srSurveyQuestionRoutes';
 
 // Client routes
 import { clientRoutes } from './client/routes/clientRoutes';
@@ -77,6 +79,7 @@ app.route('/admin', adminSurveyRoutes);
 app.route('/admin', questionRoutes);
 app.route('/admin', srDocRequirementRoutes);
 app.route('/admin', propertyTypeRequestRoutes);
+app.route('/admin', srSurveyQuestionRoutes);
 
 // Client routes (auth required)
 app.use('/client/*', authMiddleware);

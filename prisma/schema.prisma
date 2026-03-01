@@ -1,9 +1,10 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  schemas  = ["public", "auth"]
 }
 
 // ============================================
@@ -22,7 +23,6 @@ model LegalType {
   legalTypeId        Int                  @id @default(autoincrement()) @map("legal_type_id")
   legalTypeName      String               @unique @map("legal_type_name") @db.VarChar(50)
   stratas            Strata[]
-  questionLegalTypes QuestionLegalType[]
 
   @@map("legal_type")
 }
@@ -34,11 +34,13 @@ model PropertyType {
   sortOrder             Int                    @default(0) @map("sort_order")
   stratas               Strata[]
   questionPropertyTypes QuestionPropertyType[]
-  requiredDocuments     RequiredDocument[]
   strataPropertyTypes   StrataPropertyType[]
   strataProfilePropertyTypes StrataProfilePropertyType[]
   srDocRequirements     ServiceRequestDocumentRequirement[]
   serviceRequestDocuments ServiceRequestDocument[]
+  surveyRequirements      ServiceRequestSurveyRequirement[]
+  srSurveyQuestions     SrSurveyQuestion[]
+  questionResponses     QuestionResponse[]
 
   @@map("property_type")
 }
@@ -49,7 +51,6 @@ model Section {
 
   strataSections          StrataSection[]
   strataProfileSections   StrataProfileSection[]
-  questionSections        QuestionSection[]
   serviceRequestDocuments ServiceRequestDocument[]
 
   @@map("section")
@@ -59,13 +60,11 @@ model Service {
   serviceId          Int             @id @default(autoincrement()) @map("service_id")
   serviceName        String          @unique @map("service_name") @db.VarChar(100)
   serviceDescription String?         @map("service_description") @db.Text
-  strataServices     StrataService[]
 
   appointmentTypes AppointmentType[]
   serviceRequests  ServiceRequest[]
 
   questionServices  QuestionService[]
-  requiredDocuments RequiredDocument[]
 
   @@map("service")
 }
@@ -140,7 +139,6 @@ model Strata {
   company        Company?        @relation(fields: [companyId], references: [companyId], onDelete: SetNull)
   strataNotes    StrataNotes[]
   strataProfiles StrataProfile[]
-  strataServices StrataService[]
   strataSections StrataSection[]
   strataPropertyTypes StrataPropertyType[]
 
@@ -248,18 +246,7 @@ model PropertyTypeRequest {
   @@map("property_type_request")
 }
 
-model StrataService {
-  strataServiceId Int      @id @default(autoincrement()) @map("strata_service_id")
-  strataId        Int      @map("strata_id")
-  serviceId       Int      @map("service_id")
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
 
-  strata  Strata  @relation(fields: [strataId], references: [strataId], onDelete: Cascade)
-  service Service @relation(fields: [serviceId], references: [serviceId], onDelete: Cascade)
-
-  @@unique([strataId, serviceId])
-  @@map("strata_service")
-}
 
 // ============================================
 // Appointment Lookup Tables
@@ -352,8 +339,22 @@ model ServiceRequest {
   questionResponses       QuestionResponse[]
   serviceRequestDocuments ServiceRequestDocument[]
   documentRequirements    ServiceRequestDocumentRequirement[]
+  surveyRequirements      ServiceRequestSurveyRequirement[]
+  srSurveyQuestions       SrSurveyQuestion[]
 
   @@map("service_request")
+}
+
+model ServiceRequestSurveyRequirement {
+  srSurveyRequirementId Int @id @default(autoincrement()) @map("sr_survey_requirement_id")
+  serviceRequestId      Int @map("service_request_id")
+  propertyTypeId        Int @map("property_type_id")
+
+  serviceRequest ServiceRequest @relation(fields: [serviceRequestId], references: [serviceRequestId], onDelete: Cascade)
+  propertyType   PropertyType   @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: Cascade)
+
+  @@unique([serviceRequestId, propertyTypeId])
+  @@map("sr_survey_requirement")
 }
 
 // ============================================
@@ -484,6 +485,8 @@ model QuestionType {
 
 model Question {
   questionId       Int      @id @default(autoincrement()) @map("question_id")
+  parentQuestionId Int?     @map("parent_question_id")
+  subLabel         String?  @map("sub_label") @db.VarChar(10)
   questionText     String   @map("question_text") @db.Text
   isRequired       Boolean  @map("is_required")
   informationText  String?  @map("information_text") @db.Text
@@ -492,13 +495,15 @@ model Question {
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 
+  parentQuestion   Question?  @relation("SubQuestions", fields: [parentQuestionId], references: [questionId], onDelete: SetNull)
+  subQuestions     Question[] @relation("SubQuestions")
+
   questionType          QuestionType           @relation(fields: [questionTypeId], references: [questionTypeId], onDelete: Cascade)
   questionServices      QuestionService[]
   multipleChoiceOptions MultipleChoiceOption[]
   questionPropertyTypes QuestionPropertyType[]
-  questionLegalTypes    QuestionLegalType[]
-  questionSections      QuestionSection[]
   questionResponses     QuestionResponse[]
+  srSurveyQuestions     SrSurveyQuestion[]
 
   @@map("question")
 }
@@ -540,29 +545,7 @@ model QuestionPropertyType {
   @@map("question_property_type")
 }
 
-model QuestionLegalType {
-  questionLegalTypeId Int @id @default(autoincrement()) @map("question_legal_type_id")
-  questionId          Int @map("question_id")
-  legalTypeId         Int @map("legal_type_id")
 
-  question  Question  @relation(fields: [questionId], references: [questionId], onDelete: Cascade)
-  legalType LegalType @relation(fields: [legalTypeId], references: [legalTypeId], onDelete: Cascade)
-
-  @@unique([questionId, legalTypeId])
-  @@map("question_legal_type")
-}
-
-model QuestionSection {
-  questionSectionId Int @id @default(autoincrement()) @map("question_section_id")
-  questionId        Int @map("question_id")
-  sectionId         Int @map("section_id")
-
-  question Question @relation(fields: [questionId], references: [questionId], onDelete: Cascade)
-  section  Section  @relation(fields: [sectionId], references: [sectionId], onDelete: Cascade)
-
-  @@unique([questionId, sectionId])
-  @@map("question_section")
-}
 
 model QuestionResponse {
   responseId             Int       @id @default(autoincrement()) @map("response_id")
@@ -576,14 +559,30 @@ model QuestionResponse {
   serviceRequestId       Int       @map("service_request_id")
   answeredByProfileId    String    @map("answered_by_profile_id") @db.Uuid
   questionId             Int       @map("question_id")
+  propertyTypeId         Int       @map("property_type_id")
   multipleChoiceOptionId Int?      @map("multiple_choice_option_id")
 
   serviceRequest       ServiceRequest        @relation(fields: [serviceRequestId], references: [serviceRequestId], onDelete: Cascade)
   answeredBy           Profile               @relation("AnsweredByProfile", fields: [answeredByProfileId], references: [id], onDelete: Cascade)
   question             Question              @relation(fields: [questionId], references: [questionId], onDelete: Cascade)
+  propertyType         PropertyType          @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: Cascade)
   multipleChoiceOption MultipleChoiceOption? @relation(fields: [multipleChoiceOptionId], references: [multipleChoiceOptionId], onDelete: SetNull)
 
   @@map("question_response")
+}
+
+model SrSurveyQuestion {
+  srSurveyQuestionId Int @id @default(autoincrement()) @map("sr_survey_question_id")
+  serviceRequestId   Int @map("service_request_id")
+  questionId         Int @map("question_id")
+  propertyTypeId     Int @map("property_type_id")
+
+  serviceRequest ServiceRequest @relation(fields: [serviceRequestId], references: [serviceRequestId], onDelete: Cascade)
+  question       Question       @relation(fields: [questionId], references: [questionId], onDelete: Cascade)
+  propertyType   PropertyType   @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: Cascade)
+
+  @@unique([serviceRequestId, questionId, propertyTypeId])
+  @@map("sr_survey_question")
 }
 
 // ============================================
@@ -594,27 +593,10 @@ model DocumentType {
   documentTypeId          Int                      @id @default(autoincrement()) @map("document_type_id")
   typeName                String                   @unique @map("type_name") @db.VarChar(100)
   createdAt               DateTime                 @default(now()) @map("created_at") @db.Timestamptz
-  requiredDocuments       RequiredDocument[]
   serviceRequestDocuments ServiceRequestDocument[]
   srDocRequirements       ServiceRequestDocumentRequirement[]
 
   @@map("document_type")
-}
-
-model RequiredDocument {
-  requiredDocumentId Int     @id @default(autoincrement()) @map("required_document_id")
-  isRequired         Boolean @default(true) @map("is_required")
-  appliesToAllTypes  Boolean @default(false) @map("applies_to_all_types")
-  propertyTypeId     Int?    @map("property_type_id")
-  serviceId          Int     @map("service_id")
-  documentTypeId     Int     @map("document_type_id")
-
-  propertyType PropertyType? @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: SetNull)
-  service      Service       @relation(fields: [serviceId], references: [serviceId], onDelete: Cascade)
-  documentType DocumentType  @relation(fields: [documentTypeId], references: [documentTypeId], onDelete: Cascade)
-
-  @@unique([serviceId, documentTypeId, propertyTypeId])
-  @@map("required_document")
 }
 
 model ServiceRequestDocument {

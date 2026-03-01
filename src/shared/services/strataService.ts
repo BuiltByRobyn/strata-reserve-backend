@@ -3,7 +3,6 @@ import type {
   CreateStrataInput,
   UpdateStrataInput,
   CreateStrataProfileInput,
-  CreateStrataServiceInput,
   CreateStrataNoteInput
 } from '../types/strata.types';
 
@@ -24,7 +23,6 @@ export const getStratas = async () => {
         select: {
           strataNotes: true,
           strataProfiles: true,
-          strataServices: true,
           serviceRequests: { where: { archived: false } }
         }
       }
@@ -55,11 +53,6 @@ export const getStrataById = async (id: number) => {
           strataProfileSections: {
             include: { section: true }
           }
-        }
-      },
-      strataServices: {
-        include: {
-          service: { select: { serviceId: true, serviceName: true, serviceDescription: true } }
         }
       },
       strataSections: {
@@ -142,6 +135,34 @@ export const updateStrata = async (id: number, data: UpdateStrataInput) => {
     if (propertyTypeIds.length > 0) {
       await prisma.strataPropertyType.createMany({
         data: propertyTypeIds.map(propertyTypeId => ({ strataId: id, propertyTypeId }))
+      });
+    }
+    // Sync scalar field
+    strataData.propertyTypeId = propertyTypeIds.length > 0 ? propertyTypeIds[0] : null;
+
+    // Cascade: Remove survey and document requirements for this strata's service requests 
+    // that belong to property types no longer associated with the strata.
+    if (propertyTypeIds.length === 0) {
+      // If all property types removed, remove all related requirements
+      await prisma.serviceRequestSurveyRequirement.deleteMany({
+        where: { serviceRequest: { strataId: id } }
+      });
+      await prisma.serviceRequestDocumentRequirement.deleteMany({
+        where: { serviceRequest: { strataId: id }, propertyTypeId: { not: null } }
+      });
+    } else {
+      // Remove requirements not in the new list
+      await prisma.serviceRequestSurveyRequirement.deleteMany({
+        where: {
+          serviceRequest: { strataId: id },
+          propertyTypeId: { notIn: propertyTypeIds }
+        }
+      });
+      await prisma.serviceRequestDocumentRequirement.deleteMany({
+        where: {
+          serviceRequest: { strataId: id },
+          propertyTypeId: { notIn: propertyTypeIds, not: null }
+        }
       });
     }
   }
@@ -244,20 +265,7 @@ export const getStratasByEmployee = async (profileId: string) => {
   });
 };
 
-export const addServiceToStrata = async (data: CreateStrataServiceInput) => {
-  return prisma.strataService.create({
-    data: {
-      strataId: data.strataId,
-      serviceId: data.serviceId
-    }
-  });
-};
 
-export const removeServiceFromStrata = async (strataServiceId: number) => {
-  return prisma.strataService.delete({
-    where: { strataServiceId }
-  });
-};
 
 export const searchStratas = async (query: string) => {
   return prisma.strata.findMany({

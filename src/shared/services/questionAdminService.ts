@@ -6,6 +6,11 @@ const questionInclude = {
   questionServices: { include: { service: true }, orderBy: { sortOrder: 'asc' as const } },
   questionPropertyTypes: { include: { propertyType: true } },
   multipleChoiceOptions: { orderBy: { sortOrder: 'asc' as const } },
+  parentQuestion: { select: { questionId: true, questionText: true, subLabel: true } },
+  subQuestions: {
+    orderBy: { questionId: 'asc' as const },
+    select: { questionId: true, subLabel: true, questionText: true, isRequired: true, questionTypeId: true, questionCategory: true, informationText: true },
+  },
 };
 
 export const getQuestions = async () => {
@@ -23,7 +28,7 @@ export const getQuestionById = async (id: number) => {
 };
 
 export const createQuestion = async (data: CreateQuestionInput) => {
-  const { serviceIds, propertyTypeIds, multipleChoiceOptions, questionText, isRequired, informationText, questionCategory, questionTypeId } = data;
+  const { serviceIds, propertyTypeIds, multipleChoiceOptions, questionText, isRequired, informationText, questionCategory, questionTypeId, parentQuestionId, subLabel } = data;
 
   const dataPayload = {
     questionText,
@@ -31,6 +36,8 @@ export const createQuestion = async (data: CreateQuestionInput) => {
     informationText: informationText ?? null,
     questionCategory,
     questionTypeId,
+    parentQuestionId: parentQuestionId ?? null,
+    subLabel: subLabel ?? null,
     ...(serviceIds.length > 0
       ? { questionServices: { create: serviceIds.map(s => ({ serviceId: s.serviceId, sortOrder: s.sortOrder })) } }
       : {}),
@@ -90,6 +97,8 @@ export const updateQuestion = async (id: number, data: UpdateQuestionInput) => {
     if (questionData.informationText !== undefined) updateData.informationText = questionData.informationText;
     if (questionData.questionCategory !== undefined) updateData.questionCategory = questionData.questionCategory;
     if (questionData.questionTypeId !== undefined) updateData.questionTypeId = questionData.questionTypeId;
+    if (questionData.parentQuestionId !== undefined) updateData.parentQuestionId = questionData.parentQuestionId;
+    if (questionData.subLabel !== undefined) updateData.subLabel = questionData.subLabel;
 
     return tx.question.update({
       where: { questionId: id },
