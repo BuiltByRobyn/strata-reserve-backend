@@ -103,18 +103,18 @@ const CLUBHOUSE_EXTERIOR: QuestionDef[] = [
 // Common Septic Field
 // ─────────────────────────────────────────────────────────────────────────────
 const COMMON_SEPTIC_FIELD: QuestionDef[] = [
-  { text: 'Is there a Common Septic Field? Please describe the system.', category: 'Services', type: 'textarea', propertyTypes: ['Common Septic Field'] },
-  { text: 'Are there pumps to carry the wastewater from the residences to the septic tanks? If the pumps are owned by Owners, go to Question 6.', category: 'Services', type: 'textarea', propertyTypes: ['Common Septic Field'] },
-  { text: 'If the pumps are owned by the Strata, how many? Have they been replaced?', category: 'Services', type: 'textarea', propertyTypes: ['Common Septic Field'], subQuestions: SUPPLIER_COST_SUBS },
-  { text: 'Are the septic tanks on the strata lots? If so, proceed to Question 6.', category: 'Services', type: 'textarea', propertyTypes: ['Common Septic Field'] },
-  { text: 'Are there community septic tanks to hold the wastewater from the residences? If so, how many? Please describe the system and recent work completed.', category: 'Services', type: 'textarea', propertyTypes: ['Common Septic Field'] },
-  { text: 'How many pumps are there to carry the wastewater from the septic tanks to the community septic field distribution (holding) tanks or biodigester system (if applicable)? Have they been replaced?', category: 'Services', type: 'textarea', propertyTypes: ['Common Septic Field'], subQuestions: SUPPLIER_COST_SUBS },
-  { text: 'Is there a biodigester system in place? If No, go to Question 8. If Yes, please describe the system and recent work completed.', category: 'Services', type: 'textarea', propertyTypes: ['Common Septic Field'] },
-  { text: 'How many pumps are there to carry the wastewater from the biodigester to the distribution (holding) tanks? Have they been replaced?', category: 'Services', type: 'textarea', propertyTypes: ['Common Septic Field'], subQuestions: SUPPLIER_COST_SUBS },
-  { text: 'How many septic tanks hold the wastewater from the biodigester to the community septic field distribution (holding) tanks? If so, how many? Please describe the system and recent work completed.', category: 'Services', type: 'textarea', propertyTypes: ['Common Septic Field'] },
-  { text: 'Is the community Septic Tank original from construction? Has it been replaced?', category: 'Services', type: 'textarea', propertyTypes: ['Common Septic Field'], subQuestions: SUPPLIER_COST_SUBS },
-  { text: 'Does the Septic System have Pumps to move the wastewater from community septic field distribution (holding) tanks to the district sewer system? Please describe costs and history.', category: 'Services', type: 'textarea', propertyTypes: ['Common Septic Field'] },
-  { text: 'Are you planning any work in the future with the Septic System?', category: 'Services', type: 'textarea', propertyTypes: ['Common Septic Field'] },
+  { text: 'Is there a Common Septic Field? Please describe the system.', category: 'Septic Fields', type: 'textarea', propertyTypes: ['Common Septic Field'] },
+  { text: 'Are there pumps to carry the wastewater from the residences to the septic tanks? If the pumps are owned by Owners, go to Question 6.', category: 'Septic Fields', type: 'textarea', propertyTypes: ['Common Septic Field'] },
+  { text: 'If the pumps are owned by the Strata, how many? Have they been replaced?', category: 'Septic Fields', type: 'textarea', propertyTypes: ['Common Septic Field'], subQuestions: SUPPLIER_COST_SUBS },
+  { text: 'Are the septic tanks on the strata lots? If so, proceed to Question 6.', category: 'Septic Fields', type: 'textarea', propertyTypes: ['Common Septic Field'] },
+  { text: 'Are there community septic tanks to hold the wastewater from the residences? If so, how many? Please describe the system and recent work completed.', category: 'Septic Fields', type: 'textarea', propertyTypes: ['Common Septic Field'] },
+  { text: 'How many pumps are there to carry the wastewater from the septic tanks to the community septic field distribution (holding) tanks or biodigester system (if applicable)? Have they been replaced?', category: 'Septic Fields', type: 'textarea', propertyTypes: ['Common Septic Field'], subQuestions: SUPPLIER_COST_SUBS },
+  { text: 'Is there a biodigester system in place? If No, go to Question 8. If Yes, please describe the system and recent work completed.', category: 'Septic Fields', type: 'textarea', propertyTypes: ['Common Septic Field'] },
+  { text: 'How many pumps are there to carry the wastewater from the biodigester to the distribution (holding) tanks? Have they been replaced?', category: 'Septic Fields', type: 'textarea', propertyTypes: ['Common Septic Field'], subQuestions: SUPPLIER_COST_SUBS },
+  { text: 'How many septic tanks hold the wastewater from the biodigester to the community septic field distribution (holding) tanks? If so, how many? Please describe the system and recent work completed.', category: 'Septic Fields', type: 'textarea', propertyTypes: ['Common Septic Field'] },
+  { text: 'Is the community Septic Tank original from construction? Has it been replaced?', category: 'Septic Fields', type: 'textarea', propertyTypes: ['Common Septic Field'], subQuestions: SUPPLIER_COST_SUBS },
+  { text: 'Does the Septic System have Pumps to move the wastewater from community septic field distribution (holding) tanks to the district sewer system? Please describe costs and history.', category: 'Septic Fields', type: 'textarea', propertyTypes: ['Common Septic Field'] },
+  { text: 'Are you planning any work in the future with the Septic System?', category: 'Septic Fields', type: 'textarea', propertyTypes: ['Common Septic Field'] },
 ]
 
 // ─────────────────────────────────────────────────────────────────────────────

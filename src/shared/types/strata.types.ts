@@ -25,10 +25,6 @@ export interface CreateStrataProfileInput {
   sectionIds?: number[];
 }
 
-export interface CreateStrataServiceInput {
-  strataId: number;
-  serviceId: number;
-}
 
 export interface CreateStrataNoteInput {
   strataId: number;

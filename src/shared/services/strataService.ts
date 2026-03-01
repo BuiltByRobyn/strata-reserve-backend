@@ -3,7 +3,6 @@ import type {
   CreateStrataInput,
   UpdateStrataInput,
   CreateStrataProfileInput,
-  CreateStrataServiceInput,
   CreateStrataNoteInput
 } from '../types/strata.types';
 
@@ -24,7 +23,6 @@ export const getStratas = async () => {
         select: {
           strataNotes: true,
           strataProfiles: true,
-          strataServices: true,
           serviceRequests: { where: { archived: false } }
         }
       }
@@ -55,11 +53,6 @@ export const getStrataById = async (id: number) => {
           strataProfileSections: {
             include: { section: true }
           }
-        }
-      },
-      strataServices: {
-        include: {
-          service: { select: { serviceId: true, serviceName: true, serviceDescription: true } }
         }
       },
       strataSections: {
@@ -272,20 +265,7 @@ export const getStratasByEmployee = async (profileId: string) => {
   });
 };
 
-export const addServiceToStrata = async (data: CreateStrataServiceInput) => {
-  return prisma.strataService.create({
-    data: {
-      strataId: data.strataId,
-      serviceId: data.serviceId
-    }
-  });
-};
 
-export const removeServiceFromStrata = async (strataServiceId: number) => {
-  return prisma.strataService.delete({
-    where: { strataServiceId }
-  });
-};
 
 export const searchStratas = async (query: string) => {
   return prisma.strata.findMany({

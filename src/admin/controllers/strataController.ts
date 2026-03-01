@@ -128,24 +128,7 @@ export const removeEmployee = asyncHandler(async (c) => {
   return success(c, { message: 'Employee removed successfully' });
 }, 'Failed to remove employee');
 
-export const addService = asyncHandler(async (c) => {
-  const strataId = parseIntParam(c, 'id');
-  const body = await c.req.json();
-  if (!body.serviceId) {
-    return error(c, 'Service ID is required', 400);
-  }
-  const result = await strataService.addServiceToStrata({
-    strataId,
-    serviceId: parseInt(body.serviceId)
-  });
-  return created(c, result);
-}, 'Failed to add service');
 
-export const removeService = asyncHandler(async (c) => {
-  const strataServiceId = parseIntParam(c, 'serviceId');
-  await strataService.removeServiceFromStrata(strataServiceId);
-  return success(c, { message: 'Service removed successfully' });
-}, 'Failed to remove service');
 
 export const getStrataTimelines = asyncHandler(async (c) => {
   const strataId = parseIntParam(c, 'id');
