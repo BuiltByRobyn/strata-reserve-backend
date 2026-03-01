@@ -1,4 +1,5 @@
 import * as questionService from '../../shared/services/questionService';
+import * as srSurveyQuestionService from '../../shared/services/srSurveyQuestionService';
 import { success, error, asyncHandler } from '../../shared/helpers/responseHelper';
 import { parseIntParam } from '../../shared/helpers/parseParams';
 import prisma from '../../shared/lib/prismaClient';
@@ -32,7 +33,7 @@ export const getSurveyQuestions = asyncHandler(async (c) => {
     return success(c, []);
   }
 
-  const questions = await questionService.getSurveyQuestions(explicitPropertyTypeIds);
+  const questions = await questionService.getSurveyQuestionsForSR(serviceRequestId);
 
   return success(c, questions);
 }, 'Failed to fetch survey questions');
@@ -56,6 +57,7 @@ export const saveSurveyResponses = asyncHandler(async (c) => {
     serviceRequestId,
     answeredByProfileId: user.id,
     questionId: r.questionId as number,
+    propertyTypeId: r.propertyTypeId as number,
     responseText: (r.responseText as string) ?? null,
     responseDate: (r.responseDate as string) ?? null,
     responseNumber: (r.responseNumber as number) ?? null,
@@ -127,6 +129,8 @@ export const saveSurveyRequirements = asyncHandler(async (c) => {
       where: { serviceRequestId }
     });
   });
+  
+  await srSurveyQuestionService.autoPopulateFromTemplates(serviceRequestId, propertyTypeIds);
   
   return success(c, results);
 }, 'Failed to save survey requirements');

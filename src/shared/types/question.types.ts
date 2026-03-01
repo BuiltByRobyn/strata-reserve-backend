@@ -1,13 +1,15 @@
 export interface SubQuestionDef {
+  id?: number;
   label: string;  // e.g. 'a', 'b', 'c'
   text: string;
-  type: 'textarea' | 'text' | 'number';
+  type: 'textarea' | 'text' | 'number' | 'select' | 'multi_select' | 'boolean' | 'none_or_explain' | 'checkbox' | 'multiple_choice';
 }
 
 export interface QuestionDef {
+  id?: number;
   text: string;
   category: string;
-  type: 'textarea' | 'boolean' | 'none_or_explain' | 'checkbox' | 'multiple_choice' | 'text' | 'number';
+  type: 'textarea' | 'boolean' | 'none_or_explain' | 'checkbox' | 'multiple_choice' | 'text' | 'number' | 'select' | 'multi_select';
   propertyTypes: string[];
   informationText?: string;
   multipleChoiceOptions?: string[];
@@ -41,6 +43,7 @@ export interface SaveResponseInput {
   serviceRequestId: number;
   answeredByProfileId: string;
   questionId: number;
+  propertyTypeId: number;
   responseText?: string | null;
   responseDate?: string | null;
   responseNumber?: number | null;
