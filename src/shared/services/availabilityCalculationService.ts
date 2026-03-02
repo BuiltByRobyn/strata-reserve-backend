@@ -1,16 +1,6 @@
 import prisma from '../lib/prismaClient';
 import { isWeekend, formatDateStr } from '../helpers/dateUtils';
-
-interface AvailableSlot {
-  timeSlotId: number;
-  slotTime: string;
-  slotName: string;
-}
-
-interface AvailableDay {
-  date: string;
-  slots: AvailableSlot[];
-}
+import type { AvailableSlot, AvailableDay } from '../types/appointment.types';
 
 const SLOT_REQUIREMENTS: Record<string, { startHour: number; endHour: number; durationHours: number }> = {
   '10:00': { startHour: 10, endHour: 14, durationHours: 4 },
