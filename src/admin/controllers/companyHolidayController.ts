@@ -1,6 +1,7 @@
 import * as companyHolidayService from '../../shared/services/companyHolidayService';
 import { success, created, error, asyncHandler, getByIdHandler, deleteHandler } from '../../shared/helpers/responseHelper';
 import { parseIntParam } from '../../shared/helpers/parseParams';
+import { toUTCDate } from '../../shared/helpers/dateUtils';
 
 export const getCompanyHolidays = asyncHandler(async (c) => {
   const holidays = await companyHolidayService.getCompanyHolidays();
@@ -18,7 +19,7 @@ export const createCompanyHoliday = asyncHandler(async (c) => {
   }
 
   const newHoliday = await companyHolidayService.createCompanyHoliday({
-    holidayDate: new Date(holidayDate),
+    holidayDate: toUTCDate(holidayDate)!,
     holidayName,
     isRecurringAnnually
   });
@@ -37,7 +38,7 @@ export const updateCompanyHoliday = asyncHandler(async (c) => {
   } = {};
 
   if (holidayDate) {
-    updateData.holidayDate = new Date(holidayDate);
+    updateData.holidayDate = toUTCDate(holidayDate)!;
   }
   if (holidayName !== undefined) {
     updateData.holidayName = holidayName;
@@ -66,6 +67,6 @@ export const checkIsHoliday = asyncHandler(async (c) => {
   if (!date) {
     return error(c, 'Date is required', 400);
   }
-  const isHoliday = await companyHolidayService.isHoliday(new Date(date));
+  const isHoliday = await companyHolidayService.isHoliday(toUTCDate(date)!);
   return success(c, { isHoliday });
 }, 'Failed to check holiday');

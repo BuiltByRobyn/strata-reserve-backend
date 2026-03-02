@@ -1,4 +1,5 @@
 import prisma from '../lib/prismaClient';
+import { toUTCDate } from '../helpers/dateUtils';
 import type { UpdateTimelinesInput } from '../types/timeline.types';
 
 export type { UpdateTimelinesInput };
@@ -22,18 +23,31 @@ export const getTimelinesByServiceRequest = async (serviceRequestId: number) => 
 };
 
 export const updateTimelines = async (serviceRequestId: number, data: UpdateTimelinesInput) => {
-  return prisma.serviceRequest.update({
+  const result = await prisma.serviceRequest.update({
     where: { serviceRequestId },
     data: {
-      fiscalYearEnd: data.fiscalYearEnd ? new Date(data.fiscalYearEnd) : data.fiscalYearEnd === null ? null : undefined,
-      lastAgmDate: data.lastAgmDate ? new Date(data.lastAgmDate) : data.lastAgmDate === null ? null : undefined,
+      fiscalYearEnd: toUTCDate(data.fiscalYearEnd),
+      lastAgmDate: toUTCDate(data.lastAgmDate),
       noAgmToDate: data.noAgmToDate,
-      lastDepreciationReportDate: data.lastDepreciationReportDate ? new Date(data.lastDepreciationReportDate) : data.lastDepreciationReportDate === null ? null : undefined,
+      lastDepreciationReportDate: toUTCDate(data.lastDepreciationReportDate),
       noReportToDate: data.noReportToDate,
-      targetDate: data.targetDate ? new Date(data.targetDate) : data.targetDate === null ? null : undefined,
+      targetDate: toUTCDate(data.targetDate),
     },
-    select: timelineSelect,
+    select: { ...timelineSelect, strataId: true },
   });
+
+  // Sync fiscalYearEnd to the parent Strata record
+  if (data.fiscalYearEnd !== undefined) {
+    await prisma.strata.update({
+      where: { strataId: result.strataId },
+      data: {
+        fiscalYearEnd: toUTCDate(data.fiscalYearEnd) ?? null,
+      },
+    });
+  }
+
+  const { strataId, ...timelineData } = result;
+  return timelineData;
 };
 
 export const getLatestTimelinesByStrata = async (strataId: number) => {

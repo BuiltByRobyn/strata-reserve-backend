@@ -15,13 +15,20 @@ export const getServiceRequests = async (filters?: { strataId?: number; archived
         orderBy: { uploadedAt: 'desc' },
         take: 1,
         select: { uploadedAt: true }
+      },
+      questionResponses: {
+        where: { archivedAt: null },
+        orderBy: { updatedAt: 'desc' },
+        take: 1,
+        select: { updatedAt: true }
       }
     }
   });
 
-  return results.map(({ serviceRequestDocuments, ...sr }) => ({
+  return results.map(({ serviceRequestDocuments, questionResponses, ...sr }) => ({
     ...sr,
     latestDocumentUploadDate: serviceRequestDocuments[0]?.uploadedAt ?? null,
+    latestSurveyAnswerDate: questionResponses[0]?.updatedAt ?? null,
   }));
 };
 

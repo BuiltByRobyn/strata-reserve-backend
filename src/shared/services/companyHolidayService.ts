@@ -47,8 +47,8 @@ export const deleteCompanyHoliday = async (id: number) => {
 };
 
 export const getHolidaysByYear = async (year: number) => {
-  const startDate = new Date(year, 0, 1);
-  const endDate = new Date(year, 11, 31);
+  const startDate = new Date(Date.UTC(year, 0, 1));
+  const endDate = new Date(Date.UTC(year, 11, 31));
 
   const holidays = await prisma.companyHoliday.findMany({
     where: {
@@ -72,9 +72,9 @@ export const getHolidaysByYear = async (year: number) => {
     .map(holiday => {
       if (!holiday.isRecurringAnnually) return holiday;
 
-      const originalDate = new Date(holiday.holidayDate);
-      const month = originalDate.getMonth();
-      const day = originalDate.getDate();
+      const originalDate = holiday.holidayDate;
+      const month = originalDate.getUTCMonth();
+      const day = originalDate.getUTCDate();
 
       // Skip Feb 29 holidays in non-leap years
       if (month === 1 && day === 29) {
@@ -82,14 +82,14 @@ export const getHolidaysByYear = async (year: number) => {
         if (!isLeapYear) return null;
       }
 
-      return { ...holiday, holidayDate: new Date(year, month, day) };
+      return { ...holiday, holidayDate: new Date(Date.UTC(year, month, day)) };
     })
     .filter((h): h is NonNullable<typeof h> => h !== null);
 };
 
 export const isHoliday = async (date: Date): Promise<boolean> => {
-  const month = date.getMonth();
-  const day = date.getDate();
+  const month = date.getUTCMonth();
+  const day = date.getUTCDate();
 
   const holidays = await prisma.companyHoliday.findMany({
     where: {
@@ -109,8 +109,8 @@ export const isHoliday = async (date: Date): Promise<boolean> => {
     if (!holiday.isRecurringAnnually) {
       return holiday.holidayDate.getTime() === date.getTime();
     }
-    const holidayMonth = holiday.holidayDate.getMonth();
-    const holidayDay = holiday.holidayDate.getDate();
+    const holidayMonth = holiday.holidayDate.getUTCMonth();
+    const holidayDay = holiday.holidayDate.getUTCDate();
     return holidayMonth === month && holidayDay === day;
   });
 };

@@ -1,4 +1,5 @@
 import prisma from '../lib/prismaClient';
+import { toUTCDate } from '../helpers/dateUtils';
 import type { SaveResponseInput } from '../types/question.types';
 
 export const getSurveyQuestionsForSR = async (serviceRequestId: number) => {
@@ -142,7 +143,7 @@ export const saveResponses = async (responses: SaveResponseInput[]) => {
       const existingId = existingMap.get(key);
       const data = {
         responseText: resp.responseText ?? null,
-        responseDate: resp.responseDate ? new Date(resp.responseDate) : null,
+        responseDate: resp.responseDate ? toUTCDate(resp.responseDate)! : null,
         responseNumber: resp.responseNumber ?? null,
         responseBoolean: resp.responseBoolean ?? null,
         multipleChoiceOptionId: resp.multipleChoiceOptionId ?? null,
