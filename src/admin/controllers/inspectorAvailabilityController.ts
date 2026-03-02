@@ -2,6 +2,7 @@ import * as inspectorAvailabilityService from '../../shared/services/inspectorAv
 import { success, created, error, asyncHandler, getByIdHandler } from '../../shared/helpers/responseHelper';
 import { parseIntParam } from '../../shared/helpers/parseParams';
 import { VALID_LOCATION_CODES } from '../../shared/constants/validation';
+import { toUTCDate } from '../../shared/helpers/dateUtils';
 
 const validateLocationCodes = (locationCodes: string[] | undefined): string | null => {
   if (!locationCodes?.length) return null;
@@ -34,8 +35,8 @@ export const createAvailableDate = asyncHandler(async (c) => {
   }
 
   const newAvailableDate = await inspectorAvailabilityService.createAvailableDate({
-    availableStartDate: new Date(availableStartDate),
-    availableEndDate: new Date(availableEndDate),
+    availableStartDate: toUTCDate(availableStartDate)!,
+    availableEndDate: toUTCDate(availableEndDate)!,
     availableStartTime: availableStartTime ? new Date(`1970-01-01T${availableStartTime}Z`) : null,
     availableEndTime: availableEndTime ? new Date(`1970-01-01T${availableEndTime}Z`) : null,
     inspectorProfileId,
@@ -62,8 +63,8 @@ export const updateAvailableDate = asyncHandler(async (c) => {
     locationCodes?: string[];
   } = {};
 
-  if (availableStartDate) updateData.availableStartDate = new Date(availableStartDate);
-  if (availableEndDate) updateData.availableEndDate = new Date(availableEndDate);
+  if (availableStartDate) updateData.availableStartDate = toUTCDate(availableStartDate)!;
+  if (availableEndDate) updateData.availableEndDate = toUTCDate(availableEndDate)!;
   if (availableStartTime !== undefined) {
     updateData.availableStartTime = availableStartTime ? new Date(`1970-01-01T${availableStartTime}Z`) : null;
   }
@@ -109,8 +110,8 @@ export const getAvailableDatesByRange = asyncHandler(async (c) => {
   const locationCodes = locationCodesParam ? locationCodesParam.split(',') : undefined;
 
   const availableDates = await inspectorAvailabilityService.getAvailableDatesByRange(
-    new Date(startDate),
-    new Date(endDate),
+    toUTCDate(startDate)!,
+    toUTCDate(endDate)!,
     inspectorProfileId,
     locationCodes
   );

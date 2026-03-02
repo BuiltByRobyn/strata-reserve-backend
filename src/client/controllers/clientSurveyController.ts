@@ -104,33 +104,27 @@ export const getSurveyRequirements = asyncHandler(async (c) => {
 export const saveSurveyRequirements = asyncHandler(async (c) => {
   const serviceRequestId = parseIntParam(c, 'serviceRequestId');
   const body = await c.req.json();
-  
-  if (!Array.isArray(body.propertyTypeIds)) {
-    return error(c, 'propertyTypeIds array is required', 400);
+
+  if (Array.isArray(body.selections)) {
+    const selections = body.selections as { propertyTypeId: number; questionIds: number[] }[];
+    const results = await srSurveyQuestionService.replaceQuestionsForSR(serviceRequestId, selections);
+    return success(c, results);
   }
-  
-  const propertyTypeIds = body.propertyTypeIds as number[];
-  
-  const results = await prisma.$transaction(async (tx) => {
-    await tx.serviceRequestSurveyRequirement.deleteMany({
-      where: { serviceRequestId }
+
+  if (Array.isArray(body.propertyTypeIds)) {
+    const propertyTypeIds = body.propertyTypeIds as number[];
+    await prisma.$transaction(async (tx) => {
+      await tx.serviceRequestSurveyRequirement.deleteMany({ where: { serviceRequestId } });
+      if (propertyTypeIds.length > 0) {
+        await tx.serviceRequestSurveyRequirement.createMany({
+          data: propertyTypeIds.map(id => ({ serviceRequestId, propertyTypeId: id }))
+        });
+      }
     });
-    
-    if (propertyTypeIds.length > 0) {
-      await tx.serviceRequestSurveyRequirement.createMany({
-        data: propertyTypeIds.map(id => ({
-          serviceRequestId,
-          propertyTypeId: id
-        }))
-      });
-    }
-    
-    return tx.serviceRequestSurveyRequirement.findMany({
-      where: { serviceRequestId }
-    });
-  });
-  
-  await srSurveyQuestionService.autoPopulateFromTemplates(serviceRequestId, propertyTypeIds);
-  
-  return success(c, results);
+    await srSurveyQuestionService.autoPopulateFromTemplates(serviceRequestId, propertyTypeIds);
+    const results = await prisma.serviceRequestSurveyRequirement.findMany({ where: { serviceRequestId } });
+    return success(c, results);
+  }
+
+  return error(c, 'selections or propertyTypeIds array is required', 400);
 }, 'Failed to save survey requirements');

@@ -1,6 +1,8 @@
 import * as serviceRequestService from '../../shared/services/serviceRequestService';
+import * as srSurveyQuestionService from '../../shared/services/srSurveyQuestionService';
+import prisma from '../../shared/lib/prismaClient';
 import { success, created, error, asyncHandler } from '../../shared/helpers/responseHelper';
-import { parseIntQuery, parseOptionalIntQuery } from '../../shared/helpers/parseParams';
+import { parseIntParam, parseIntQuery, parseOptionalIntQuery } from '../../shared/helpers/parseParams';
 
 export const getServiceRequests = asyncHandler(async (c) => {
   const strataId = parseOptionalIntQuery(c, 'strataId');
@@ -38,6 +40,16 @@ export const createServiceRequest = asyncHandler(async (c) => {
       requestedByProfileId: body.requestedByProfileId,
       notes: body.notes?.trim()
     });
+
+    const strata = await prisma.strata.findUnique({
+      where: { strataId: parseInt(body.strataId) },
+      select: { strataPropertyTypes: { select: { propertyTypeId: true } } }
+    });
+    const ptIds = strata?.strataPropertyTypes.map(spt => spt.propertyTypeId) ?? [];
+    if (ptIds.length > 0) {
+      await srSurveyQuestionService.autoPopulateFromTemplates(serviceRequest.serviceRequestId, ptIds);
+    }
+
     return created(c, serviceRequest);
   } catch (err) {
     if (err instanceof Error && err.message.includes('already has an active service request')) {
@@ -46,6 +58,28 @@ export const createServiceRequest = asyncHandler(async (c) => {
     throw err;
   }
 }, 'Failed to create service request');
+
+export const offerAppointment = asyncHandler(async (c) => {
+  const id = parseIntParam(c, 'id');
+  const user = c.get('user');
+  const body = await c.req.json();
+
+  try {
+    const result = await serviceRequestService.offerAppointment(id, user.id, {
+      dueDate: body.dueDate,
+      appointmentTypeId: body.appointmentTypeId ? parseInt(body.appointmentTypeId) : undefined,
+      inspectorProfileId: body.inspectorProfileId,
+      notes: body.notes,
+    });
+    return success(c, result);
+  } catch (err) {
+    if (err instanceof Error) {
+      if (err.message.includes('not found')) return error(c, err.message, 404);
+      if (err.message.includes('already been')) return error(c, err.message, 400);
+    }
+    throw err;
+  }
+}, 'Failed to offer appointment');
 
 export const deleteServiceRequest = asyncHandler(async (c) => {
   const id = parseIntQuery(c, 'id');

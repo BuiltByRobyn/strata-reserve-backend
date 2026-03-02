@@ -13,6 +13,7 @@ export const getStratas = async () => {
       company: { select: { companyId: true, companyName: true } },
       legalType: { select: { legalTypeId: true, legalTypeName: true } },
       propertyType: { select: { propertyTypeId: true, propertyTypeName: true } },
+      location: { select: { locationId: true, locationCode: true, locationName: true } },
       strataSections: {
         include: { section: true }
       },
@@ -37,6 +38,7 @@ export const getStrataById = async (id: number) => {
       company: true,
       legalType: true,
       propertyType: true,
+      location: true,
       strataNotes: {
         orderBy: { createdAt: 'desc' },
         include: {
@@ -83,7 +85,7 @@ export const getStrataById = async (id: number) => {
 };
 
 export const createStrata = async (data: CreateStrataInput) => {
-  const { sectionIds, propertyTypeIds, fiscalYearEnd, ...strataData } = data;
+  const { sectionIds, propertyTypeIds, fiscalYearEnd, locationId, ...strataData } = data;
   return prisma.strata.create({
     data: {
       strataPlan: strataData.strataPlan,
@@ -98,7 +100,8 @@ export const createStrata = async (data: CreateStrataInput) => {
       legalTypeId: strataData.legalTypeId,
       propertyTypeId: strataData.propertyTypeId,
       companyId: strataData.companyId,
-      fiscalYearEnd: fiscalYearEnd ? new Date(fiscalYearEnd) : fiscalYearEnd === null ? null : undefined,
+      locationId: locationId !== undefined ? locationId : undefined,
+      fiscalYearEnd: fiscalYearEnd ? new Date(fiscalYearEnd.split('T')[0] + 'T00:00:00Z') : fiscalYearEnd === null ? null : undefined,
       ...(sectionIds?.length ? {
         strataSections: {
           create: sectionIds.map(sectionId => ({ sectionId }))
@@ -118,8 +121,8 @@ export const createStrata = async (data: CreateStrataInput) => {
 };
 
 export const updateStrata = async (id: number, data: UpdateStrataInput) => {
-  const { sectionIds, propertyTypeIds, fiscalYearEnd, ...strataData } = data;
-  const fiscalYearEndDate = fiscalYearEnd ? new Date(fiscalYearEnd) : fiscalYearEnd === null ? null : undefined;
+  const { sectionIds, propertyTypeIds, fiscalYearEnd, locationId, ...strataData } = data;
+  const fiscalYearEndDate = fiscalYearEnd ? new Date(fiscalYearEnd.split('T')[0] + 'T00:00:00Z') : fiscalYearEnd === null ? null : undefined;
 
   if (sectionIds !== undefined) {
     await prisma.strataSection.deleteMany({ where: { strataId: id } });
@@ -169,7 +172,11 @@ export const updateStrata = async (id: number, data: UpdateStrataInput) => {
 
   return prisma.strata.update({
     where: { strataId: id },
-    data: { ...strataData, ...(fiscalYearEndDate !== undefined ? { fiscalYearEnd: fiscalYearEndDate } : {}) },
+    data: {
+      ...strataData,
+      ...(fiscalYearEndDate !== undefined ? { fiscalYearEnd: fiscalYearEndDate } : {}),
+      ...(locationId !== undefined ? { locationId } : {}),
+    },
     include: {
       strataSections: { include: { section: true } },
       strataPropertyTypes: { include: { propertyType: true } }

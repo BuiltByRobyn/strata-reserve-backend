@@ -29,6 +29,7 @@ export const createStrata = asyncHandler(async (c) => {
     legalTypeId: body.legalTypeId ? parseInt(body.legalTypeId) : undefined,
     propertyTypeId: body.propertyTypeId ? parseInt(body.propertyTypeId) : undefined,
     companyId: body.companyId ? parseInt(body.companyId) : undefined,
+    locationId: body.locationId !== undefined ? (body.locationId ? parseInt(body.locationId) : null) : undefined,
     fiscalYearEnd: body.fiscalYearEnd || undefined,
     sectionIds: Array.isArray(body.sectionIds) ? body.sectionIds.map(Number) : undefined,
     propertyTypeIds: Array.isArray(body.propertyTypeIds) ? body.propertyTypeIds.map(Number) : undefined
@@ -55,6 +56,7 @@ export const updateStrata = asyncHandler(async (c) => {
     legalTypeId: body.legalTypeId !== undefined ? parseInt(body.legalTypeId) : undefined,
     propertyTypeId: body.propertyTypeId !== undefined ? parseInt(body.propertyTypeId) : undefined,
     companyId: body.companyId !== undefined ? parseInt(body.companyId) : undefined,
+    locationId: body.locationId !== undefined ? (body.locationId ? parseInt(body.locationId) : null) : undefined,
     fiscalYearEnd: body.fiscalYearEnd !== undefined ? body.fiscalYearEnd : undefined,
     sectionIds: Array.isArray(body.sectionIds) ? body.sectionIds.map(Number) : undefined,
     propertyTypeIds: Array.isArray(body.propertyTypeIds) ? body.propertyTypeIds.map(Number) : undefined

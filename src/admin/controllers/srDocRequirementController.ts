@@ -42,6 +42,31 @@ export const bulkSaveRequirements = asyncHandler(async (c) => {
   return success(c, updated);
 }, 'Failed to save document requirements');
 
+export const addRequirement = asyncHandler(async (c) => {
+  const serviceRequestId = parseIntParam(c, 'id');
+  const { documentTypeId, propertyTypeId } = await c.req.json();
+
+  await prisma.serviceRequestDocumentRequirement.upsert({
+    where: {
+      serviceRequestId_documentTypeId_propertyTypeId: {
+        serviceRequestId,
+        documentTypeId,
+        propertyTypeId: propertyTypeId ?? null,
+      }
+    },
+    update: {},
+    create: {
+      serviceRequestId,
+      documentTypeId,
+      propertyTypeId: propertyTypeId ?? null,
+      isRequired: true,
+      quantity: 1,
+    },
+  });
+
+  return success(c, { added: true });
+}, 'Failed to add document requirement');
+
 export const getDocumentsBySR = asyncHandler(async (c) => {
   const serviceRequestId = parseIntParam(c, 'id');
   const documents = await documentService.getDocumentsByServiceRequest(serviceRequestId);

@@ -78,3 +78,9 @@ export const getQuestionTypes = async () => {
     orderBy: { questionTypeId: 'asc' }
   });
 };
+
+export const getLocations = async () => {
+  return prisma.location.findMany({
+    orderBy: { locationName: 'asc' }
+  });
+};

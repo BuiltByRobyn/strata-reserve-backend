@@ -3,6 +3,7 @@ import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@prisma/client'
 import 'dotenv/config'
 import type { QuestionDef } from '../../src/shared/types/question.types'
+import { TEMPLATE_TO_PROPERTY_TYPES } from '../../src/shared/config/propertyTypeQuestionMapping'
 
 const connectionString = process.env.DATABASE_URL
 if (!connectionString) {
@@ -107,7 +108,7 @@ const APARTMENT_TOWNHOUSE_COMMERCIAL: QuestionDef[] = [
   { id: 34, text: 'When was the last time you completed any work on the skylights, if any?',                                                                category: 'Exterior', type: 'textarea', propertyTypes: ['Apartments', 'Townhomes', 'Mixed-Use: Commercial'], subQuestions: [{ id: 137, label: 'a', text: 'Who was the supplier?', type: 'textarea' }, { id: 138, label: 'b', text: 'What was the cost?', type: 'textarea' }] },
   { id: 35, text: 'When was the last time you replaced the metal flashing?',                                                                                category: 'Exterior', type: 'textarea', propertyTypes: ['Apartments', 'Townhomes', 'Mixed-Use: Commercial'], subQuestions: [{ id: 139, label: 'a', text: 'Who was the supplier?', type: 'textarea' }, { id: 140, label: 'b', text: 'What was the cost?', type: 'textarea' }] },
   { id: 36, text: 'Did you replace the roof access hatch during the re-roofing project or independently?',                                                  category: 'Exterior', type: 'textarea', propertyTypes: ['Apartments', 'Townhomes', 'Mixed-Use: Commercial'], subQuestions: [{ id: 141, label: 'a', text: 'Who was the supplier?', type: 'textarea' }, { id: 142, label: 'b', text: 'What was the cost?', type: 'textarea' }] },
-  { id: 37, text: 'Are the attic areas in the townhomes common area (if any)? When did you do any repair or replacement work on them?',                     category: 'Exterior', type: 'textarea', propertyTypes: ['Apartments', 'Townhomes', 'Mixed-Use: Commercial'], subQuestions: [{ id: 143, label: 'a', text: 'How much did you spend?', type: 'textarea' }] },
+  { id: 37, text: 'Are the attic areas in the townhomes common area (if any)?',                                                                              category: 'Exterior', type: 'textarea', propertyTypes: ['Apartments', 'Townhomes', 'Mixed-Use: Commercial'], subQuestions: [{ id: 143, label: 'a', text: 'When did you do any repair or replacement work on them?', type: 'textarea' }, { id: 256, label: 'b', text: 'How much did you spend?', type: 'textarea' }] },
   { id: 38, text: 'When was the last time you completed any work on the downspouts or gutters?',                                                            category: 'Exterior', type: 'textarea', propertyTypes: ['Apartments', 'Townhomes', 'Mixed-Use: Commercial'], subQuestions: [{ id: 144, label: 'a', text: 'Who was the supplier?', type: 'textarea' }, { id: 145, label: 'b', text: 'What was the cost?', type: 'textarea' }] },
   { id: 39, text: 'When was the last time you completed any work on the elevator?',                                                                         category: 'Services', type: 'textarea', propertyTypes: ['Apartments', 'Townhomes', 'Mixed-Use: Commercial'], subQuestions: [{ id: 146, label: 'a', text: 'Who was the supplier?', type: 'textarea' }, { id: 147, label: 'b', text: 'What was the cost?', type: 'textarea' }] },
   { id: 40, text: 'When was the last time you painted the interior of the building? Please separate the painting in the common rooms from the hallways.',   category: 'Interior', type: 'textarea', propertyTypes: ['Apartments', 'Townhomes', 'Mixed-Use: Commercial'], subQuestions: [{ id: 148, label: 'a', text: 'Who was the supplier?', type: 'textarea' }, { id: 149, label: 'b', text: 'What was the cost?', type: 'textarea' }] },
@@ -269,12 +270,8 @@ const NEW_PROPERTY_TYPE_NAMES = [
   'Apartments',
   'Townhomes',
   'Mixed-Use: Commercial',
-  'Amenity Room',
-  'Clubhouse',
-  'Common Septic Field',
   'Bare Land',
   'Industrial',
-  'Administration',
 ]
 
 async function main() {
@@ -351,7 +348,12 @@ async function main() {
       continue
     }
 
-    const propertyTypeIds = q.propertyTypes
+    const actualNames = new Set<string>()
+    for (const tg of q.propertyTypes) {
+      const mapped = TEMPLATE_TO_PROPERTY_TYPES[tg]
+      if (mapped) mapped.forEach(n => actualNames.add(n))
+    }
+    const propertyTypeIds = [...actualNames]
       .map(name => ptMap.get(name))
       .filter((id): id is number => id !== undefined)
 
@@ -437,6 +439,16 @@ async function main() {
   await prisma.$executeRawUnsafe(
     `SELECT setval(pg_get_serial_sequence('question', 'question_id'), 255, true)`
   )
+
+  const virtualTypes = ['Amenity Room', 'Clubhouse', 'Common Septic Field', 'Administration']
+  for (const name of virtualTypes) {
+    const pt = await prisma.propertyType.findUnique({ where: { propertyTypeName: name } })
+    if (!pt) continue
+    await prisma.strataPropertyType.deleteMany({ where: { propertyTypeId: pt.propertyTypeId } })
+    await prisma.questionPropertyType.deleteMany({ where: { propertyTypeId: pt.propertyTypeId } })
+    await prisma.propertyType.delete({ where: { propertyTypeId: pt.propertyTypeId } })
+    console.log(`  Removed fake property type: ${name}`)
+  }
 
   console.log(`\n  Parent questions created: ${created}`)
   console.log(`  Sub-questions created:    ${subCreated}`)

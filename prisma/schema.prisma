@@ -99,6 +99,7 @@ model Profile {
   requestedAppointments    AppointmentRequest[] @relation("AppointmentRequestedBy")
   reviewedAppointments     AppointmentReview[]  @relation("ReviewedByProfile")
   inspectorAppointments    Appointment[]        @relation("InspectorAppointments")
+  offerInspectorRequests   ServiceRequest[]     @relation("OfferInspector")
 
   inspectorAvailableDates InspectorAvailableDate[] @relation("InspectorAvailableDates")
 
@@ -137,6 +138,7 @@ model Strata {
   legalTypeId    Int?     @map("legal_type_id")
   propertyTypeId Int?     @map("property_type_id")
   companyId      Int?      @map("company_id")
+  locationId     Int?      @map("location_id")
   fiscalYearEnd  DateTime? @map("fiscal_year_end") @db.Date
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
@@ -144,6 +146,7 @@ model Strata {
   legalType      LegalType?      @relation(fields: [legalTypeId], references: [legalTypeId], onDelete: SetNull)
   propertyType   PropertyType?   @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: SetNull)
   company        Company?        @relation(fields: [companyId], references: [companyId], onDelete: SetNull)
+  location       Location?       @relation(fields: [locationId], references: [locationId], onDelete: SetNull)
   strataNotes    StrataNotes[]
   strataProfiles StrataProfile[]
   strataSections StrataSection[]
@@ -308,6 +311,7 @@ model AppointmentType {
   appointmentTypeTimeSlots AppointmentTypeTimeSlot[]
   appointmentRequests      AppointmentRequest[]
   appointments             Appointment[]
+  offerServiceRequests     ServiceRequest[]      @relation("OfferAppointmentType")
 
   @@map("appointment_type")
   @@schema("public")
@@ -349,11 +353,20 @@ model ServiceRequest {
   noReportToDate             Boolean   @default(false) @map("no_report_to_date")
   targetDate                 DateTime? @map("target_date") @db.Date
 
-  service             Service              @relation(fields: [serviceId], references: [serviceId], onDelete: Cascade)
-  strata              Strata               @relation(fields: [strataId], references: [strataId], onDelete: Cascade)
-  requestedBy         Profile              @relation("RequestedByProfile", fields: [requestedByProfileId], references: [id], onDelete: Cascade)
-  appointmentRequests AppointmentRequest[]
-  appointments        Appointment[]
+  appointmentOfferedAt              DateTime? @map("appointment_offered_at") @db.Timestamptz
+  appointmentOfferedByProfileId     String?   @map("appointment_offered_by_profile_id") @db.Uuid
+  appointmentDueDate                DateTime? @map("appointment_due_date") @db.Date
+  appointmentOfferTypeId            Int?      @map("appointment_offer_type_id")
+  appointmentOfferInspectorId       String?   @map("appointment_offer_inspector_id") @db.Uuid
+  appointmentOfferNotes             String?   @map("appointment_offer_notes") @db.Text
+
+  service                Service              @relation(fields: [serviceId], references: [serviceId], onDelete: Cascade)
+  strata                 Strata               @relation(fields: [strataId], references: [strataId], onDelete: Cascade)
+  requestedBy            Profile              @relation("RequestedByProfile", fields: [requestedByProfileId], references: [id], onDelete: Cascade)
+  appointmentOfferType   AppointmentType?     @relation("OfferAppointmentType", fields: [appointmentOfferTypeId], references: [appointmentTypeId], onDelete: SetNull)
+  appointmentOfferInspector Profile?           @relation("OfferInspector", fields: [appointmentOfferInspectorId], references: [id], onDelete: SetNull)
+  appointmentRequests    AppointmentRequest[]
+  appointments           Appointment[]
 
   questionResponses       QuestionResponse[]
   serviceRequestDocuments ServiceRequestDocument[]
@@ -435,6 +448,8 @@ model Appointment {
   status               String    @db.VarChar(50)
   completionNote       String?   @map("completion_note") @db.Text
   completedAt          DateTime? @map("completed_at") @db.Timestamptz
+  cancellationReason   String?   @map("cancellation_reason") @db.Text
+  rescheduleReason     String?   @map("reschedule_reason") @db.Text
   appointmentRequestId Int       @map("appointment_request_id")
   serviceRequestId     Int       @map("service_request_id")
   appointmentTypeId    Int       @map("appointment_type_id")
@@ -480,6 +495,21 @@ model InspectorAvailableLocation {
 
   @@unique([inspectorAvailableDateId, locationCode])
   @@map("inspector_available_location")
+  @@schema("public")
+}
+
+// ============================================
+// Location Table
+// ============================================
+
+model Location {
+  locationId   Int    @id @default(autoincrement()) @map("location_id")
+  locationCode String @unique @map("location_code") @db.VarChar(10)
+  locationName String @map("location_name") @db.VarChar(100)
+
+  stratas Strata[]
+
+  @@map("location")
   @@schema("public")
 }
 

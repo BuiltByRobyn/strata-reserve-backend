@@ -29,7 +29,12 @@ export const updateAppointmentStatus = asyncHandler(async (c) => {
 
 export const cancelAppointment = asyncHandler(async (c) => {
   const id = parseIntParam(c, 'id');
-  const appointment = await appointmentService.cancelAppointment(id);
+  let reason: string | undefined;
+  try {
+    const body = await c.req.json();
+    reason = body.reason;
+  } catch { /* no body is fine */ }
+  const appointment = await appointmentService.cancelAppointment(id, reason);
   return success(c, appointment);
 }, 'Failed to cancel appointment');
 
@@ -55,10 +60,63 @@ export const rescheduleAppointment = asyncHandler(async (c) => {
   const appointment = await appointmentService.rescheduleAppointment(
     id,
     new Date(appointmentDate),
-    parseInt(timeSlotId)
+    parseInt(timeSlotId),
+    {
+      inspectorProfileId: body.inspectorProfileId,
+      reason: body.reason,
+    }
   );
   return success(c, appointment);
 }, 'Failed to reschedule appointment');
+
+export const getAppointmentRequests = asyncHandler(async (c) => {
+  const status = c.req.query('status');
+  const requests = await appointmentService.getAppointmentRequests(status);
+  return success(c, requests);
+}, 'Failed to fetch appointment requests');
+
+export const getAppointmentRequestById = asyncHandler(async (c) => {
+  const id = parseIntParam(c, 'id');
+  const request = await appointmentService.getAppointmentRequestById(id);
+  if (!request) return error(c, 'Appointment request not found', 404);
+  return success(c, request);
+}, 'Failed to fetch appointment request');
+
+export const reviewAppointmentRequest = asyncHandler(async (c) => {
+  const id = parseIntParam(c, 'id');
+  const user = c.get('user');
+  const body = await c.req.json();
+
+  const { approved, approvedDateChoice, rejectionReason, inspectorProfileId, comments } = body;
+
+  if (typeof approved !== 'boolean') {
+    return error(c, 'approved field is required (true/false)', 400);
+  }
+
+  if (approved && !inspectorProfileId) {
+    return error(c, 'Inspector must be assigned when approving', 400);
+  }
+
+  if (!approved && !rejectionReason) {
+    return error(c, 'Rejection reason is required when rejecting', 400);
+  }
+
+  try {
+    const result = await appointmentService.reviewAppointmentRequest({
+      appointmentRequestId: id,
+      reviewedByProfileId: user.id,
+      approved,
+      approvedDateChoice: approvedDateChoice ? parseInt(approvedDateChoice) : undefined,
+      rejectionReason,
+      inspectorProfileId,
+      comments,
+    });
+    return success(c, result, 201);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Review failed';
+    return error(c, msg, 400);
+  }
+}, 'Failed to review appointment request');
 
 export const getTimeSlots = asyncHandler(async (c) => {
   const timeSlots = await appointmentService.getTimeSlots();

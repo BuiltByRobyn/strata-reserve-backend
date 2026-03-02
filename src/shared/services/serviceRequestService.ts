@@ -15,13 +15,20 @@ export const getServiceRequests = async (filters?: { strataId?: number; archived
         orderBy: { uploadedAt: 'desc' },
         take: 1,
         select: { uploadedAt: true }
+      },
+      questionResponses: {
+        where: { archivedAt: null },
+        orderBy: { updatedAt: 'desc' },
+        take: 1,
+        select: { updatedAt: true }
       }
     }
   });
 
-  return results.map(({ serviceRequestDocuments, ...sr }) => ({
+  return results.map(({ serviceRequestDocuments, questionResponses, ...sr }) => ({
     ...sr,
     latestDocumentUploadDate: serviceRequestDocuments[0]?.uploadedAt ?? null,
+    latestSurveyAnswerDate: questionResponses[0]?.updatedAt ?? null,
   }));
 };
 
@@ -105,24 +112,18 @@ export const createServiceRequest = async (data: CreateServiceRequestInput) => {
 export const submitForReview = async (id: number) => {
   const sr = await prisma.serviceRequest.findUnique({
     where: { serviceRequestId: id },
-    include: {
-      strata: { select: { strataPropertyTypes: { select: { propertyTypeId: true } } } },
-    },
   });
   if (!sr) throw new Error('Service request not found');
 
-  const propertyTypeIds = sr.strata.strataPropertyTypes.map(spt => spt.propertyTypeId);
-  const questions = await prisma.question.findMany({
-    where: propertyTypeIds.length > 0 ? {
-      OR: [
-        { questionPropertyTypes: { none: {} } },
-        { questionPropertyTypes: { some: { propertyTypeId: { in: propertyTypeIds } } } },
-      ],
-    } : {},
-    select: { questionId: true, isRequired: true },
+  // Only validate questions actually assigned to this SR (respects surveyRequirements)
+  const srQuestions = await prisma.srSurveyQuestion.findMany({
+    where: { serviceRequestId: id },
+    include: { question: { select: { questionId: true, isRequired: true, parentQuestionId: true } } },
   });
 
-  const requiredQuestionIds = questions.filter(q => q.isRequired).map(q => q.questionId);
+  const requiredQuestionIds = srQuestions
+    .filter(sq => sq.question.isRequired && sq.question.parentQuestionId == null)
+    .map(sq => sq.question.questionId);
 
   const responses = await prisma.questionResponse.findMany({
     where: { serviceRequestId: id, archivedAt: null },
@@ -142,6 +143,37 @@ export const submitForReview = async (id: number) => {
     data: {
       submittedForReviewDate: new Date(),
       status: 'Pending Approval',
+    },
+    include: serviceRequestIncludeList,
+  });
+};
+
+export const offerAppointment = async (
+  serviceRequestId: number,
+  offeredByProfileId: string,
+  offerData?: {
+    dueDate?: string;
+    appointmentTypeId?: number;
+    inspectorProfileId?: string;
+    notes?: string;
+  }
+) => {
+  const sr = await prisma.serviceRequest.findUnique({
+    where: { serviceRequestId },
+  });
+
+  if (!sr) throw new Error('Service request not found');
+  if (sr.appointmentOfferedAt) throw new Error('Appointment has already been offered for this service request');
+
+  return prisma.serviceRequest.update({
+    where: { serviceRequestId },
+    data: {
+      appointmentOfferedAt: new Date(),
+      appointmentOfferedByProfileId: offeredByProfileId,
+      appointmentDueDate: offerData?.dueDate ? new Date(offerData.dueDate) : null,
+      appointmentOfferTypeId: offerData?.appointmentTypeId ?? null,
+      appointmentOfferInspectorId: offerData?.inspectorProfileId ?? null,
+      appointmentOfferNotes: offerData?.notes ?? null,
     },
     include: serviceRequestIncludeList,
   });
@@ -167,6 +199,18 @@ export const deleteServiceRequest = async (id: number, authToken?: string) => {
       console.error('Failed to archive Dropbox files:', err);
     }
   }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  await prisma.appointment.updateMany({
+    where: {
+      serviceRequestId: id,
+      appointmentDate: { gte: today },
+      status: { not: 'Cancelled' },
+    },
+    data: { status: 'Cancelled' },
+  });
 
   return prisma.serviceRequest.delete({
     where: { serviceRequestId: id }

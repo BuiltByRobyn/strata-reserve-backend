@@ -42,6 +42,11 @@ export const serviceRequestIncludeList = {
     }
   },
   requestedBy: { select: profileSelectBrief },
+  appointments: {
+    where: { status: { not: 'Cancelled' } },
+    select: { appointmentId: true, appointmentDate: true, status: true, timeSlotId: true },
+    orderBy: { appointmentDate: 'asc' as const }
+  },
   _count: {
     select: { questionResponses: true, serviceRequestDocuments: true, appointments: true }
   }
