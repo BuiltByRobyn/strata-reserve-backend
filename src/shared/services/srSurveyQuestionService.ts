@@ -42,6 +42,41 @@ export const removeQuestionFromSR = async (srSurveyQuestionId: number) => {
   });
 };
 
+export const replaceQuestionsForSR = async (
+  serviceRequestId: number,
+  selections: { propertyTypeId: number; questionIds: number[] }[]
+) => {
+  return prisma.$transaction(async (tx) => {
+    await tx.srSurveyQuestion.deleteMany({ where: { serviceRequestId } });
+    await tx.serviceRequestSurveyRequirement.deleteMany({ where: { serviceRequestId } });
+
+    if (selections.length === 0) return { count: 0 };
+
+    await tx.serviceRequestSurveyRequirement.createMany({
+      data: selections.map(s => ({ serviceRequestId, propertyTypeId: s.propertyTypeId }))
+    });
+
+    const payload: { serviceRequestId: number; questionId: number; propertyTypeId: number }[] = [];
+
+    for (const sel of selections) {
+      const subQuestions = await tx.question.findMany({
+        where: { parentQuestionId: { in: sel.questionIds } },
+        select: { questionId: true }
+      });
+      const allIds = [...sel.questionIds, ...subQuestions.map(sq => sq.questionId)];
+      for (const qId of allIds) {
+        payload.push({ serviceRequestId, questionId: qId, propertyTypeId: sel.propertyTypeId });
+      }
+    }
+
+    if (payload.length > 0) {
+      await tx.srSurveyQuestion.createMany({ data: payload, skipDuplicates: true });
+    }
+
+    return tx.serviceRequestSurveyRequirement.findMany({ where: { serviceRequestId } });
+  });
+};
+
 export const autoPopulateFromTemplates = async (serviceRequestId: number, propertyTypeIds: number[]) => {
   if (propertyTypeIds.length === 0) {
     return { count: 0 };
@@ -86,6 +121,11 @@ export const autoPopulateFromTemplates = async (serviceRequestId: number, proper
       });
     }
   }
+
+  await prisma.serviceRequestSurveyRequirement.createMany({
+    data: propertyTypeIds.map(ptId => ({ serviceRequestId, propertyTypeId: ptId })),
+    skipDuplicates: true,
+  });
 
   if (payload.length > 0) {
     return prisma.srSurveyQuestion.createMany({

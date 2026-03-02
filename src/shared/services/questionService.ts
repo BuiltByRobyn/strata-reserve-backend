@@ -29,6 +29,9 @@ export const getSurveyQuestionsForSR = async (serviceRequestId: number) => {
   const flatQuestions: any[] = [];
 
   for (const srq of srQuestions) {
+    // Skip sub-questions — they're added via their parent's subQuestions relation
+    if (srq.question.parentQuestionId != null) continue;
+
     // Add the parent question
     flatQuestions.push({
       srSurveyQuestionId: srq.srSurveyQuestionId,

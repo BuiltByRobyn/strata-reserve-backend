@@ -50,7 +50,7 @@ export const getHolidaysByYear = async (year: number) => {
   const startDate = new Date(year, 0, 1);
   const endDate = new Date(year, 11, 31);
 
-  return prisma.companyHoliday.findMany({
+  const holidays = await prisma.companyHoliday.findMany({
     where: {
       OR: [
         {
@@ -67,6 +67,24 @@ export const getHolidaysByYear = async (year: number) => {
     },
     orderBy: { holidayDate: 'asc' }
   });
+
+  return holidays
+    .map(holiday => {
+      if (!holiday.isRecurringAnnually) return holiday;
+
+      const originalDate = new Date(holiday.holidayDate);
+      const month = originalDate.getMonth();
+      const day = originalDate.getDate();
+
+      // Skip Feb 29 holidays in non-leap years
+      if (month === 1 && day === 29) {
+        const isLeapYear = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+        if (!isLeapYear) return null;
+      }
+
+      return { ...holiday, holidayDate: new Date(year, month, day) };
+    })
+    .filter((h): h is NonNullable<typeof h> => h !== null);
 };
 
 export const isHoliday = async (date: Date): Promise<boolean> => {

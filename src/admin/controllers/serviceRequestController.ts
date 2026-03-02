@@ -1,4 +1,6 @@
 import * as serviceRequestService from '../../shared/services/serviceRequestService';
+import * as srSurveyQuestionService from '../../shared/services/srSurveyQuestionService';
+import prisma from '../../shared/lib/prismaClient';
 import { success, created, error, asyncHandler } from '../../shared/helpers/responseHelper';
 import { parseIntQuery, parseOptionalIntQuery } from '../../shared/helpers/parseParams';
 
@@ -38,6 +40,16 @@ export const createServiceRequest = asyncHandler(async (c) => {
       requestedByProfileId: body.requestedByProfileId,
       notes: body.notes?.trim()
     });
+
+    const strata = await prisma.strata.findUnique({
+      where: { strataId: parseInt(body.strataId) },
+      select: { strataPropertyTypes: { select: { propertyTypeId: true } } }
+    });
+    const ptIds = strata?.strataPropertyTypes.map(spt => spt.propertyTypeId) ?? [];
+    if (ptIds.length > 0) {
+      await srSurveyQuestionService.autoPopulateFromTemplates(serviceRequest.serviceRequestId, ptIds);
+    }
+
     return created(c, serviceRequest);
   } catch (err) {
     if (err instanceof Error && err.message.includes('already has an active service request')) {

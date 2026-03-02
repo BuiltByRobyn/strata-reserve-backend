@@ -105,24 +105,18 @@ export const createServiceRequest = async (data: CreateServiceRequestInput) => {
 export const submitForReview = async (id: number) => {
   const sr = await prisma.serviceRequest.findUnique({
     where: { serviceRequestId: id },
-    include: {
-      strata: { select: { strataPropertyTypes: { select: { propertyTypeId: true } } } },
-    },
   });
   if (!sr) throw new Error('Service request not found');
 
-  const propertyTypeIds = sr.strata.strataPropertyTypes.map(spt => spt.propertyTypeId);
-  const questions = await prisma.question.findMany({
-    where: propertyTypeIds.length > 0 ? {
-      OR: [
-        { questionPropertyTypes: { none: {} } },
-        { questionPropertyTypes: { some: { propertyTypeId: { in: propertyTypeIds } } } },
-      ],
-    } : {},
-    select: { questionId: true, isRequired: true },
+  // Only validate questions actually assigned to this SR (respects surveyRequirements)
+  const srQuestions = await prisma.srSurveyQuestion.findMany({
+    where: { serviceRequestId: id },
+    include: { question: { select: { questionId: true, isRequired: true, parentQuestionId: true } } },
   });
 
-  const requiredQuestionIds = questions.filter(q => q.isRequired).map(q => q.questionId);
+  const requiredQuestionIds = srQuestions
+    .filter(sq => sq.question.isRequired && sq.question.parentQuestionId == null)
+    .map(sq => sq.question.questionId);
 
   const responses = await prisma.questionResponse.findMany({
     where: { serviceRequestId: id, archivedAt: null },
