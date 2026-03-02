@@ -12,6 +12,7 @@ export interface CreateStrataInput {
   propertyTypeId?: number | null;
   companyId?: number;
   fiscalYearEnd?: string | null;
+  locationId?: number | null;
   sectionIds?: number[];
   propertyTypeIds?: number[];
 }

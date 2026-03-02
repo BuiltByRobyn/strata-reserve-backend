@@ -148,6 +148,37 @@ export const submitForReview = async (id: number) => {
   });
 };
 
+export const offerAppointment = async (
+  serviceRequestId: number,
+  offeredByProfileId: string,
+  offerData?: {
+    dueDate?: string;
+    appointmentTypeId?: number;
+    inspectorProfileId?: string;
+    notes?: string;
+  }
+) => {
+  const sr = await prisma.serviceRequest.findUnique({
+    where: { serviceRequestId },
+  });
+
+  if (!sr) throw new Error('Service request not found');
+  if (sr.appointmentOfferedAt) throw new Error('Appointment has already been offered for this service request');
+
+  return prisma.serviceRequest.update({
+    where: { serviceRequestId },
+    data: {
+      appointmentOfferedAt: new Date(),
+      appointmentOfferedByProfileId: offeredByProfileId,
+      appointmentDueDate: offerData?.dueDate ? new Date(offerData.dueDate) : null,
+      appointmentOfferTypeId: offerData?.appointmentTypeId ?? null,
+      appointmentOfferInspectorId: offerData?.inspectorProfileId ?? null,
+      appointmentOfferNotes: offerData?.notes ?? null,
+    },
+    include: serviceRequestIncludeList,
+  });
+};
+
 export const deleteServiceRequest = async (id: number, authToken?: string) => {
   const sr = await prisma.serviceRequest.findUnique({
     where: { serviceRequestId: id },
@@ -168,6 +199,18 @@ export const deleteServiceRequest = async (id: number, authToken?: string) => {
       console.error('Failed to archive Dropbox files:', err);
     }
   }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  await prisma.appointment.updateMany({
+    where: {
+      serviceRequestId: id,
+      appointmentDate: { gte: today },
+      status: { not: 'Cancelled' },
+    },
+    data: { status: 'Cancelled' },
+  });
 
   return prisma.serviceRequest.delete({
     where: { serviceRequestId: id }

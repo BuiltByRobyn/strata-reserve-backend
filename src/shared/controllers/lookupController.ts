@@ -41,3 +41,8 @@ export const getQuestionTypes = asyncHandler(async (c) => {
   const questionTypes = await lookupService.getQuestionTypes();
   return success(c, questionTypes);
 }, 'Failed to fetch question types');
+
+export const getLocations = asyncHandler(async (c) => {
+  const locations = await lookupService.getLocations();
+  return success(c, locations);
+}, 'Failed to fetch locations');

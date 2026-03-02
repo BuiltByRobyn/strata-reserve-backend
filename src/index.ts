@@ -28,6 +28,7 @@ import { clientRoutes } from './client/routes/clientRoutes';
 import { clientProfileRoutes } from './client/routes/clientProfileRoutes';
 import { clientDocumentRoutes } from './client/routes/clientDocumentRoutes';
 import { clientSurveyRoutes } from './client/routes/clientSurveyRoutes';
+import { clientAppointmentRoutes } from './client/routes/clientAppointmentRoutes';
 
 // Shared routes
 import { authRoutes } from './shared/routes/authRoutes';
@@ -87,6 +88,7 @@ app.route('/client', clientRoutes);
 app.route('/client', clientProfileRoutes);
 app.route('/client', clientDocumentRoutes);
 app.route('/client', clientSurveyRoutes);
+app.route('/client', clientAppointmentRoutes);
 
 const port = Number(process.env.PORT) || 3000;
 

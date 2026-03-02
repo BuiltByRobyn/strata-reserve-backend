@@ -17,6 +17,11 @@ appointmentRoutes.get('/appointments/time-slots', appointmentController.getTimeS
 // GET /admin/appointments/types - Get appointment types for dropdowns
 appointmentRoutes.get('/appointments/types', appointmentController.getAppointmentTypes);
 
+// Appointment Requests
+appointmentRoutes.get('/appointments/requests', appointmentController.getAppointmentRequests);
+appointmentRoutes.get('/appointments/requests/:id', appointmentController.getAppointmentRequestById);
+appointmentRoutes.post('/appointments/requests/:id/review', appointmentController.reviewAppointmentRequest);
+
 // GET /admin/appointments/:id - Get appointment by ID
 appointmentRoutes.get('/appointments/:id', appointmentController.getAppointmentById);
 
