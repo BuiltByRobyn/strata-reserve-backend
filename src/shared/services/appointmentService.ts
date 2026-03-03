@@ -14,7 +14,7 @@ export const getAppointments = async () => {
         select: {
           serviceRequestId: true,
           strata: {
-            select: { strataId: true, complexName: true, strataPlan: true, town: true }
+            select: { strataId: true, complexName: true, strataPlan: true, town: true, location: { select: { locationId: true, locationName: true } } }
           },
           service: {
             select: { serviceId: true, serviceName: true }
@@ -139,7 +139,7 @@ export const getAppointmentRequests = async (status?: string) => {
           status: true,
           requestDate: true,
           strata: {
-            select: { strataId: true, complexName: true, strataPlan: true, town: true }
+            select: { strataId: true, complexName: true, strataPlan: true, town: true, location: { select: { locationId: true, locationName: true } } }
           },
           service: {
             select: { serviceId: true, serviceName: true }
@@ -174,7 +174,7 @@ export const getAppointmentRequestById = async (id: number) => {
           serviceRequestId: true,
           status: true,
           strata: {
-            select: { strataId: true, complexName: true, strataPlan: true, town: true }
+            select: { strataId: true, complexName: true, strataPlan: true, town: true, location: { select: { locationId: true, locationName: true } } }
           },
           service: {
             select: { serviceId: true, serviceName: true }
