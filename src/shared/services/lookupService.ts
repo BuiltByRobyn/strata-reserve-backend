@@ -6,21 +6,9 @@ export const getUserTypes = async () => {
   });
 };
 
-export const getUserTypeById = async (id: number) => {
-  return prisma.userType.findUnique({
-    where: { userTypeId: id }
-  });
-};
-
 export const getLegalTypes = async () => {
   return prisma.legalType.findMany({
     orderBy: { legalTypeId: 'asc' }
-  });
-};
-
-export const getLegalTypeById = async (id: number) => {
-  return prisma.legalType.findUnique({
-    where: { legalTypeId: id }
   });
 };
 
@@ -30,28 +18,9 @@ export const getPropertyTypes = async () => {
   });
 };
 
-export const getPropertyTypeById = async (id: number) => {
-  return prisma.propertyType.findUnique({
-    where: { propertyTypeId: id }
-  });
-};
-
-export const updatePropertyTypeDescription = async (id: number, description: string | null) => {
-  return prisma.propertyType.update({
-    where: { propertyTypeId: id },
-    data: { description }
-  });
-};
-
 export const getServices = async () => {
   return prisma.service.findMany({
     orderBy: { serviceId: 'asc' }
-  });
-};
-
-export const getServiceById = async (id: number) => {
-  return prisma.service.findUnique({
-    where: { serviceId: id }
   });
 };
 

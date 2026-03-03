@@ -23,3 +23,13 @@ export function isWeekend(date: Date): boolean {
 export function formatDateStr(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
+
+/**
+ * Format an ISO date string as "DD Month YYYY" (e.g. "01 January 2024").
+ * Uses en-GB locale. Returns the raw input if the date is invalid.
+ */
+export function formatDateLong(dateIso: string): string {
+  const d = new Date(dateIso);
+  if (Number.isNaN(d.getTime())) return dateIso;
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+}

@@ -7,7 +7,6 @@ import { authMiddleware, adminMiddleware } from './shared/middleware/auth';
 import prisma from './shared/lib/prismaClient';
 
 // Admin routes
-import { adminRoutes } from './admin/routes/adminRoutes';
 import { adminProfileRoutes } from './admin/routes/adminProfileRoutes';
 import { adminUsersRoutes } from './admin/routes/adminUsersRoutes';
 import { companyRoutes } from './admin/routes/companyRoutes';
@@ -31,7 +30,6 @@ import { clientSurveyRoutes } from './client/routes/clientSurveyRoutes';
 import { clientAppointmentRoutes } from './client/routes/clientAppointmentRoutes';
 
 // Shared routes
-import { authRoutes } from './shared/routes/authRoutes';
 import { lookupRoutes } from './shared/routes/lookupRoutes';
 
 const app = new Hono();
@@ -56,9 +54,6 @@ app.onError((err, c) => {
 // Health check
 app.get('/health', (c) => c.json({ status: 'ok' }, 200));
 
-// Auth routes (shared)
-app.route('/auth', authRoutes);
-
 // API routes (auth required)
 app.use('/api/*', authMiddleware);
 app.route('/api/lookups', lookupRoutes);
@@ -66,7 +61,6 @@ app.route('/api/lookups', lookupRoutes);
 // Admin routes (auth + admin role required)
 app.use('/admin/*', authMiddleware);
 app.use('/admin/*', adminMiddleware);
-app.route('/admin', adminRoutes);
 app.route('/admin', adminProfileRoutes);
 app.route('/admin', adminUsersRoutes);
 app.route('/admin', companyRoutes);
