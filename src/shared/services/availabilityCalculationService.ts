@@ -78,7 +78,10 @@ export async function getAvailableSlots(
       availableStartDate: { lte: end },
       availableEndDate: { gte: start },
       ...(locationCode ? {
-        locations: { some: { locationCode } }
+        OR: [
+          { locations: { some: { locationCode } } },
+          { locations: { none: {} } }
+        ]
       } : {}),
       ...(assignedInspectorIds.length > 0 ? {
         inspectorProfileId: { in: assignedInspectorIds }
@@ -89,6 +92,15 @@ export async function getAvailableSlots(
       locations: { select: { locationCode: true } }
     }
   });
+
+  if (availabilityRecords.length === 0 && process.env.NODE_ENV === 'development') {
+    console.warn('[Availability] No inspector availability records found for', {
+      serviceRequestId,
+      locationCode,
+      dateRange: { startDate, endDate },
+      assignedInspectorIds,
+    });
+  }
 
   const existingAppointments = await prisma.appointment.findMany({
     where: {
@@ -126,11 +138,9 @@ export async function getAvailableSlots(
     }
   }
 
-  const bookedSlots = new Set<string>();
   const inspectorBookedSlots = new Map<string, Set<string>>();
   for (const apt of existingAppointments) {
     const dateStr = formatDateStr(apt.appointmentDate);
-    bookedSlots.add(`${dateStr}_${apt.timeSlotId}`);
     if (apt.inspectorProfileId) {
       const key = apt.inspectorProfileId;
       if (!inspectorBookedSlots.has(key)) inspectorBookedSlots.set(key, new Set());
@@ -163,7 +173,6 @@ export async function getAvailableSlots(
       if (!isDraftMeeting && slot.slotTime === '18:00') continue;
 
       const slotKey = `${dateStr}_${slot.timeSlotId}`;
-      if (bookedSlots.has(slotKey)) continue;
       if (heldSlots.has(slotKey)) continue;
 
       const inspectorCanCoverSlot = (inspId: string) => {
