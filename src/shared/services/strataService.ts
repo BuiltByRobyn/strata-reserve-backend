@@ -274,6 +274,22 @@ export const getStratasByEmployee = async (profileId: string) => {
 
 
 
+export const getSectionNamesByProfileId = async (profileId: string): Promise<string[]> => {
+  const profileSections = await prisma.strataProfileSection.findMany({
+    where: { strataProfile: { profileId } },
+    include: { section: { select: { sectionName: true } } },
+  });
+  return profileSections.map((ps) => ps.section.sectionName);
+};
+
+export const getPropertyTypeIdsByProfileId = async (profileId: string): Promise<number[]> => {
+  const profilePropertyTypes = await prisma.strataProfilePropertyType.findMany({
+    where: { strataProfile: { profileId } },
+    select: { propertyTypeId: true },
+  });
+  return profilePropertyTypes.map((pt) => pt.propertyTypeId);
+};
+
 export const searchStratas = async (query: string) => {
   return prisma.strata.findMany({
     where: {

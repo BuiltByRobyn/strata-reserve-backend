@@ -1,6 +1,7 @@
 import * as questionService from '../../shared/services/questionService';
 import * as srSurveyQuestionService from '../../shared/services/srSurveyQuestionService';
 import * as serviceRequestService from '../../shared/services/serviceRequestService';
+import * as strataService from '../../shared/services/strataService';
 import { success, error, asyncHandler } from '../../shared/helpers/responseHelper';
 import { parseIntParam } from '../../shared/helpers/parseParams';
 import { sanitizeFilePart } from '../../shared/helpers/stringUtils';
@@ -49,8 +50,20 @@ export const downloadActiveSurveyPdf = asyncHandler(async (c) => {
     return error(c, 'No active service request found', 404);
   }
 
-  const questions = await questionService.getSurveyQuestionsForSR(sr.serviceRequestId);
+  const allQuestions = await questionService.getSurveyQuestionsForSR(sr.serviceRequestId);
   const responses = await questionService.getResponsesByServiceRequest(sr.serviceRequestId);
+
+  // Filter questions to only include sections and property types assigned to this client's profile
+  const allowedSections = await strataService.getSectionNamesByProfileId(user.id);
+  const allowedPropertyTypeIds = await strataService.getPropertyTypeIdsByProfileId(user.id);
+
+  let questions = allowedSections.length > 0
+    ? allQuestions.filter((q: any) => allowedSections.includes(q.questionCategory))
+    : allQuestions;
+
+  if (allowedPropertyTypeIds.length > 0) {
+    questions = questions.filter((q: any) => allowedPropertyTypeIds.includes(q.propertyTypeId));
+  }
 
   const pdf = await renderSurveyAnswersPdf(
     {
@@ -99,6 +112,11 @@ export const downloadSurveyPdf = asyncHandler(async (c) => {
   }
 
   const questions = await questionService.getSurveyQuestionsForSR(serviceRequestId);
+
+  if (questions.length === 0) {
+    return error(c, 'No survey questions found for this service request', 400);
+  }
+
   const responses = await questionService.getResponsesByServiceRequest(serviceRequestId);
 
   const pdf = await renderSurveyAnswersPdf(
