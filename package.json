@@ -26,9 +26,11 @@
     "@prisma/adapter-pg": "^7.4.2",
     "@prisma/client": "^7.4.2",
     "@supabase/supabase-js": "^2.91.1",
+    "@types/pdfkit": "^0.17.5",
     "@types/pg": "^8.16.0",
     "dotenv": "^17.2.3",
     "hono": "^4.11.3",
+    "pdfkit": "^0.17.2",
     "pg": "^8.18.0"
   },
   "devDependencies": {

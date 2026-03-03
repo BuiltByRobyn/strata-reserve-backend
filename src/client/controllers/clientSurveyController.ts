@@ -1,8 +1,17 @@
 import * as questionService from '../../shared/services/questionService';
 import * as srSurveyQuestionService from '../../shared/services/srSurveyQuestionService';
+import * as serviceRequestService from '../../shared/services/serviceRequestService';
 import { success, error, asyncHandler } from '../../shared/helpers/responseHelper';
 import { parseIntParam } from '../../shared/helpers/parseParams';
 import prisma from '../../shared/lib/prismaClient';
+import { renderSurveyAnswersPdf } from '../../shared/lib/surveyPdf';
+
+const sanitizeFilePart = (value: string) => {
+  return value
+    .replace(/[^a-zA-Z0-9._\- ]+/g, '')
+    .trim()
+    .replace(/\s+/g, '-');
+};
 
 export const getSurveyQuestions = asyncHandler(async (c) => {
   const serviceRequestId = parseIntParam(c, 'serviceRequestId');
@@ -26,7 +35,7 @@ export const getSurveyQuestions = asyncHandler(async (c) => {
     return error(c, 'Service request not found', 404);
   }
 
-  const explicitPropertyTypeIds = sr.surveyRequirements.map(req => req.propertyTypeId);
+  const explicitPropertyTypeIds = sr.surveyRequirements.map((req: { propertyTypeId: number }) => req.propertyTypeId);
   
   // Strict mode: if no property types are configured, return 0 questions
   if (explicitPropertyTypeIds.length === 0) {
@@ -37,6 +46,92 @@ export const getSurveyQuestions = asyncHandler(async (c) => {
 
   return success(c, questions);
 }, 'Failed to fetch survey questions');
+
+export const downloadActiveSurveyPdf = asyncHandler(async (c) => {
+  const user = c.get('user');
+
+  const sr = await serviceRequestService.getActiveByProfile(user.id);
+  if (!sr) {
+    return error(c, 'No active service request found', 404);
+  }
+
+  const questions = await questionService.getSurveyQuestionsForSR(sr.serviceRequestId);
+  const responses = await questionService.getResponsesByServiceRequest(sr.serviceRequestId);
+
+  const pdf = await renderSurveyAnswersPdf(
+    {
+      serviceRequestId: sr.serviceRequestId,
+      strataPlan: sr.strata?.strataPlan ?? null,
+      complexName: sr.strata?.complexName ?? null,
+      serviceName: sr.service?.serviceName ?? null,
+      status: sr.status ?? null,
+      requestDate: sr.requestDate instanceof Date ? sr.requestDate.toISOString() : (sr.requestDate ?? null),
+      generatedAtIso: new Date().toISOString(),
+    },
+    questions as any,
+    responses as any
+  );
+
+  const strataPart = sr.strata?.strataPlan ? sanitizeFilePart(sr.strata.strataPlan) : 'SR';
+  const filename = `Survey-Answers-${strataPart}-SR-${sr.serviceRequestId}.pdf`;
+
+  return new Response(new Uint8Array(pdf), {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Cache-Control': 'no-store',
+    },
+  });
+}, 'Failed to generate survey PDF');
+
+export const downloadSurveyPdf = asyncHandler(async (c) => {
+  const serviceRequestId = parseIntParam(c, 'serviceRequestId');
+
+  const sr = await prisma.serviceRequest.findUnique({
+    where: { serviceRequestId },
+    select: {
+      serviceRequestId: true,
+      requestDate: true,
+      status: true,
+      strata: { select: { strataPlan: true, complexName: true } },
+      service: { select: { serviceName: true } },
+    }
+  });
+
+  if (!sr) {
+    return error(c, 'Service request not found', 404);
+  }
+
+  const questions = await questionService.getSurveyQuestionsForSR(serviceRequestId);
+  const responses = await questionService.getResponsesByServiceRequest(serviceRequestId);
+
+  const pdf = await renderSurveyAnswersPdf(
+    {
+      serviceRequestId: sr.serviceRequestId,
+      strataPlan: sr.strata?.strataPlan ?? null,
+      complexName: sr.strata?.complexName ?? null,
+      serviceName: sr.service?.serviceName ?? null,
+      status: sr.status ?? null,
+      requestDate: sr.requestDate instanceof Date ? sr.requestDate.toISOString() : (sr.requestDate ?? null),
+      generatedAtIso: new Date().toISOString(),
+    },
+    questions as any,
+    responses as any
+  );
+
+  const strataPart = sr.strata?.strataPlan ? sanitizeFilePart(sr.strata.strataPlan) : 'SR';
+  const filename = `Survey-Answers-${strataPart}-SR-${sr.serviceRequestId}.pdf`;
+
+  return new Response(new Uint8Array(pdf), {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Cache-Control': 'no-store',
+    },
+  });
+}, 'Failed to generate survey PDF');
 
 export const getSurveyResponses = asyncHandler(async (c) => {
   const serviceRequestId = parseIntParam(c, 'serviceRequestId');
@@ -113,7 +208,7 @@ export const saveSurveyRequirements = asyncHandler(async (c) => {
 
   if (Array.isArray(body.propertyTypeIds)) {
     const propertyTypeIds = body.propertyTypeIds as number[];
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       await tx.serviceRequestSurveyRequirement.deleteMany({ where: { serviceRequestId } });
       if (propertyTypeIds.length > 0) {
         await tx.serviceRequestSurveyRequirement.createMany({
