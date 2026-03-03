@@ -5,7 +5,7 @@ export const getAppointments = async () => {
     orderBy: { appointmentDate: 'desc' },
     include: {
       appointmentType: {
-        select: { appointmentTypeId: true, typeName: true, durationType: true }
+        select: { appointmentTypeId: true, typeName: true, durationType: true, isDraftMeeting: true }
       },
       timeSlot: {
         select: { timeSlotId: true, slotTime: true, slotName: true }
@@ -14,10 +14,13 @@ export const getAppointments = async () => {
         select: {
           serviceRequestId: true,
           strata: {
-            select: { strataId: true, complexName: true, strataPlan: true }
+            select: { strataId: true, complexName: true, strataPlan: true, town: true }
           },
           service: {
             select: { serviceId: true, serviceName: true }
+          },
+          appointmentOfferSecondInspector: {
+            select: { id: true, firstName: true, lastName: true, displayName: true }
           }
         }
       },
@@ -134,12 +137,22 @@ export const getAppointmentRequests = async (status?: string) => {
         select: {
           serviceRequestId: true,
           status: true,
+          requestDate: true,
           strata: {
             select: { strataId: true, complexName: true, strataPlan: true, town: true }
           },
           service: {
             select: { serviceId: true, serviceName: true }
-          }
+          },
+          requestedBy: {
+            select: { id: true, firstName: true, lastName: true, displayName: true }
+          },
+          appointmentOfferInspector: {
+            select: { id: true, firstName: true, lastName: true, displayName: true }
+          },
+          appointmentOfferSecondInspector: {
+            select: { id: true, firstName: true, lastName: true, displayName: true }
+          },
         }
       }
     }

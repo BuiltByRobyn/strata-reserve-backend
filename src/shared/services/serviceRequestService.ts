@@ -155,6 +155,7 @@ export const offerAppointment = async (
     dueDate?: string;
     appointmentTypeId?: number;
     inspectorProfileId?: string;
+    secondInspectorProfileId?: string;
     notes?: string;
   }
 ) => {
@@ -163,7 +164,6 @@ export const offerAppointment = async (
   });
 
   if (!sr) throw new Error('Service request not found');
-  if (sr.appointmentOfferedAt) throw new Error('Appointment has already been offered for this service request');
 
   return prisma.serviceRequest.update({
     where: { serviceRequestId },
@@ -173,6 +173,7 @@ export const offerAppointment = async (
       appointmentDueDate: offerData?.dueDate ? new Date(offerData.dueDate) : null,
       appointmentOfferTypeId: offerData?.appointmentTypeId ?? null,
       appointmentOfferInspectorId: offerData?.inspectorProfileId ?? null,
+      appointmentOfferSecondInspectorId: offerData?.secondInspectorProfileId ?? null,
       appointmentOfferNotes: offerData?.notes ?? null,
     },
     include: serviceRequestIncludeList,

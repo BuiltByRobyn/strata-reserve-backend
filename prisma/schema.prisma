@@ -99,7 +99,8 @@ model Profile {
   requestedAppointments    AppointmentRequest[] @relation("AppointmentRequestedBy")
   reviewedAppointments     AppointmentReview[]  @relation("ReviewedByProfile")
   inspectorAppointments    Appointment[]        @relation("InspectorAppointments")
-  offerInspectorRequests   ServiceRequest[]     @relation("OfferInspector")
+  offerInspectorRequests        ServiceRequest[]     @relation("OfferInspector")
+  offerSecondInspectorRequests  ServiceRequest[]     @relation("OfferSecondInspector")
 
   inspectorAvailableDates InspectorAvailableDate[] @relation("InspectorAvailableDates")
 
@@ -358,6 +359,7 @@ model ServiceRequest {
   appointmentDueDate                DateTime? @map("appointment_due_date") @db.Date
   appointmentOfferTypeId            Int?      @map("appointment_offer_type_id")
   appointmentOfferInspectorId       String?   @map("appointment_offer_inspector_id") @db.Uuid
+  appointmentOfferSecondInspectorId String?   @map("appointment_offer_second_inspector_id") @db.Uuid
   appointmentOfferNotes             String?   @map("appointment_offer_notes") @db.Text
 
   service                Service              @relation(fields: [serviceId], references: [serviceId], onDelete: Cascade)
@@ -365,6 +367,7 @@ model ServiceRequest {
   requestedBy            Profile              @relation("RequestedByProfile", fields: [requestedByProfileId], references: [id], onDelete: Cascade)
   appointmentOfferType   AppointmentType?     @relation("OfferAppointmentType", fields: [appointmentOfferTypeId], references: [appointmentTypeId], onDelete: SetNull)
   appointmentOfferInspector Profile?           @relation("OfferInspector", fields: [appointmentOfferInspectorId], references: [id], onDelete: SetNull)
+  appointmentOfferSecondInspector Profile?     @relation("OfferSecondInspector", fields: [appointmentOfferSecondInspectorId], references: [id], onDelete: SetNull)
   appointmentRequests    AppointmentRequest[]
   appointments           Appointment[]
 
