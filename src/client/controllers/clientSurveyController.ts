@@ -3,15 +3,9 @@ import * as srSurveyQuestionService from '../../shared/services/srSurveyQuestion
 import * as serviceRequestService from '../../shared/services/serviceRequestService';
 import { success, error, asyncHandler } from '../../shared/helpers/responseHelper';
 import { parseIntParam } from '../../shared/helpers/parseParams';
+import { sanitizeFilePart } from '../../shared/helpers/stringUtils';
 import prisma from '../../shared/lib/prismaClient';
-import { renderSurveyAnswersPdf } from '../../shared/lib/surveyPdf';
-
-const sanitizeFilePart = (value: string) => {
-  return value
-    .replace(/[^a-zA-Z0-9._\- ]+/g, '')
-    .trim()
-    .replace(/\s+/g, '-');
-};
+import { renderSurveyAnswersPdf } from '../../shared/services/surveyPdfService';
 
 export const getSurveyQuestions = asyncHandler(async (c) => {
   const serviceRequestId = parseIntParam(c, 'serviceRequestId');
@@ -69,11 +63,12 @@ export const downloadActiveSurveyPdf = asyncHandler(async (c) => {
       generatedAtIso: new Date().toISOString(),
     },
     questions as any,
-    responses as any
+    responses as any,
+    'client'
   );
 
-  const strataPart = sr.strata?.strataPlan ? sanitizeFilePart(sr.strata.strataPlan) : 'SR';
-  const filename = `Survey-Answers-${strataPart}-SR-${sr.serviceRequestId}.pdf`;
+  const strataPart = sr.strata?.strataPlan ? sanitizeFilePart(sr.strata.strataPlan) : 'Survey';
+  const filename = `Survey-Answers-${strataPart}.pdf`;
 
   return new Response(new Uint8Array(pdf), {
     status: 200,
@@ -117,11 +112,12 @@ export const downloadSurveyPdf = asyncHandler(async (c) => {
       generatedAtIso: new Date().toISOString(),
     },
     questions as any,
-    responses as any
+    responses as any,
+    'admin'
   );
 
-  const strataPart = sr.strata?.strataPlan ? sanitizeFilePart(sr.strata.strataPlan) : 'SR';
-  const filename = `Survey-Answers-${strataPart}-SR-${sr.serviceRequestId}.pdf`;
+  const strataPart = sr.strata?.strataPlan ? sanitizeFilePart(sr.strata.strataPlan) : 'Survey';
+  const filename = `Survey-Answers-${strataPart}.pdf`;
 
   return new Response(new Uint8Array(pdf), {
     status: 200,
