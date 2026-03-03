@@ -127,14 +127,14 @@ export async function getAvailableSlots(
   }
 
   const bookedSlots = new Set<string>();
-  const inspectorBookedDates = new Map<string, Set<string>>();
+  const inspectorBookedSlots = new Map<string, Set<string>>();
   for (const apt of existingAppointments) {
     const dateStr = formatDateStr(apt.appointmentDate);
     bookedSlots.add(`${dateStr}_${apt.timeSlotId}`);
     if (apt.inspectorProfileId) {
       const key = apt.inspectorProfileId;
-      if (!inspectorBookedDates.has(key)) inspectorBookedDates.set(key, new Set());
-      inspectorBookedDates.get(key)!.add(dateStr);
+      if (!inspectorBookedSlots.has(key)) inspectorBookedSlots.set(key, new Set());
+      inspectorBookedSlots.get(key)!.add(`${dateStr}_${apt.timeSlotId}`);
     }
   }
 
@@ -178,8 +178,8 @@ export async function getAvailableSlots(
             ? a.availableEndTime.toISOString().slice(11, 16)
             : null;
           if (!inspectorCoversSlot(startTime, endTime, slot.slotTime)) return false;
-          const inspBookings = inspectorBookedDates.get(inspId);
-          if (inspBookings?.has(dateStr)) return false;
+          const inspBookings = inspectorBookedSlots.get(inspId);
+          if (inspBookings?.has(`${dateStr}_${slot.timeSlotId}`)) return false;
           return true;
         });
       };
@@ -199,8 +199,8 @@ export async function getAvailableSlots(
             : null;
           if (!inspectorCoversSlot(startTime, endTime, slot.slotTime)) return false;
           const inspId = a.inspectorProfile.id;
-          const inspBookings = inspectorBookedDates.get(inspId);
-          if (inspBookings?.has(dateStr)) return false;
+          const inspBookings = inspectorBookedSlots.get(inspId);
+          if (inspBookings?.has(`${dateStr}_${slot.timeSlotId}`)) return false;
           return true;
         });
       }

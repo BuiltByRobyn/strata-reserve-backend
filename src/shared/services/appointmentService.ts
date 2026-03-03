@@ -122,6 +122,21 @@ export const rescheduleAppointment = async (
   });
 };
 
+export const requestRebooking = async (appointmentId: number) => {
+  const apt = await prisma.appointment.findUnique({
+    where: { appointmentId },
+    select: { serviceRequestId: true, status: true }
+  });
+  if (!apt) throw new Error('Appointment not found');
+  if (apt.status !== 'Cancelled') throw new Error('Only cancelled appointments can request rebooking');
+
+  await prisma.serviceRequest.update({
+    where: { serviceRequestId: apt.serviceRequestId },
+    data: { rebookingRequestedAt: new Date() }
+  });
+  return { success: true };
+};
+
 export const getAppointmentRequests = async (status?: string) => {
   return prisma.appointmentRequest.findMany({
     where: status ? { status } : undefined,
@@ -265,6 +280,73 @@ export const reviewAppointmentRequest = async (data: {
 
       return { rejected: true };
     }
+  });
+};
+
+export const createAppointment = async (data: {
+  appointmentDate: Date;
+  timeSlotId: number;
+  serviceRequestId: number;
+  appointmentTypeId: number;
+  inspectorProfileId?: string | null;
+}) => {
+  // Validate date is not in the past
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  if (data.appointmentDate < today) {
+    throw new Error('Cannot create an appointment in the past. Please choose a future date.');
+  }
+
+  // Check for conflicting appointment on same date + slot
+  const existing = await prisma.appointment.findFirst({
+    where: {
+      appointmentDate: data.appointmentDate,
+      timeSlotId: data.timeSlotId,
+      serviceRequestId: data.serviceRequestId,
+      status: { not: 'Cancelled' },
+    },
+  });
+  if (existing) {
+    throw new Error('This time slot is already booked for this strata on the selected date. Please choose a different date or time slot.');
+  }
+
+  // Check inspector availability if assigned
+  if (data.inspectorProfileId) {
+    const inspectorConflict = await prisma.appointment.findFirst({
+      where: {
+        appointmentDate: data.appointmentDate,
+        timeSlotId: data.timeSlotId,
+        inspectorProfileId: data.inspectorProfileId,
+        status: { not: 'Cancelled' },
+      },
+    });
+    if (inspectorConflict) {
+      throw new Error('The selected inspector is already booked for this time slot on the selected date. Please choose a different inspector, date, or time slot.');
+    }
+  }
+
+  return prisma.appointment.create({
+    data: {
+      appointmentDate: data.appointmentDate,
+      timeSlotId: data.timeSlotId,
+      serviceRequestId: data.serviceRequestId,
+      appointmentTypeId: data.appointmentTypeId,
+      inspectorProfileId: data.inspectorProfileId || null,
+      status: 'Scheduled',
+    },
+    include: {
+      appointmentType: { select: { appointmentTypeId: true, typeName: true, durationType: true, isDraftMeeting: true } },
+      timeSlot: { select: { timeSlotId: true, slotTime: true, slotName: true } },
+      serviceRequest: {
+        select: {
+          serviceRequestId: true,
+          strata: { select: { strataId: true, complexName: true, strataPlan: true, town: true, location: { select: { locationId: true, locationName: true } } } },
+          service: { select: { serviceId: true, serviceName: true } },
+          appointmentOfferSecondInspector: { select: { id: true, firstName: true, lastName: true, displayName: true } },
+        },
+      },
+      inspector: { select: { id: true, firstName: true, lastName: true, displayName: true } },
+    },
   });
 };
 

@@ -8,6 +8,9 @@ export const appointmentRoutes = new Hono();
 // Appointment CRUD
 // ============================================
 
+// POST /admin/appointments - Create new appointment directly
+appointmentRoutes.post('/appointments', appointmentController.createAppointment);
+
 // GET /admin/appointments - Get all appointments
 appointmentRoutes.get('/appointments', appointmentController.getAppointments);
 
@@ -33,6 +36,9 @@ appointmentRoutes.put('/appointments/:id/inspector', appointmentController.assig
 
 // PUT /admin/appointments/:id/reschedule - Reschedule appointment
 appointmentRoutes.put('/appointments/:id/reschedule', appointmentController.rescheduleAppointment);
+
+// POST /admin/appointments/:id/request-rebooking - Request client rebooking
+appointmentRoutes.post('/appointments/:id/request-rebooking', appointmentController.requestRebooking);
 
 // DELETE /admin/appointments/:id - Cancel appointment
 appointmentRoutes.delete('/appointments/:id', appointmentController.cancelAppointment);

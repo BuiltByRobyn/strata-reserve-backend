@@ -118,6 +118,29 @@ export const reviewAppointmentRequest = asyncHandler(async (c) => {
   }
 }, 'Failed to review appointment request');
 
+export const createAppointment = asyncHandler(async (c) => {
+  const body = await c.req.json();
+  const { serviceRequestId, appointmentDate, timeSlotId, appointmentTypeId, inspectorProfileId } = body;
+
+  if (!serviceRequestId || !appointmentDate || !timeSlotId || !appointmentTypeId) {
+    return error(c, 'Strata, date, time slot, and appointment type are required', 400);
+  }
+
+  try {
+    const appointment = await appointmentService.createAppointment({
+      appointmentDate: new Date(appointmentDate + 'T00:00:00Z'),
+      timeSlotId: parseInt(timeSlotId),
+      serviceRequestId: parseInt(serviceRequestId),
+      appointmentTypeId: parseInt(appointmentTypeId),
+      inspectorProfileId: inspectorProfileId || null,
+    });
+    return success(c, appointment, 201);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Failed to create appointment';
+    return error(c, msg, 400);
+  }
+}, 'Failed to create appointment');
+
 export const getTimeSlots = asyncHandler(async (c) => {
   const timeSlots = await appointmentService.getTimeSlots();
   return success(c, timeSlots);
@@ -127,3 +150,9 @@ export const getAppointmentTypes = asyncHandler(async (c) => {
   const appointmentTypes = await appointmentService.getAppointmentTypes();
   return success(c, appointmentTypes);
 }, 'Failed to fetch appointment types');
+
+export const requestRebooking = asyncHandler(async (c) => {
+  const id = parseIntParam(c, 'id');
+  const result = await appointmentService.requestRebooking(id);
+  return success(c, result);
+}, 'Failed to request rebooking');
