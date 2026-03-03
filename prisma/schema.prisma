@@ -361,6 +361,7 @@ model ServiceRequest {
   appointmentOfferInspectorId       String?   @map("appointment_offer_inspector_id") @db.Uuid
   appointmentOfferSecondInspectorId String?   @map("appointment_offer_second_inspector_id") @db.Uuid
   appointmentOfferNotes             String?   @map("appointment_offer_notes") @db.Text
+  rebookingRequestedAt              DateTime? @map("rebooking_requested_at") @db.Timestamptz
 
   service                Service              @relation(fields: [serviceId], references: [serviceId], onDelete: Cascade)
   strata                 Strata               @relation(fields: [strataId], references: [strataId], onDelete: Cascade)
@@ -453,13 +454,13 @@ model Appointment {
   completedAt          DateTime? @map("completed_at") @db.Timestamptz
   cancellationReason   String?   @map("cancellation_reason") @db.Text
   rescheduleReason     String?   @map("reschedule_reason") @db.Text
-  appointmentRequestId Int       @map("appointment_request_id")
+  appointmentRequestId Int?      @map("appointment_request_id")
   serviceRequestId     Int       @map("service_request_id")
   appointmentTypeId    Int       @map("appointment_type_id")
   timeSlotId           Int       @map("time_slot_id")
   inspectorProfileId   String?   @map("inspector_profile_id") @db.Uuid
 
-  appointmentRequest AppointmentRequest  @relation(fields: [appointmentRequestId], references: [appointmentRequestId], onDelete: Cascade)
+  appointmentRequest AppointmentRequest?  @relation(fields: [appointmentRequestId], references: [appointmentRequestId], onDelete: Cascade)
   serviceRequest     ServiceRequest      @relation(fields: [serviceRequestId], references: [serviceRequestId], onDelete: Cascade)
   appointmentType    AppointmentType     @relation(fields: [appointmentTypeId], references: [appointmentTypeId], onDelete: Cascade)
   timeSlot           AppointmentTimeSlot @relation(fields: [timeSlotId], references: [timeSlotId], onDelete: Cascade)

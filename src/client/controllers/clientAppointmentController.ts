@@ -80,6 +80,12 @@ export const createAppointmentRequest = asyncHandler(async (c) => {
       }
     }
 
+    // Clear rebooking reminder flag when client books a new appointment
+    await tx.serviceRequest.update({
+      where: { serviceRequestId: parseInt(serviceRequestId) },
+      data: { rebookingRequestedAt: null }
+    });
+
     return tx.appointmentRequest.create({
       data: {
         serviceRequestId: parseInt(serviceRequestId),

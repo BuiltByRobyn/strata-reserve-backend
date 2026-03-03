@@ -78,7 +78,10 @@ export async function getAvailableSlots(
       availableStartDate: { lte: end },
       availableEndDate: { gte: start },
       ...(locationCode ? {
-        locations: { some: { locationCode } }
+        OR: [
+          { locations: { some: { locationCode } } },
+          { locations: { none: {} } }
+        ]
       } : {}),
       ...(assignedInspectorIds.length > 0 ? {
         inspectorProfileId: { in: assignedInspectorIds }
@@ -89,6 +92,15 @@ export async function getAvailableSlots(
       locations: { select: { locationCode: true } }
     }
   });
+
+  if (availabilityRecords.length === 0 && process.env.NODE_ENV === 'development') {
+    console.warn('[Availability] No inspector availability records found for', {
+      serviceRequestId,
+      locationCode,
+      dateRange: { startDate, endDate },
+      assignedInspectorIds,
+    });
+  }
 
   const existingAppointments = await prisma.appointment.findMany({
     where: {
@@ -126,15 +138,13 @@ export async function getAvailableSlots(
     }
   }
 
-  const bookedSlots = new Set<string>();
-  const inspectorBookedDates = new Map<string, Set<string>>();
+  const inspectorBookedSlots = new Map<string, Set<string>>();
   for (const apt of existingAppointments) {
     const dateStr = formatDateStr(apt.appointmentDate);
-    bookedSlots.add(`${dateStr}_${apt.timeSlotId}`);
     if (apt.inspectorProfileId) {
       const key = apt.inspectorProfileId;
-      if (!inspectorBookedDates.has(key)) inspectorBookedDates.set(key, new Set());
-      inspectorBookedDates.get(key)!.add(dateStr);
+      if (!inspectorBookedSlots.has(key)) inspectorBookedSlots.set(key, new Set());
+      inspectorBookedSlots.get(key)!.add(`${dateStr}_${apt.timeSlotId}`);
     }
   }
 
@@ -163,7 +173,6 @@ export async function getAvailableSlots(
       if (!isDraftMeeting && slot.slotTime === '18:00') continue;
 
       const slotKey = `${dateStr}_${slot.timeSlotId}`;
-      if (bookedSlots.has(slotKey)) continue;
       if (heldSlots.has(slotKey)) continue;
 
       const inspectorCanCoverSlot = (inspId: string) => {
@@ -178,8 +187,8 @@ export async function getAvailableSlots(
             ? a.availableEndTime.toISOString().slice(11, 16)
             : null;
           if (!inspectorCoversSlot(startTime, endTime, slot.slotTime)) return false;
-          const inspBookings = inspectorBookedDates.get(inspId);
-          if (inspBookings?.has(dateStr)) return false;
+          const inspBookings = inspectorBookedSlots.get(inspId);
+          if (inspBookings?.has(`${dateStr}_${slot.timeSlotId}`)) return false;
           return true;
         });
       };
@@ -199,8 +208,8 @@ export async function getAvailableSlots(
             : null;
           if (!inspectorCoversSlot(startTime, endTime, slot.slotTime)) return false;
           const inspId = a.inspectorProfile.id;
-          const inspBookings = inspectorBookedDates.get(inspId);
-          if (inspBookings?.has(dateStr)) return false;
+          const inspBookings = inspectorBookedSlots.get(inspId);
+          if (inspBookings?.has(`${dateStr}_${slot.timeSlotId}`)) return false;
           return true;
         });
       }
