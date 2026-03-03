@@ -47,6 +47,11 @@ export async function getAvailableSlots(
 
   const locationCode = sr.strata.location?.locationCode;
 
+  // If inspector(s) are assigned via offer, only show their availability
+  const assignedInspectorIds: string[] = [];
+  if (sr.appointmentOfferInspectorId) assignedInspectorIds.push(sr.appointmentOfferInspectorId);
+  if (sr.appointmentOfferSecondInspectorId) assignedInspectorIds.push(sr.appointmentOfferSecondInspectorId);
+
   const start = new Date(startDate + 'T00:00:00Z');
   const end = new Date(endDate + 'T00:00:00Z');
 
@@ -74,6 +79,9 @@ export async function getAvailableSlots(
       availableEndDate: { gte: start },
       ...(locationCode ? {
         locations: { some: { locationCode } }
+      } : {}),
+      ...(assignedInspectorIds.length > 0 ? {
+        inspectorProfileId: { in: assignedInspectorIds }
       } : {})
     },
     include: {
@@ -158,24 +166,46 @@ export async function getAvailableSlots(
       if (bookedSlots.has(slotKey)) continue;
       if (heldSlots.has(slotKey)) continue;
 
-      const hasAvailableInspector = dayAvailability.some(a => {
-        const startTime = a.availableStartTime
-          ? a.availableStartTime.toISOString().slice(11, 16)
-          : null;
-        const endTime = a.availableEndTime
-          ? a.availableEndTime.toISOString().slice(11, 16)
-          : null;
+      const inspectorCanCoverSlot = (inspId: string) => {
+        const inspAvail = dayAvailability.filter(a => a.inspectorProfile.id === inspId);
+        if (inspAvail.length === 0) return false;
 
-        if (!inspectorCoversSlot(startTime, endTime, slot.slotTime)) return false;
+        return inspAvail.some(a => {
+          const startTime = a.availableStartTime
+            ? a.availableStartTime.toISOString().slice(11, 16)
+            : null;
+          const endTime = a.availableEndTime
+            ? a.availableEndTime.toISOString().slice(11, 16)
+            : null;
+          if (!inspectorCoversSlot(startTime, endTime, slot.slotTime)) return false;
+          const inspBookings = inspectorBookedDates.get(inspId);
+          if (inspBookings?.has(dateStr)) return false;
+          return true;
+        });
+      };
 
-        const inspId = a.inspectorProfile.id;
-        const inspBookings = inspectorBookedDates.get(inspId);
-        if (inspBookings?.has(dateStr)) return false;
+      let slotAvailable: boolean;
+      if (assignedInspectorIds.length > 0) {
+        // All assigned inspectors must be available for this slot
+        slotAvailable = assignedInspectorIds.every(id => inspectorCanCoverSlot(id));
+      } else {
+        // No specific inspector assigned — any available inspector works
+        slotAvailable = dayAvailability.some(a => {
+          const startTime = a.availableStartTime
+            ? a.availableStartTime.toISOString().slice(11, 16)
+            : null;
+          const endTime = a.availableEndTime
+            ? a.availableEndTime.toISOString().slice(11, 16)
+            : null;
+          if (!inspectorCoversSlot(startTime, endTime, slot.slotTime)) return false;
+          const inspId = a.inspectorProfile.id;
+          const inspBookings = inspectorBookedDates.get(inspId);
+          if (inspBookings?.has(dateStr)) return false;
+          return true;
+        });
+      }
 
-        return true;
-      });
-
-      if (hasAvailableInspector) {
+      if (slotAvailable) {
         availableSlots.push({
           timeSlotId: slot.timeSlotId,
           slotTime: slot.slotTime,

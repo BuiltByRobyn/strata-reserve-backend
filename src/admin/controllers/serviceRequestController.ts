@@ -69,6 +69,7 @@ export const offerAppointment = asyncHandler(async (c) => {
       dueDate: body.dueDate,
       appointmentTypeId: body.appointmentTypeId ? parseInt(body.appointmentTypeId) : undefined,
       inspectorProfileId: body.inspectorProfileId,
+      secondInspectorProfileId: body.secondInspectorProfileId,
       notes: body.notes,
     });
     return success(c, result);
