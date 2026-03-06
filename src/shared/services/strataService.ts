@@ -24,7 +24,7 @@ export const getStratas = async () => {
         select: {
           strataNotes: true,
           strataProfiles: true,
-          serviceRequests: { where: { archived: false } }
+          fileNumbers: { where: { archived: false } }
         }
       }
     }
@@ -63,12 +63,12 @@ export const getStrataById = async (id: number) => {
       strataPropertyTypes: {
         include: { propertyType: { select: { propertyTypeId: true, propertyTypeName: true } } }
       },
-      serviceRequests: {
+      fileNumbers: {
         select: {
-          serviceRequestDocuments: {
+          fileNumberDocuments: {
             where: { notes: { not: null } },
             select: {
-              serviceRequestDocumentId: true,
+              fileNumberDocumentId: true,
               notes: true,
               uploadedAt: true,
               fileName: true,
@@ -143,27 +143,27 @@ export const updateStrata = async (id: number, data: UpdateStrataInput) => {
     // Sync scalar field
     strataData.propertyTypeId = propertyTypeIds.length > 0 ? propertyTypeIds[0] : null;
 
-    // Cascade: Remove survey and document requirements for this strata's service requests 
+    // Cascade: Remove survey and document requirements for this strata's file numbers 
     // that belong to property types no longer associated with the strata.
     if (propertyTypeIds.length === 0) {
       // If all property types removed, remove all related requirements
-      await prisma.serviceRequestSurveyRequirement.deleteMany({
-        where: { serviceRequest: { strataId: id } }
+      await prisma.fileNumberSurveyRequirement.deleteMany({
+        where: { fileNumber: { strataId: id } }
       });
-      await prisma.serviceRequestDocumentRequirement.deleteMany({
-        where: { serviceRequest: { strataId: id }, propertyTypeId: { not: null } }
+      await prisma.fileNumberDocumentRequirement.deleteMany({
+        where: { fileNumber: { strataId: id }, propertyTypeId: { not: null } }
       });
     } else {
       // Remove requirements not in the new list
-      await prisma.serviceRequestSurveyRequirement.deleteMany({
+      await prisma.fileNumberSurveyRequirement.deleteMany({
         where: {
-          serviceRequest: { strataId: id },
+          fileNumber: { strataId: id },
           propertyTypeId: { notIn: propertyTypeIds }
         }
       });
-      await prisma.serviceRequestDocumentRequirement.deleteMany({
+      await prisma.fileNumberDocumentRequirement.deleteMany({
         where: {
-          serviceRequest: { strataId: id },
+          fileNumber: { strataId: id },
           propertyTypeId: { notIn: propertyTypeIds, not: null }
         }
       });

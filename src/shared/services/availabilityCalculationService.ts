@@ -32,11 +32,11 @@ function inspectorCoversSlot(
 export async function getAvailableSlots(
   startDate: string,
   endDate: string,
-  serviceRequestId: number,
+  fileNumberId: number,
   isDraftMeeting = false
 ): Promise<AvailableDay[]> {
-  const sr = await prisma.serviceRequest.findUnique({
-    where: { serviceRequestId },
+  const sr = await prisma.fileNumber.findUnique({
+    where: { fileNumberId },
     include: {
       strata: {
         include: { location: true }
@@ -95,7 +95,7 @@ export async function getAvailableSlots(
 
   if (availabilityRecords.length === 0 && process.env.NODE_ENV === 'development') {
     console.warn('[Availability] No inspector availability records found for', {
-      serviceRequestId,
+      fileNumberId,
       locationCode,
       dateRange: { startDate, endDate },
       assignedInspectorIds,
@@ -231,10 +231,10 @@ export async function getAvailableSlots(
   return results;
 }
 
-export async function isDraftMeetingEligible(serviceRequestId: number): Promise<boolean> {
+export async function isDraftMeetingEligible(fileNumberId: number): Promise<boolean> {
   const completedInspection = await prisma.appointment.findFirst({
     where: {
-      serviceRequestId,
+      fileNumberId,
       status: 'Completed',
       appointmentType: { isDraftMeeting: false }
     }

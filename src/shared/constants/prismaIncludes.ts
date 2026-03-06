@@ -9,9 +9,9 @@ export const profileSelectWithEmail = {
 
 export const documentInclude = {
   documentType: { select: { documentTypeId: true, typeName: true } },
-  serviceRequest: {
+  fileNumber: {
     select: {
-      serviceRequestId: true,
+      fileNumberId: true,
       strata: { select: { strataId: true, strataPlan: true, complexName: true } }
     }
   },
@@ -26,7 +26,7 @@ export const documentIncludeCompact = {
   propertyType: { select: { propertyTypeId: true, propertyTypeName: true } }
 } as const;
 
-export const serviceRequestIncludeList = {
+export const fileNumberIncludeList = {
   service: { select: { serviceId: true, serviceName: true } },
   strata: {
     select: {
@@ -48,7 +48,7 @@ export const serviceRequestIncludeList = {
     orderBy: { appointmentDate: 'asc' as const }
   },
   _count: {
-    select: { questionResponses: true, serviceRequestDocuments: true, appointments: true }
+    select: { questionResponses: true, fileNumberDocuments: true, appointments: true }
   }
 } as const;
 

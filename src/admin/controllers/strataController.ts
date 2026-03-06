@@ -148,10 +148,10 @@ export const getStrataTimelines = asyncHandler(async (c) => {
   return success(c, timelines);
 }, 'Failed to fetch strata timelines');
 
-export const updateServiceRequestTimelines = asyncHandler(async (c) => {
-  const serviceRequestId = parseIntParam(c, 'serviceRequestId');
+export const updateFileNumberTimelines = asyncHandler(async (c) => {
+  const fileNumberId = parseIntParam(c, 'fileNumberId');
   const body = await c.req.json();
-  const updated = await timelinesService.updateTimelines(serviceRequestId, {
+  const updated = await timelinesService.updateTimelines(fileNumberId, {
     fiscalYearEnd: body.fiscalYearEnd,
     lastAgmDate: body.lastAgmDate,
     noAgmToDate: body.noAgmToDate,

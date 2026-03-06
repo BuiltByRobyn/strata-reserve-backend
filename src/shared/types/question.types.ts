@@ -40,7 +40,7 @@ export interface CreateQuestionInput {
 }
 
 export interface SaveResponseInput {
-  serviceRequestId: number;
+  fileNumberId: number;
   answeredByProfileId: string;
   questionId: number;
   propertyTypeId: number;

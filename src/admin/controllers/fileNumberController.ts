@@ -1,40 +1,40 @@
-import * as serviceRequestService from '../../shared/services/serviceRequestService';
-import * as srSurveyQuestionService from '../../shared/services/srSurveyQuestionService';
+import * as fileNumberService from '../../shared/services/fileNumberService';
+import * as fnSurveyQuestionService from '../../shared/services/fnSurveyQuestionService';
 import prisma from '../../shared/lib/prismaClient';
 import { success, created, error, asyncHandler } from '../../shared/helpers/responseHelper';
 import { parseIntParam, parseIntQuery, parseOptionalIntQuery } from '../../shared/helpers/parseParams';
 
-export const getServiceRequests = asyncHandler(async (c) => {
+export const getFileNumbers = asyncHandler(async (c) => {
   const strataId = parseOptionalIntQuery(c, 'strataId');
   const archivedParam = c.req.query('archived');
   const archived = archivedParam !== undefined ? archivedParam === 'true' : undefined;
-  const serviceRequests = await serviceRequestService.getServiceRequests({ strataId, archived });
-  return success(c, serviceRequests);
-}, 'Failed to fetch service requests');
+  const fileNumbers = await fileNumberService.getFileNumbers({ strataId, archived });
+  return success(c, fileNumbers);
+}, 'Failed to fetch file numbers');
 
-export const getServiceRequestById = asyncHandler(async (c) => {
+export const getFileNumberById = asyncHandler(async (c) => {
   const id = parseIntQuery(c, 'id');
-  const serviceRequest = await serviceRequestService.getServiceRequestById(id);
-  if (!serviceRequest) {
+  const fileNumber = await fileNumberService.getFileNumberById(id);
+  if (!fileNumber) {
     return error(c, 'Service request not found', 404);
   }
-  return success(c, serviceRequest);
-}, 'Failed to fetch service request');
+  return success(c, fileNumber);
+}, 'Failed to fetch file number');
 
 export const getActiveByStrata = asyncHandler(async (c) => {
   const strataId = parseIntQuery(c, 'strataId');
-  const serviceRequest = await serviceRequestService.getActiveByStrata(strataId);
-  return success(c, serviceRequest);
-}, 'Failed to fetch active service request');
+  const fileNumber = await fileNumberService.getActiveByStrata(strataId);
+  return success(c, fileNumber);
+}, 'Failed to fetch active file number');
 
-export const createServiceRequest = asyncHandler(async (c) => {
+export const createFileNumber = asyncHandler(async (c) => {
   const body = await c.req.json();
   if (!body.serviceId || !body.strataId || !body.requestedByProfileId) {
     return error(c, 'serviceId, strataId, and requestedByProfileId are required', 400);
   }
 
   try {
-    const serviceRequest = await serviceRequestService.createServiceRequest({
+    const fileNumber = await fileNumberService.createFileNumber({
       serviceId: parseInt(body.serviceId),
       strataId: parseInt(body.strataId),
       requestedByProfileId: body.requestedByProfileId,
@@ -47,17 +47,17 @@ export const createServiceRequest = asyncHandler(async (c) => {
     });
     const ptIds = strata?.strataPropertyTypes.map(spt => spt.propertyTypeId) ?? [];
     if (ptIds.length > 0) {
-      await srSurveyQuestionService.autoPopulateFromTemplates(serviceRequest.serviceRequestId, ptIds);
+      await fnSurveyQuestionService.autoPopulateFromTemplates(fileNumber.fileNumberId, ptIds);
     }
 
-    return created(c, serviceRequest);
+    return created(c, fileNumber);
   } catch (err) {
-    if (err instanceof Error && err.message.includes('already has an active service request')) {
+    if (err instanceof Error && err.message.includes('already has an active file number')) {
       return error(c, err.message, 400);
     }
     throw err;
   }
-}, 'Failed to create service request');
+}, 'Failed to create file number');
 
 export const offerAppointment = asyncHandler(async (c) => {
   const id = parseIntParam(c, 'id');
@@ -65,7 +65,7 @@ export const offerAppointment = asyncHandler(async (c) => {
   const body = await c.req.json();
 
   try {
-    const result = await serviceRequestService.offerAppointment(id, user.id, {
+    const result = await fileNumberService.offerAppointment(id, user.id, {
       dueDate: body.dueDate,
       appointmentTypeId: body.appointmentTypeId ? parseInt(body.appointmentTypeId) : undefined,
       inspectorProfileId: body.inspectorProfileId,
@@ -82,10 +82,10 @@ export const offerAppointment = asyncHandler(async (c) => {
   }
 }, 'Failed to offer appointment');
 
-export const deleteServiceRequest = asyncHandler(async (c) => {
+export const deleteFileNumber = asyncHandler(async (c) => {
   const id = parseIntQuery(c, 'id');
   const authHeader = c.req.header('Authorization');
   const token = authHeader?.replace('Bearer ', '');
-  await serviceRequestService.deleteServiceRequest(id, token);
+  await fileNumberService.deleteFileNumber(id, token);
   return success(c, { message: 'Service request and all related data deleted successfully' });
-}, 'Failed to delete service request');
+}, 'Failed to delete file number');

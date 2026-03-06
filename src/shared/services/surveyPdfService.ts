@@ -123,7 +123,7 @@ export async function renderSurveyAnswersPdf(
     ];
     if (meta.complexName) headerFields.push({ label: 'Complex', value: meta.complexName });
     if (meta.serviceName) headerFields.push({ label: 'Service', value: meta.serviceName });
-    if (meta.status) headerFields.push({ label: 'Status', value: meta.status });
+    if (meta.fileNumber) headerFields.push({ label: 'File Number', value: meta.fileNumber });
     if (meta.requestDate) headerFields.push({ label: 'Requested', value: formatDateLong(meta.requestDate) });
     headerFields.push({ label: 'Property Type', value: propertyTypeName });
 

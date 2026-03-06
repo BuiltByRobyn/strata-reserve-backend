@@ -7,14 +7,14 @@ import prisma from '../../shared/lib/prismaClient';
 export const getAvailability = asyncHandler(async (c) => {
   const startDate = c.req.query('startDate');
   const endDate = c.req.query('endDate');
-  const serviceRequestId = c.req.query('serviceRequestId');
+  const fileNumberId = c.req.query('fileNumberId');
   const isDraftMeeting = c.req.query('isDraftMeeting') === 'true';
 
-  if (!startDate || !endDate || !serviceRequestId) {
-    return error(c, 'startDate, endDate, and serviceRequestId are required', 400);
+  if (!startDate || !endDate || !fileNumberId) {
+    return error(c, 'startDate, endDate, and fileNumberId are required', 400);
   }
 
-  const slots = await getAvailableSlots(startDate, endDate, parseInt(serviceRequestId), isDraftMeeting);
+  const slots = await getAvailableSlots(startDate, endDate, parseInt(fileNumberId), isDraftMeeting);
   return success(c, slots);
 }, 'Failed to fetch availability');
 
@@ -23,7 +23,7 @@ export const createAppointmentRequest = asyncHandler(async (c) => {
   const body = await c.req.json();
 
   const {
-    serviceRequestId,
+    fileNumberId,
     appointmentTypeId,
     firstChoiceDate,
     firstChoiceTimeSlotId,
@@ -32,21 +32,21 @@ export const createAppointmentRequest = asyncHandler(async (c) => {
     specialRequirements
   } = body;
 
-  if (!serviceRequestId || !appointmentTypeId || !firstChoiceDate || !firstChoiceTimeSlotId) {
+  if (!fileNumberId || !appointmentTypeId || !firstChoiceDate || !firstChoiceTimeSlotId) {
     return error(c, 'Missing required fields', 400);
   }
 
-  const sr = await prisma.serviceRequest.findUnique({
-    where: { serviceRequestId: parseInt(serviceRequestId) }
+  const sr = await prisma.fileNumber.findUnique({
+    where: { fileNumberId: parseInt(fileNumberId) }
   });
 
   if (!sr || !sr.appointmentOfferedAt) {
-    return error(c, 'Appointment has not been offered for this service request', 400);
+    return error(c, 'Appointment has not been offered for this file number', 400);
   }
 
   const existingRequest = await prisma.appointmentRequest.findFirst({
     where: {
-      serviceRequestId: parseInt(serviceRequestId),
+      fileNumberId: parseInt(fileNumberId),
       status: 'Pending Review'
     }
   });
@@ -59,7 +59,7 @@ export const createAppointmentRequest = asyncHandler(async (c) => {
     const availability = await getAvailableSlots(
       firstChoiceDate,
       secondChoiceDate || firstChoiceDate,
-      parseInt(serviceRequestId),
+      parseInt(fileNumberId),
       false
     );
 
@@ -81,14 +81,14 @@ export const createAppointmentRequest = asyncHandler(async (c) => {
     }
 
     // Clear rebooking reminder flag when client books a new appointment
-    await tx.serviceRequest.update({
-      where: { serviceRequestId: parseInt(serviceRequestId) },
+    await tx.fileNumber.update({
+      where: { fileNumberId: parseInt(fileNumberId) },
       data: { rebookingRequestedAt: null }
     });
 
     return tx.appointmentRequest.create({
       data: {
-        serviceRequestId: parseInt(serviceRequestId),
+        fileNumberId: parseInt(fileNumberId),
         appointmentTypeId: parseInt(appointmentTypeId),
         firstChoiceDate: new Date(firstChoiceDate + 'T00:00:00Z'),
         firstChoiceTimeSlotId: parseInt(firstChoiceTimeSlotId),
@@ -112,7 +112,7 @@ export const createAppointmentRequest = asyncHandler(async (c) => {
 export const getActiveAppointment = asyncHandler(async (c) => {
   const user = c.get('user');
 
-  const sr = await prisma.serviceRequest.findFirst({
+  const sr = await prisma.fileNumber.findFirst({
     where: {
       archived: false,
       OR: [
@@ -120,14 +120,14 @@ export const getActiveAppointment = asyncHandler(async (c) => {
         { requestedByProfileId: user.id }
       ]
     },
-    select: { serviceRequestId: true }
+    select: { fileNumberId: true }
   });
 
   if (!sr) return success(c, null);
 
   const pendingRequest = await prisma.appointmentRequest.findFirst({
     where: {
-      serviceRequestId: sr.serviceRequestId,
+      fileNumberId: sr.fileNumberId,
       status: 'Pending Review'
     },
     include: {
@@ -143,7 +143,7 @@ export const getActiveAppointment = asyncHandler(async (c) => {
 
   const appointment = await prisma.appointment.findFirst({
     where: {
-      serviceRequestId: sr.serviceRequestId,
+      fileNumberId: sr.fileNumberId,
       status: { in: ['Scheduled', 'Rescheduled'] }
     },
     include: {
@@ -192,7 +192,7 @@ export const cancelAppointment = asyncHandler(async (c) => {
     where: { appointmentId: id },
     include: {
       timeSlot: true,
-      serviceRequest: {
+      fileNumber: {
         select: {
           strata: { select: { strataProfiles: { where: { profileId: user.id } } } },
           requestedByProfileId: true
@@ -203,8 +203,8 @@ export const cancelAppointment = asyncHandler(async (c) => {
 
   if (!appointment) return error(c, 'Appointment not found', 404);
 
-  const isOwner = appointment.serviceRequest.requestedByProfileId === user.id
-    || appointment.serviceRequest.strata.strataProfiles.length > 0;
+  const isOwner = appointment.fileNumber.requestedByProfileId === user.id
+    || appointment.fileNumber.strata.strataProfiles.length > 0;
 
   if (!isOwner) return error(c, 'Unauthorized', 403);
 
@@ -234,9 +234,9 @@ export const rescheduleAppointment = asyncHandler(async (c) => {
     where: { appointmentId: id },
     include: {
       timeSlot: true,
-      serviceRequest: {
+      fileNumber: {
         select: {
-          serviceRequestId: true,
+          fileNumberId: true,
           strata: { select: { strataProfiles: { where: { profileId: user.id } } } },
           requestedByProfileId: true
         }
@@ -246,8 +246,8 @@ export const rescheduleAppointment = asyncHandler(async (c) => {
 
   if (!appointment) return error(c, 'Appointment not found', 404);
 
-  const isOwner = appointment.serviceRequest.requestedByProfileId === user.id
-    || appointment.serviceRequest.strata.strataProfiles.length > 0;
+  const isOwner = appointment.fileNumber.requestedByProfileId === user.id
+    || appointment.fileNumber.strata.strataProfiles.length > 0;
 
   if (!isOwner) return error(c, 'Unauthorized', 403);
 
@@ -257,7 +257,7 @@ export const rescheduleAppointment = asyncHandler(async (c) => {
 
   const availability = await getAvailableSlots(
     newDate, newDate,
-    appointment.serviceRequest.serviceRequestId,
+    appointment.fileNumber.fileNumberId,
     false
   );
 
@@ -282,11 +282,11 @@ export const rescheduleAppointment = asyncHandler(async (c) => {
 }, 'Failed to reschedule appointment');
 
 export const getDraftMeetingEligibility = asyncHandler(async (c) => {
-  const serviceRequestId = c.req.query('serviceRequestId');
-  if (!serviceRequestId) {
-    return error(c, 'serviceRequestId is required', 400);
+  const fileNumberId = c.req.query('fileNumberId');
+  if (!fileNumberId) {
+    return error(c, 'fileNumberId is required', 400);
   }
 
-  const eligible = await isDraftMeetingEligible(parseInt(serviceRequestId));
+  const eligible = await isDraftMeetingEligible(parseInt(fileNumberId));
   return success(c, { eligible });
 }, 'Failed to check draft meeting eligibility');

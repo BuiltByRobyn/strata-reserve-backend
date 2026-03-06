@@ -15,12 +15,12 @@ import { appointmentRoutes } from './admin/routes/appointmentRoutes';
 import { inspectorAvailabilityRoutes } from './admin/routes/inspectorAvailabilityRoutes';
 import { companyHolidayRoutes } from './admin/routes/companyHolidayRoutes';
 import { documentRoutes } from './admin/routes/documentRoutes';
-import { serviceRequestRoutes } from './admin/routes/serviceRequestRoutes';
+import { fileNumberRoutes } from './admin/routes/fileNumberRoutes';
 import { adminSurveyRoutes } from './admin/routes/adminSurveyRoutes';
 import { questionRoutes } from './admin/routes/questionRoutes';
-import { srDocRequirementRoutes } from './admin/routes/srDocRequirementRoutes';
+import { fnDocRequirementRoutes } from './admin/routes/fnDocRequirementRoutes';
 import { propertyTypeRequestRoutes } from './admin/routes/propertyTypeRequestRoutes';
-import { srSurveyQuestionRoutes } from './admin/routes/srSurveyQuestionRoutes';
+import { fnSurveyQuestionRoutes } from './admin/routes/fnSurveyQuestionRoutes';
 
 // Client routes
 import { clientRoutes } from './client/routes/clientRoutes';
@@ -69,12 +69,12 @@ app.route('/admin', appointmentRoutes);
 app.route('/admin', inspectorAvailabilityRoutes);
 app.route('/admin', companyHolidayRoutes);
 app.route('/admin', documentRoutes);
-app.route('/admin', serviceRequestRoutes);
+app.route('/admin', fileNumberRoutes);
 app.route('/admin', adminSurveyRoutes);
 app.route('/admin', questionRoutes);
-app.route('/admin', srDocRequirementRoutes);
+app.route('/admin', fnDocRequirementRoutes);
 app.route('/admin', propertyTypeRequestRoutes);
-app.route('/admin', srSurveyQuestionRoutes);
+app.route('/admin', fnSurveyQuestionRoutes);
 
 // Client routes (auth required)
 app.use('/client/*', authMiddleware);

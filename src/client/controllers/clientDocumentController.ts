@@ -1,5 +1,5 @@
 import * as documentService from '../../shared/services/documentService';
-import * as srDocRequirementService from '../../shared/services/srDocRequirementService';
+import * as fnDocRequirementService from '../../shared/services/fnDocRequirementService';
 import { success, error, asyncHandler } from '../../shared/helpers/responseHelper';
 import { parseIntParam } from '../../shared/helpers/parseParams';
 
@@ -30,17 +30,17 @@ export const searchMyDocuments = asyncHandler(async (c) => {
 
 export const getRequiredDocuments = asyncHandler(async (c) => {
   const user = c.get('user');
-  const serviceRequestId = parseIntParam(c, 'id');
+  const fileNumberId = parseIntParam(c, 'id');
 
-  const sr = await documentService.getServiceRequestByIdForProfile(user.id, serviceRequestId);
+  const sr = await documentService.getFileNumberByIdForProfile(user.id, fileNumberId);
 
   if (!sr) {
     return error(c, 'Service request not found', 404);
   }
 
   const [requiredDocs, uploadedDocs] = await Promise.all([
-    srDocRequirementService.getRequirementsBySR(serviceRequestId),
-    documentService.getDocumentsByServiceRequestForProfile(user.id, serviceRequestId)
+    fnDocRequirementService.getRequirementsBySR(fileNumberId),
+    documentService.getDocumentsByFileNumberForProfile(user.id, fileNumberId)
   ]);
 
   const checklist = requiredDocs.map(req => ({
@@ -54,10 +54,10 @@ export const getRequiredDocuments = asyncHandler(async (c) => {
   return success(c, checklist);
 }, 'Failed to fetch required documents');
 
-export const getDocumentsByServiceRequest = asyncHandler(async (c) => {
+export const getDocumentsByFileNumber = asyncHandler(async (c) => {
   const user = c.get('user');
-  const serviceRequestId = parseIntParam(c, 'id');
+  const fileNumberId = parseIntParam(c, 'id');
 
-  const documents = await documentService.getDocumentsByServiceRequestForProfile(user.id, serviceRequestId);
+  const documents = await documentService.getDocumentsByFileNumberForProfile(user.id, fileNumberId);
   return success(c, documents);
 }, 'Failed to fetch documents');

@@ -63,6 +63,7 @@ export const rescheduleAppointment = asyncHandler(async (c) => {
     parseInt(timeSlotId),
     {
       inspectorProfileId: body.inspectorProfileId,
+      secondInspectorProfileId: body.secondInspectorProfileId,
       reason: body.reason,
     }
   );
@@ -120,9 +121,9 @@ export const reviewAppointmentRequest = asyncHandler(async (c) => {
 
 export const createAppointment = asyncHandler(async (c) => {
   const body = await c.req.json();
-  const { serviceRequestId, appointmentDate, timeSlotId, appointmentTypeId, inspectorProfileId } = body;
+  const { fileNumberId, appointmentDate, timeSlotId, appointmentTypeId, inspectorProfileId, secondInspectorProfileId } = body;
 
-  if (!serviceRequestId || !appointmentDate || !timeSlotId || !appointmentTypeId) {
+  if (!fileNumberId || !appointmentDate || !timeSlotId || !appointmentTypeId) {
     return error(c, 'Strata, date, time slot, and appointment type are required', 400);
   }
 
@@ -130,9 +131,10 @@ export const createAppointment = asyncHandler(async (c) => {
     const appointment = await appointmentService.createAppointment({
       appointmentDate: new Date(appointmentDate + 'T00:00:00Z'),
       timeSlotId: parseInt(timeSlotId),
-      serviceRequestId: parseInt(serviceRequestId),
+      fileNumberId: parseInt(fileNumberId),
       appointmentTypeId: parseInt(appointmentTypeId),
       inspectorProfileId: inspectorProfileId || null,
+      secondInspectorProfileId: secondInspectorProfileId || null,
     });
     return success(c, appointment, 201);
   } catch (err) {

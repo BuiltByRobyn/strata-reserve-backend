@@ -23,42 +23,42 @@ async function main() {
       }
     }
 
-    // 2. Create sr_survey_question mapping table
+    // 2. Create fn_survey_question mapping table
     await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "public"."sr_survey_question" (
-        "sr_survey_question_id" SERIAL NOT NULL,
-        "service_request_id" INTEGER NOT NULL,
+      CREATE TABLE IF NOT EXISTS "public"."fn_survey_question" (
+        "fn_survey_question_id" SERIAL NOT NULL,
+        "file_number_id" INTEGER NOT NULL,
         "question_id" INTEGER NOT NULL,
         "property_type_id" INTEGER NOT NULL,
-        CONSTRAINT "sr_survey_question_pkey" PRIMARY KEY ("sr_survey_question_id")
+        CONSTRAINT "fn_survey_question_pkey" PRIMARY KEY ("fn_survey_question_id")
       )
     `);
 
-    // Add foreign keys and unique constraints for sr_survey_question
+    // Add foreign keys and unique constraints for fn_survey_question
     try {
       await prisma.$executeRawUnsafe(`
-        CREATE UNIQUE INDEX IF NOT EXISTS "sr_survey_question_service_request_id_question_id_property_type_id_key" 
-        ON "public"."sr_survey_question"("service_request_id", "question_id", "property_type_id")
+        CREATE UNIQUE INDEX IF NOT EXISTS "fn_survey_question_file_number_id_question_id_property_type_id_key" 
+        ON "public"."fn_survey_question"("file_number_id", "question_id", "property_type_id")
       `);
       await prisma.$executeRawUnsafe(`
-        ALTER TABLE "public"."sr_survey_question" 
-        ADD CONSTRAINT "sr_survey_question_service_request_id_fkey" 
-        FOREIGN KEY ("service_request_id") REFERENCES "public"."service_request"("service_request_id") ON DELETE CASCADE ON UPDATE CASCADE
+        ALTER TABLE "public"."fn_survey_question" 
+        ADD CONSTRAINT "fn_survey_question_file_number_id_fkey" 
+        FOREIGN KEY ("file_number_id") REFERENCES "public"."file_number"("file_number_id") ON DELETE CASCADE ON UPDATE CASCADE
       `);
       await prisma.$executeRawUnsafe(`
-        ALTER TABLE "public"."sr_survey_question" 
-        ADD CONSTRAINT "sr_survey_question_question_id_fkey" 
+        ALTER TABLE "public"."fn_survey_question" 
+        ADD CONSTRAINT "fn_survey_question_question_id_fkey" 
         FOREIGN KEY ("question_id") REFERENCES "public"."question"("question_id") ON DELETE CASCADE ON UPDATE CASCADE
       `);
       await prisma.$executeRawUnsafe(`
-        ALTER TABLE "public"."sr_survey_question" 
-        ADD CONSTRAINT "sr_survey_question_property_type_id_fkey" 
+        ALTER TABLE "public"."fn_survey_question" 
+        ADD CONSTRAINT "fn_survey_question_property_type_id_fkey" 
         FOREIGN KEY ("property_type_id") REFERENCES "public"."property_type"("property_type_id") ON DELETE CASCADE ON UPDATE CASCADE
       `);
-      console.log("Created table and constraints for sr_survey_question");
+      console.log("Created table and constraints for fn_survey_question");
     } catch (e: any) {
       if (!e.message.includes('already exists')) {
-        console.log("Constraint for sr_survey_question might already exist:", e.message);
+        console.log("Constraint for fn_survey_question might already exist:", e.message);
       }
     }
 
@@ -87,16 +87,16 @@ async function main() {
     // 4. Add RLS Policies to new tables
     console.log("Applying RLS policies to mapping tables...");
     
-    // sr_survey_question RLS
-    await prisma.$executeRawUnsafe(`ALTER TABLE "public"."sr_survey_question" ENABLE ROW LEVEL SECURITY`);
+    // fn_survey_question RLS
+    await prisma.$executeRawUnsafe(`ALTER TABLE "public"."fn_survey_question" ENABLE ROW LEVEL SECURITY`);
     
     await prisma.$executeRawUnsafe(`
       DO $$
       BEGIN
         IF NOT EXISTS (
-          SELECT FROM pg_policies WHERE tablename = 'sr_survey_question' AND policyname = 'Enable read access for all users'
+          SELECT FROM pg_policies WHERE tablename = 'fn_survey_question' AND policyname = 'Enable read access for all users'
         ) THEN
-          CREATE POLICY "Enable read access for all users" ON "public"."sr_survey_question" FOR SELECT USING (true);
+          CREATE POLICY "Enable read access for all users" ON "public"."fn_survey_question" FOR SELECT USING (true);
         END IF;
       END
       $$;
@@ -106,9 +106,9 @@ async function main() {
       DO $$
       BEGIN
         IF NOT EXISTS (
-          SELECT FROM pg_policies WHERE tablename = 'sr_survey_question' AND policyname = 'Enable insert for authenticated users only'
+          SELECT FROM pg_policies WHERE tablename = 'fn_survey_question' AND policyname = 'Enable insert for authenticated users only'
         ) THEN
-          CREATE POLICY "Enable insert for authenticated users only" ON "public"."sr_survey_question" FOR INSERT TO authenticated WITH CHECK (true);
+          CREATE POLICY "Enable insert for authenticated users only" ON "public"."fn_survey_question" FOR INSERT TO authenticated WITH CHECK (true);
         END IF;
       END
       $$;
@@ -118,9 +118,9 @@ async function main() {
       DO $$
       BEGIN
         IF NOT EXISTS (
-          SELECT FROM pg_policies WHERE tablename = 'sr_survey_question' AND policyname = 'Enable update for authenticated users only'
+          SELECT FROM pg_policies WHERE tablename = 'fn_survey_question' AND policyname = 'Enable update for authenticated users only'
         ) THEN
-          CREATE POLICY "Enable update for authenticated users only" ON "public"."sr_survey_question" FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+          CREATE POLICY "Enable update for authenticated users only" ON "public"."fn_survey_question" FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
         END IF;
       END
       $$;
@@ -130,24 +130,24 @@ async function main() {
       DO $$
       BEGIN
         IF NOT EXISTS (
-          SELECT FROM pg_policies WHERE tablename = 'sr_survey_question' AND policyname = 'Enable delete for authenticated users only'
+          SELECT FROM pg_policies WHERE tablename = 'fn_survey_question' AND policyname = 'Enable delete for authenticated users only'
         ) THEN
-          CREATE POLICY "Enable delete for authenticated users only" ON "public"."sr_survey_question" FOR DELETE TO authenticated USING (true);
+          CREATE POLICY "Enable delete for authenticated users only" ON "public"."fn_survey_question" FOR DELETE TO authenticated USING (true);
         END IF;
       END
       $$;
     `);
 
-    // sr_survey_requirement RLS
-    await prisma.$executeRawUnsafe(`ALTER TABLE "public"."sr_survey_requirement" ENABLE ROW LEVEL SECURITY`);
+    // fn_survey_requirement RLS
+    await prisma.$executeRawUnsafe(`ALTER TABLE "public"."fn_survey_requirement" ENABLE ROW LEVEL SECURITY`);
     
     await prisma.$executeRawUnsafe(`
       DO $$
       BEGIN
         IF NOT EXISTS (
-          SELECT FROM pg_policies WHERE tablename = 'sr_survey_requirement' AND policyname = 'Enable read access for all users'
+          SELECT FROM pg_policies WHERE tablename = 'fn_survey_requirement' AND policyname = 'Enable read access for all users'
         ) THEN
-          CREATE POLICY "Enable read access for all users" ON "public"."sr_survey_requirement" FOR SELECT USING (true);
+          CREATE POLICY "Enable read access for all users" ON "public"."fn_survey_requirement" FOR SELECT USING (true);
         END IF;
       END
       $$;
@@ -157,9 +157,9 @@ async function main() {
       DO $$
       BEGIN
         IF NOT EXISTS (
-          SELECT FROM pg_policies WHERE tablename = 'sr_survey_requirement' AND policyname = 'Enable insert for authenticated users only'
+          SELECT FROM pg_policies WHERE tablename = 'fn_survey_requirement' AND policyname = 'Enable insert for authenticated users only'
         ) THEN
-          CREATE POLICY "Enable insert for authenticated users only" ON "public"."sr_survey_requirement" FOR INSERT TO authenticated WITH CHECK (true);
+          CREATE POLICY "Enable insert for authenticated users only" ON "public"."fn_survey_requirement" FOR INSERT TO authenticated WITH CHECK (true);
         END IF;
       END
       $$;
@@ -169,9 +169,9 @@ async function main() {
       DO $$
       BEGIN
         IF NOT EXISTS (
-          SELECT FROM pg_policies WHERE tablename = 'sr_survey_requirement' AND policyname = 'Enable update for authenticated users only'
+          SELECT FROM pg_policies WHERE tablename = 'fn_survey_requirement' AND policyname = 'Enable update for authenticated users only'
         ) THEN
-          CREATE POLICY "Enable update for authenticated users only" ON "public"."sr_survey_requirement" FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+          CREATE POLICY "Enable update for authenticated users only" ON "public"."fn_survey_requirement" FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
         END IF;
       END
       $$;
@@ -181,9 +181,9 @@ async function main() {
       DO $$
       BEGIN
         IF NOT EXISTS (
-          SELECT FROM pg_policies WHERE tablename = 'sr_survey_requirement' AND policyname = 'Enable delete for authenticated users only'
+          SELECT FROM pg_policies WHERE tablename = 'fn_survey_requirement' AND policyname = 'Enable delete for authenticated users only'
         ) THEN
-          CREATE POLICY "Enable delete for authenticated users only" ON "public"."sr_survey_requirement" FOR DELETE TO authenticated USING (true);
+          CREATE POLICY "Enable delete for authenticated users only" ON "public"."fn_survey_requirement" FOR DELETE TO authenticated USING (true);
         END IF;
       END
       $$;

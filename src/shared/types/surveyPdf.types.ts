@@ -1,15 +1,15 @@
 export interface SurveyPdfMeta {
-  serviceRequestId: number;
+  fileNumberId: number;
   strataPlan?: string | null;
   complexName?: string | null;
   serviceName?: string | null;
-  status?: string | null;
+  fileNumber?: string | null;
   requestDate?: string | null;
   generatedAtIso?: string;
 }
 
 export interface FlatSurveyQuestion {
-  srSurveyQuestionId: number;
+  fnSurveyQuestionId: number;
   propertyTypeId: number;
   propertyTypeName: string;
   questionId: number;
