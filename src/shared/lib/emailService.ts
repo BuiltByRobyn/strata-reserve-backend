@@ -1,4 +1,5 @@
 import { Resend } from 'resend';
+import type { WelcomeEmailParams, NewStrataEmailParams } from '../types/email.types';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Strata Reserve <noreply@stratareserve.com>';
@@ -7,11 +8,7 @@ const FRONTEND_URL = (process.env.FRONTEND_URL || 'https://your-app-url.com').re
 
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 
-export async function sendWelcomeEmail(params: {
-  to: string;
-  firstName: string;
-  loginLink?: string;
-}): Promise<void> {
+export async function sendWelcomeEmail(params: WelcomeEmailParams): Promise<void> {
   if (!resend) return;
 
   const loginUrl = params.loginLink || `${FRONTEND_URL}/login`;
@@ -42,12 +39,7 @@ export async function sendWelcomeEmail(params: {
   });
 }
 
-export async function sendNewStrataEmail(params: {
-  strataPlan: string;
-  complexName?: string;
-  town?: string;
-  province?: string;
-}): Promise<void> {
+export async function sendNewStrataEmail(params: NewStrataEmailParams): Promise<void> {
   if (!resend || !ADMIN_EMAIL) return;
 
   const location = [params.town, params.province].filter(Boolean).join(', ');
