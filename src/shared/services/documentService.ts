@@ -16,30 +16,30 @@ const sectionVisibilityWhere = (sectionIds: number[]) => {
 };
 
 export const getDocuments = async () => {
-  return prisma.serviceRequestDocument.findMany({
+  return prisma.fileNumberDocument.findMany({
     orderBy: { uploadedAt: 'desc' },
     include: documentInclude
   });
 };
 
 export const getDocumentById = async (id: number) => {
-  return prisma.serviceRequestDocument.findUnique({
-    where: { serviceRequestDocumentId: id },
+  return prisma.fileNumberDocument.findUnique({
+    where: { fileNumberDocumentId: id },
     include: documentInclude
   });
 };
 
-export const getDocumentsByServiceRequest = async (serviceRequestId: number) => {
-  return prisma.serviceRequestDocument.findMany({
-    where: { serviceRequestId },
+export const getDocumentsByFileNumber = async (fileNumberId: number) => {
+  return prisma.fileNumberDocument.findMany({
+    where: { fileNumberId },
     orderBy: { uploadedAt: 'desc' },
     include: documentIncludeCompact
   });
 };
 
 export const updateDocumentStatus = async (id: number, reviewStatusId: number, notes?: string) => {
-  return prisma.serviceRequestDocument.update({
-    where: { serviceRequestDocumentId: id },
+  return prisma.fileNumberDocument.update({
+    where: { fileNumberDocumentId: id },
     data: {
       reviewStatusId,
       ...(notes !== undefined ? { notes } : {})
@@ -51,26 +51,26 @@ export const updateDocumentStatus = async (id: number, reviewStatusId: number, n
 };
 
 export const clearDocumentNotes = async (id: number) => {
-  return prisma.serviceRequestDocument.update({
-    where: { serviceRequestDocumentId: id },
+  return prisma.fileNumberDocument.update({
+    where: { fileNumberDocumentId: id },
     data: { notes: null }
   });
 };
 
 export const deleteDocument = async (id: number) => {
-  return prisma.serviceRequestDocument.delete({
-    where: { serviceRequestDocumentId: id }
+  return prisma.fileNumberDocument.delete({
+    where: { fileNumberDocumentId: id }
   });
 };
 
 export const searchDocuments = async (query: string) => {
-  return prisma.serviceRequestDocument.findMany({
+  return prisma.fileNumberDocument.findMany({
     where: {
       OR: [
         { fileName: { contains: query, mode: 'insensitive' } },
         { documentType: { typeName: { contains: query, mode: 'insensitive' } } },
-        { serviceRequest: { strata: { strataPlan: { contains: query, mode: 'insensitive' } } } },
-        { serviceRequest: { strata: { complexName: { contains: query, mode: 'insensitive' } } } }
+        { fileNumber: { strata: { strataPlan: { contains: query, mode: 'insensitive' } } } },
+        { fileNumber: { strata: { complexName: { contains: query, mode: 'insensitive' } } } }
       ]
     },
     orderBy: { uploadedAt: 'desc' },
@@ -81,9 +81,9 @@ export const searchDocuments = async (query: string) => {
 export const getDocumentsByProfile = async (profileId: string) => {
   const sectionIds = await getVisibleSectionIdsForProfile(profileId);
 
-  return prisma.serviceRequestDocument.findMany({
+  return prisma.fileNumberDocument.findMany({
     where: {
-      serviceRequest: {
+      fileNumber: {
         strata: {
           strataProfiles: { some: { profileId } }
         }
@@ -98,10 +98,10 @@ export const getDocumentsByProfile = async (profileId: string) => {
 export const getDocumentByIdForProfile = async (profileId: string, id: number) => {
   const sectionIds = await getVisibleSectionIdsForProfile(profileId);
 
-  return prisma.serviceRequestDocument.findFirst({
+  return prisma.fileNumberDocument.findFirst({
     where: {
-      serviceRequestDocumentId: id,
-      serviceRequest: {
+      fileNumberDocumentId: id,
+      fileNumber: {
         strata: {
           strataProfiles: { some: { profileId } }
         }
@@ -120,11 +120,11 @@ export const searchDocumentsByProfile = async (profileId: string, query: string)
 
   const sectionIds = await getVisibleSectionIdsForProfile(profileId);
 
-  return prisma.serviceRequestDocument.findMany({
+  return prisma.fileNumberDocument.findMany({
     where: {
       AND: [
         {
-          serviceRequest: {
+          fileNumber: {
             strata: {
               strataProfiles: { some: { profileId } }
             }
@@ -135,8 +135,8 @@ export const searchDocumentsByProfile = async (profileId: string, query: string)
           OR: [
             { fileName: { contains: trimmedQuery, mode: 'insensitive' } },
             { documentType: { typeName: { contains: trimmedQuery, mode: 'insensitive' } } },
-            { serviceRequest: { strata: { strataPlan: { contains: trimmedQuery, mode: 'insensitive' } } } },
-            { serviceRequest: { strata: { complexName: { contains: trimmedQuery, mode: 'insensitive' } } } }
+            { fileNumber: { strata: { strataPlan: { contains: trimmedQuery, mode: 'insensitive' } } } },
+            { fileNumber: { strata: { complexName: { contains: trimmedQuery, mode: 'insensitive' } } } }
           ]
         }
       ]
@@ -146,16 +146,16 @@ export const searchDocumentsByProfile = async (profileId: string, query: string)
   });
 };
 
-export const getServiceRequestByIdForProfile = async (profileId: string, serviceRequestId: number) => {
-  return prisma.serviceRequest.findFirst({
+export const getFileNumberByIdForProfile = async (profileId: string, fileNumberId: number) => {
+  return prisma.fileNumber.findFirst({
     where: {
-      serviceRequestId,
+      fileNumberId,
       strata: {
         strataProfiles: { some: { profileId } }
       }
     },
     select: {
-      serviceRequestId: true,
+      fileNumberId: true,
       serviceId: true,
       strata: {
         select: {
@@ -166,13 +166,13 @@ export const getServiceRequestByIdForProfile = async (profileId: string, service
   });
 };
 
-export const getDocumentsByServiceRequestForProfile = async (profileId: string, serviceRequestId: number) => {
+export const getDocumentsByFileNumberForProfile = async (profileId: string, fileNumberId: number) => {
   const sectionIds = await getVisibleSectionIdsForProfile(profileId);
 
-  return prisma.serviceRequestDocument.findMany({
+  return prisma.fileNumberDocument.findMany({
     where: {
-      serviceRequestId,
-      serviceRequest: {
+      fileNumberId,
+      fileNumber: {
         strata: {
           strataProfiles: { some: { profileId } }
         }

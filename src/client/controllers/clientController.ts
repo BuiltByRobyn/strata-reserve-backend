@@ -1,15 +1,15 @@
 import { success, created, error, asyncHandler } from '../../shared/helpers/responseHelper';
-import * as serviceRequestService from '../../shared/services/serviceRequestService';
+import * as fileNumberService from '../../shared/services/fileNumberService';
 import * as propertyTypeRequestService from '../../shared/services/propertyTypeRequestService';
 import prisma from '../../shared/lib/prismaClient';
 
-export const getActiveServiceRequest = asyncHandler(async (c) => {
+export const getActiveFileNumber = asyncHandler(async (c) => {
   const user = c.get('user');
-  const serviceRequest = await serviceRequestService.getActiveByProfile(user.id);
-  if (!serviceRequest) return success(c, null);
+  const fileNumber = await fileNumberService.getActiveByProfile(user.id);
+  if (!fileNumber) return success(c, null);
 
   const clientProfile = await prisma.strataProfile.findFirst({
-    where: { strataId: serviceRequest.strataId, profileId: user.id },
+    where: { strataId: fileNumber.strataId, profileId: user.id },
     select: {
       strataProfilePropertyTypes: {
         select: { propertyTypeId: true }
@@ -18,22 +18,22 @@ export const getActiveServiceRequest = asyncHandler(async (c) => {
   });
 
   return success(c, {
-    ...serviceRequest,
+    ...fileNumber,
     clientPropertyTypes: clientProfile?.strataProfilePropertyTypes || []
   });
-}, 'Failed to fetch active service request');
+}, 'Failed to fetch active file number');
 
 export const submitDocumentsForReview = asyncHandler(async (c) => {
   const user = c.get('user');
   const id = parseInt(c.req.param('id'));
 
-  const serviceRequest = await serviceRequestService.getActiveByProfile(user.id);
-  if (!serviceRequest || serviceRequest.serviceRequestId !== id) {
+  const fileNumber = await fileNumberService.getActiveByProfile(user.id);
+  if (!fileNumber || fileNumber.fileNumberId !== id) {
     return error(c, 'Service request not found or access denied', 404);
   }
 
   try {
-    const updated = await serviceRequestService.submitForReview(id);
+    const updated = await fileNumberService.submitForReview(id);
     return success(c, updated);
   } catch (err: unknown) {
     const typed = err as Error & { code?: string };
@@ -46,11 +46,11 @@ export const submitDocumentsForReview = asyncHandler(async (c) => {
 
 export const getPropertyTypeRequest = asyncHandler(async (c) => {
   const user = c.get('user');
-  const serviceRequest = await serviceRequestService.getActiveByProfile(user.id);
-  if (!serviceRequest) return success(c, null);
+  const fileNumber = await fileNumberService.getActiveByProfile(user.id);
+  if (!fileNumber) return success(c, null);
 
   const strataProfile = await prisma.strataProfile.findFirst({
-    where: { strataId: serviceRequest.strataId, profileId: user.id }
+    where: { strataId: fileNumber.strataId, profileId: user.id }
   });
   if (!strataProfile) return success(c, null);
 
@@ -66,11 +66,11 @@ export const createPropertyTypeRequest = asyncHandler(async (c) => {
     return error(c, 'At least one property type must be selected', 400);
   }
 
-  const serviceRequest = await serviceRequestService.getActiveByProfile(user.id);
-  if (!serviceRequest) return error(c, 'No active service request', 404);
+  const fileNumber = await fileNumberService.getActiveByProfile(user.id);
+  if (!fileNumber) return error(c, 'No active file number', 404);
 
   const strataProfile = await prisma.strataProfile.findFirst({
-    where: { strataId: serviceRequest.strataId, profileId: user.id }
+    where: { strataId: fileNumber.strataId, profileId: user.id }
   });
   if (!strataProfile) return error(c, 'Strata profile not found', 404);
 

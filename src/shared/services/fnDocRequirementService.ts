@@ -5,10 +5,10 @@ const requirementInclude = {
   propertyType: { select: { propertyTypeId: true, propertyTypeName: true } },
 };
 
-export const getRequirementsBySR = async (serviceRequestId: number) => {
-  return prisma.serviceRequestDocumentRequirement.findMany({
-    where: { serviceRequestId },
+export const getRequirementsBySR = async (fileNumberId: number) => {
+  return prisma.fileNumberDocumentRequirement.findMany({
+    where: { fileNumberId },
     include: requirementInclude,
-    orderBy: { srDocRequirementId: 'asc' },
+    orderBy: { fnDocRequirementId: 'asc' },
   });
 };

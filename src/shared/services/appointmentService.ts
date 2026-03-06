@@ -10,9 +10,9 @@ export const getAppointments = async () => {
       timeSlot: {
         select: { timeSlotId: true, slotTime: true, slotName: true }
       },
-      serviceRequest: {
+      fileNumber: {
         select: {
-          serviceRequestId: true,
+          fileNumberId: true,
           strata: {
             select: { strataId: true, complexName: true, strataPlan: true, town: true, location: { select: { locationId: true, locationName: true } } }
           },
@@ -37,7 +37,7 @@ export const getAppointmentById = async (id: number) => {
     include: {
       appointmentType: true,
       timeSlot: true,
-      serviceRequest: {
+      fileNumber: {
         include: {
           strata: {
             include: {
@@ -108,8 +108,18 @@ export const rescheduleAppointment = async (
   id: number,
   appointmentDate: Date,
   timeSlotId: number,
-  options?: { inspectorProfileId?: string; reason?: string }
+  options?: { inspectorProfileId?: string; secondInspectorProfileId?: string; reason?: string }
 ) => {
+  if (options?.secondInspectorProfileId !== undefined) {
+    const apt = await prisma.appointment.findUnique({ where: { appointmentId: id }, select: { fileNumberId: true } });
+    if (apt) {
+      await prisma.fileNumber.update({
+        where: { fileNumberId: apt.fileNumberId },
+        data: { appointmentOfferSecondInspectorId: options.secondInspectorProfileId || null },
+      });
+    }
+  }
+
   return prisma.appointment.update({
     where: { appointmentId: id },
     data: {
@@ -125,13 +135,13 @@ export const rescheduleAppointment = async (
 export const requestRebooking = async (appointmentId: number) => {
   const apt = await prisma.appointment.findUnique({
     where: { appointmentId },
-    select: { serviceRequestId: true, status: true }
+    select: { fileNumberId: true, status: true }
   });
   if (!apt) throw new Error('Appointment not found');
   if (apt.status !== 'Cancelled') throw new Error('Only cancelled appointments can request rebooking');
 
-  await prisma.serviceRequest.update({
-    where: { serviceRequestId: apt.serviceRequestId },
+  await prisma.fileNumber.update({
+    where: { fileNumberId: apt.fileNumberId },
     data: { rebookingRequestedAt: new Date() }
   });
   return { success: true };
@@ -148,9 +158,9 @@ export const getAppointmentRequests = async (status?: string) => {
       requestedBy: {
         select: { id: true, firstName: true, lastName: true, displayName: true, email: true }
       },
-      serviceRequest: {
+      fileNumber: {
         select: {
-          serviceRequestId: true,
+          fileNumberId: true,
           status: true,
           requestDate: true,
           strata: {
@@ -184,9 +194,9 @@ export const getAppointmentRequestById = async (id: number) => {
       requestedBy: {
         select: { id: true, firstName: true, lastName: true, displayName: true, email: true }
       },
-      serviceRequest: {
+      fileNumber: {
         select: {
-          serviceRequestId: true,
+          fileNumberId: true,
           status: true,
           strata: {
             select: { strataId: true, complexName: true, strataPlan: true, town: true, location: { select: { locationId: true, locationName: true } } }
@@ -259,15 +269,15 @@ export const reviewAppointmentRequest = async (data: {
           appointmentDate,
           timeSlotId,
           status: 'Scheduled',
-          serviceRequestId: request.serviceRequestId,
+          fileNumberId: request.fileNumberId,
           appointmentTypeId: request.appointmentTypeId,
           appointmentRequestId: request.appointmentRequestId,
           inspectorProfileId: data.inspectorProfileId || null,
         }
       });
 
-      await tx.serviceRequest.update({
-        where: { serviceRequestId: request.serviceRequestId },
+      await tx.fileNumber.update({
+        where: { fileNumberId: request.fileNumberId },
         data: { status: 'Appointment Scheduled' }
       });
 
@@ -286,9 +296,10 @@ export const reviewAppointmentRequest = async (data: {
 export const createAppointment = async (data: {
   appointmentDate: Date;
   timeSlotId: number;
-  serviceRequestId: number;
+  fileNumberId: number;
   appointmentTypeId: number;
   inspectorProfileId?: string | null;
+  secondInspectorProfileId?: string | null;
 }) => {
   // Validate date is not in the past
   const today = new Date();
@@ -302,7 +313,7 @@ export const createAppointment = async (data: {
     where: {
       appointmentDate: data.appointmentDate,
       timeSlotId: data.timeSlotId,
-      serviceRequestId: data.serviceRequestId,
+      fileNumberId: data.fileNumberId,
       status: { not: 'Cancelled' },
     },
   });
@@ -325,11 +336,18 @@ export const createAppointment = async (data: {
     }
   }
 
+  if (data.secondInspectorProfileId !== undefined) {
+    await prisma.fileNumber.update({
+      where: { fileNumberId: data.fileNumberId },
+      data: { appointmentOfferSecondInspectorId: data.secondInspectorProfileId || null },
+    });
+  }
+
   return prisma.appointment.create({
     data: {
       appointmentDate: data.appointmentDate,
       timeSlotId: data.timeSlotId,
-      serviceRequestId: data.serviceRequestId,
+      fileNumberId: data.fileNumberId,
       appointmentTypeId: data.appointmentTypeId,
       inspectorProfileId: data.inspectorProfileId || null,
       status: 'Scheduled',
@@ -337,9 +355,9 @@ export const createAppointment = async (data: {
     include: {
       appointmentType: { select: { appointmentTypeId: true, typeName: true, durationType: true, isDraftMeeting: true } },
       timeSlot: { select: { timeSlotId: true, slotTime: true, slotName: true } },
-      serviceRequest: {
+      fileNumber: {
         select: {
-          serviceRequestId: true,
+          fileNumberId: true,
           strata: { select: { strataId: true, complexName: true, strataPlan: true, town: true, location: { select: { locationId: true, locationName: true } } } },
           service: { select: { serviceId: true, serviceName: true } },
           appointmentOfferSecondInspector: { select: { id: true, firstName: true, lastName: true, displayName: true } },

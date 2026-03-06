@@ -2,9 +2,9 @@ import prisma from '../lib/prismaClient';
 import { toUTCDate } from '../helpers/dateUtils';
 import type { SaveResponseInput } from '../types/question.types';
 
-export const getSurveyQuestionsForSR = async (serviceRequestId: number) => {
-  const srQuestions = await prisma.srSurveyQuestion.findMany({
-    where: { serviceRequestId },
+export const getSurveyQuestionsForSR = async (fileNumberId: number) => {
+  const srQuestions = await prisma.fnSurveyQuestion.findMany({
+    where: { fileNumberId },
     include: {
       question: {
         include: {
@@ -35,7 +35,7 @@ export const getSurveyQuestionsForSR = async (serviceRequestId: number) => {
 
     // Add the parent question
     flatQuestions.push({
-      srSurveyQuestionId: srq.srSurveyQuestionId,
+      fnSurveyQuestionId: srq.fnSurveyQuestionId,
       propertyTypeId: srq.propertyTypeId,
       propertyTypeName: srq.propertyType.propertyTypeName,
       questionId: srq.question.questionId,
@@ -58,7 +58,7 @@ export const getSurveyQuestionsForSR = async (serviceRequestId: number) => {
     if (srq.question.subQuestions && srq.question.subQuestions.length > 0) {
       for (const sq of srq.question.subQuestions) {
         flatQuestions.push({
-          srSurveyQuestionId: (srq.srSurveyQuestionId * 10000) + sq.questionId, // Fake ID for React key
+          fnSurveyQuestionId: (srq.fnSurveyQuestionId * 10000) + sq.questionId, // Fake ID for React key
           propertyTypeId: srq.propertyTypeId,
           propertyTypeName: srq.propertyType.propertyTypeName,
           questionId: sq.questionId,
@@ -83,9 +83,9 @@ export const getSurveyQuestionsForSR = async (serviceRequestId: number) => {
   return flatQuestions;
 };
 
-export const getResponsesByServiceRequest = async (serviceRequestId: number) => {
+export const getResponsesByFileNumber = async (fileNumberId: number) => {
   return prisma.questionResponse.findMany({
-    where: { serviceRequestId, archivedAt: null },
+    where: { fileNumberId, archivedAt: null },
     include: {
       answeredBy: { select: { id: true, firstName: true, lastName: true, displayName: true } },
       multipleChoiceOption: { select: { multipleChoiceOptionId: true, optionText: true } }
@@ -93,9 +93,9 @@ export const getResponsesByServiceRequest = async (serviceRequestId: number) => 
   });
 };
 
-export const getArchivedResponsesByServiceRequest = async (serviceRequestId: number) => {
+export const getArchivedResponsesByFileNumber = async (fileNumberId: number) => {
   return prisma.questionResponse.findMany({
-    where: { serviceRequestId, archivedAt: { not: null } },
+    where: { fileNumberId, archivedAt: { not: null } },
     include: {
       answeredBy: { select: { id: true, firstName: true, lastName: true, displayName: true } },
       multipleChoiceOption: { select: { multipleChoiceOptionId: true, optionText: true } },
@@ -121,25 +121,25 @@ export const getArchivedResponsesByServiceRequest = async (serviceRequestId: num
 export const saveResponses = async (responses: SaveResponseInput[]) => {
   if (responses.length === 0) return [];
 
-  const serviceRequestIds = [...new Set(responses.map(r => r.serviceRequestId))];
+  const fileNumberIds = [...new Set(responses.map(r => r.fileNumberId))];
 
   const existingResponses = await prisma.questionResponse.findMany({
     where: {
-      serviceRequestId: { in: serviceRequestIds },
+      fileNumberId: { in: fileNumberIds },
       questionId: { in: responses.map(r => r.questionId) },
       archivedAt: null,
     },
-    select: { responseId: true, serviceRequestId: true, questionId: true, propertyTypeId: true }
+    select: { responseId: true, fileNumberId: true, questionId: true, propertyTypeId: true }
   });
 
   const existingMap = new Map(
-    existingResponses.map(r => [`${r.serviceRequestId}-${r.questionId}-${r.propertyTypeId}`, r.responseId])
+    existingResponses.map(r => [`${r.fileNumberId}-${r.questionId}-${r.propertyTypeId}`, r.responseId])
   );
 
   return prisma.$transaction(async (tx) => {
     const results = [];
     for (const resp of responses) {
-      const key = `${resp.serviceRequestId}-${resp.questionId}-${resp.propertyTypeId}`;
+      const key = `${resp.fileNumberId}-${resp.questionId}-${resp.propertyTypeId}`;
       const existingId = existingMap.get(key);
       const data = {
         responseText: resp.responseText ?? null,
@@ -159,7 +159,7 @@ export const saveResponses = async (responses: SaveResponseInput[]) => {
       
       results.push(await tx.questionResponse.create({
         data: {
-          serviceRequestId: resp.serviceRequestId,
+          fileNumberId: resp.fileNumberId,
           questionId: resp.questionId,
           propertyTypeId: resp.propertyTypeId,
           ...data,

@@ -1,17 +1,17 @@
 import prisma from '../lib/prismaClient';
-import type { CreateServiceRequestInput } from '../types/serviceRequest.types';
-import { serviceRequestIncludeList, profileSelectBrief, profileSelectWithEmail, documentIncludeCompact } from '../constants/prismaIncludes';
+import type { CreateFileNumberInput } from '../types/fileNumber.types';
+import { fileNumberIncludeList, profileSelectBrief, profileSelectWithEmail, documentIncludeCompact } from '../constants/prismaIncludes';
 
-export const getServiceRequests = async (filters?: { strataId?: number; archived?: boolean }) => {
-  const results = await prisma.serviceRequest.findMany({
+export const getFileNumbers = async (filters?: { strataId?: number; archived?: boolean }) => {
+  const results = await prisma.fileNumber.findMany({
     where: {
       ...(filters?.strataId ? { strataId: filters.strataId } : {}),
       ...(filters?.archived !== undefined ? { archived: filters.archived } : {})
     },
     orderBy: { requestDate: 'desc' },
     include: {
-      ...serviceRequestIncludeList,
-      serviceRequestDocuments: {
+      ...fileNumberIncludeList,
+      fileNumberDocuments: {
         orderBy: { uploadedAt: 'desc' },
         take: 1,
         select: { uploadedAt: true }
@@ -25,16 +25,16 @@ export const getServiceRequests = async (filters?: { strataId?: number; archived
     }
   });
 
-  return results.map(({ serviceRequestDocuments, questionResponses, ...sr }) => ({
+  return results.map(({ fileNumberDocuments, questionResponses, ...sr }) => ({
     ...sr,
-    latestDocumentUploadDate: serviceRequestDocuments[0]?.uploadedAt ?? null,
+    latestDocumentUploadDate: fileNumberDocuments[0]?.uploadedAt ?? null,
     latestSurveyAnswerDate: questionResponses[0]?.updatedAt ?? null,
   }));
 };
 
-export const getServiceRequestById = async (id: number) => {
-  return prisma.serviceRequest.findUnique({
-    where: { serviceRequestId: id },
+export const getFileNumberById = async (id: number) => {
+  return prisma.fileNumber.findUnique({
+    where: { fileNumberId: id },
     include: {
       service: true,
       strata: true,
@@ -46,7 +46,7 @@ export const getServiceRequestById = async (id: number) => {
           multipleChoiceOption: true
         }
       },
-      serviceRequestDocuments: {
+      fileNumberDocuments: {
         include: documentIncludeCompact
       },
       appointments: true,
@@ -56,14 +56,14 @@ export const getServiceRequestById = async (id: number) => {
 };
 
 export const getActiveByStrata = async (strataId: number) => {
-  return prisma.serviceRequest.findFirst({
+  return prisma.fileNumber.findFirst({
     where: { strataId, archived: false },
-    include: serviceRequestIncludeList
+    include: fileNumberIncludeList
   });
 };
 
 export const getActiveByProfile = async (profileId: string) => {
-  return prisma.serviceRequest.findFirst({
+  return prisma.fileNumber.findFirst({
     where: {
       archived: false,
       OR: [
@@ -80,20 +80,20 @@ export const getActiveByProfile = async (profileId: string) => {
       ]
     },
     orderBy: { requestDate: 'desc' },
-    include: serviceRequestIncludeList
+    include: fileNumberIncludeList
   });
 };
 
-export const createServiceRequest = async (data: CreateServiceRequestInput) => {
-  const existing = await prisma.serviceRequest.findFirst({
+export const createFileNumber = async (data: CreateFileNumberInput) => {
+  const existing = await prisma.fileNumber.findFirst({
     where: { strataId: data.strataId, archived: false }
   });
 
   if (existing) {
-    throw new Error('This strata already has an active service request');
+    throw new Error('This strata already has an active file number');
   }
 
-  return prisma.serviceRequest.create({
+  return prisma.fileNumber.create({
     data: {
       serviceId: data.serviceId,
       strataId: data.strataId,
@@ -110,14 +110,14 @@ export const createServiceRequest = async (data: CreateServiceRequestInput) => {
 };
 
 export const submitForReview = async (id: number) => {
-  const sr = await prisma.serviceRequest.findUnique({
-    where: { serviceRequestId: id },
+  const sr = await prisma.fileNumber.findUnique({
+    where: { fileNumberId: id },
   });
   if (!sr) throw new Error('Service request not found');
 
   // Only validate questions actually assigned to this SR (respects surveyRequirements)
-  const srQuestions = await prisma.srSurveyQuestion.findMany({
-    where: { serviceRequestId: id },
+  const srQuestions = await prisma.fnSurveyQuestion.findMany({
+    where: { fileNumberId: id },
     include: { question: { select: { questionId: true, isRequired: true, parentQuestionId: true } } },
   });
 
@@ -126,7 +126,7 @@ export const submitForReview = async (id: number) => {
     .map(sq => sq.question.questionId);
 
   const responses = await prisma.questionResponse.findMany({
-    where: { serviceRequestId: id, archivedAt: null },
+    where: { fileNumberId: id, archivedAt: null },
     select: { questionId: true },
   });
   const answeredIds = new Set(responses.map(r => r.questionId));
@@ -138,18 +138,18 @@ export const submitForReview = async (id: number) => {
     throw err;
   }
 
-  return prisma.serviceRequest.update({
-    where: { serviceRequestId: id },
+  return prisma.fileNumber.update({
+    where: { fileNumberId: id },
     data: {
       submittedForReviewDate: new Date(),
       status: 'Pending Approval',
     },
-    include: serviceRequestIncludeList,
+    include: fileNumberIncludeList,
   });
 };
 
 export const offerAppointment = async (
-  serviceRequestId: number,
+  fileNumberId: number,
   offeredByProfileId: string,
   offerData?: {
     dueDate?: string;
@@ -159,14 +159,14 @@ export const offerAppointment = async (
     notes?: string;
   }
 ) => {
-  const sr = await prisma.serviceRequest.findUnique({
-    where: { serviceRequestId },
+  const sr = await prisma.fileNumber.findUnique({
+    where: { fileNumberId },
   });
 
   if (!sr) throw new Error('Service request not found');
 
-  return prisma.serviceRequest.update({
-    where: { serviceRequestId },
+  return prisma.fileNumber.update({
+    where: { fileNumberId },
     data: {
       appointmentOfferedAt: new Date(),
       appointmentOfferedByProfileId: offeredByProfileId,
@@ -176,24 +176,24 @@ export const offerAppointment = async (
       appointmentOfferSecondInspectorId: offerData?.secondInspectorProfileId ?? null,
       appointmentOfferNotes: offerData?.notes ?? null,
     },
-    include: serviceRequestIncludeList,
+    include: fileNumberIncludeList,
   });
 };
 
-export const deleteServiceRequest = async (id: number, authToken?: string) => {
-  const sr = await prisma.serviceRequest.findUnique({
-    where: { serviceRequestId: id },
+export const deleteFileNumber = async (id: number, authToken?: string) => {
+  const sr = await prisma.fileNumber.findUnique({
+    where: { fileNumberId: id },
     select: {
       strata: { select: { strataPlan: true } },
-      serviceRequestDocuments: { select: { filePath: true } }
+      fileNumberDocuments: { select: { filePath: true } }
     }
   });
 
-  if (sr?.serviceRequestDocuments.length && authToken) {
+  if (sr?.fileNumberDocuments.length && authToken) {
     try {
       const { supabase } = await import('../lib/supabaseClient');
-      await supabase.functions.invoke('archive-sr-documents', {
-        body: { serviceRequestId: id, strataPlan: sr.strata.strataPlan },
+      await supabase.functions.invoke('archive-fn-documents', {
+        body: { fileNumberId: id, strataPlan: sr.strata.strataPlan },
         headers: { Authorization: `Bearer ${authToken}` }
       });
     } catch (err) {
@@ -206,14 +206,14 @@ export const deleteServiceRequest = async (id: number, authToken?: string) => {
 
   await prisma.appointment.updateMany({
     where: {
-      serviceRequestId: id,
+      fileNumberId: id,
       appointmentDate: { gte: today },
       status: { not: 'Cancelled' },
     },
     data: { status: 'Cancelled' },
   });
 
-  return prisma.serviceRequest.delete({
-    where: { serviceRequestId: id }
+  return prisma.fileNumber.delete({
+    where: { fileNumberId: id }
   });
 };

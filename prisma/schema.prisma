@@ -38,10 +38,10 @@ model PropertyType {
   questionPropertyTypes QuestionPropertyType[]
   strataPropertyTypes   StrataPropertyType[]
   strataProfilePropertyTypes StrataProfilePropertyType[]
-  srDocRequirements     ServiceRequestDocumentRequirement[]
-  serviceRequestDocuments ServiceRequestDocument[]
-  surveyRequirements      ServiceRequestSurveyRequirement[]
-  srSurveyQuestions     SrSurveyQuestion[]
+  fnDocRequirements     FileNumberDocumentRequirement[]
+  fileNumberDocuments FileNumberDocument[]
+  surveyRequirements      FileNumberSurveyRequirement[]
+  fnSurveyQuestions     FnSurveyQuestion[]
   questionResponses     QuestionResponse[]
 
   @@map("property_type")
@@ -54,7 +54,7 @@ model Section {
 
   strataSections          StrataSection[]
   strataProfileSections   StrataProfileSection[]
-  serviceRequestDocuments ServiceRequestDocument[]
+  fileNumberDocuments FileNumberDocument[]
 
   @@map("section")
   @@schema("public")
@@ -66,7 +66,7 @@ model Service {
   serviceDescription String?         @map("service_description") @db.Text
 
   appointmentTypes AppointmentType[]
-  serviceRequests  ServiceRequest[]
+  fileNumbers  FileNumber[]
 
   questionServices  QuestionService[]
 
@@ -95,17 +95,17 @@ model Profile {
   strataProfiles StrataProfile[]
   strataNotes    StrataNotes[]
 
-  requestedServiceRequests ServiceRequest[]     @relation("RequestedByProfile")
+  requestedFileNumbers FileNumber[]     @relation("RequestedByProfile")
   requestedAppointments    AppointmentRequest[] @relation("AppointmentRequestedBy")
   reviewedAppointments     AppointmentReview[]  @relation("ReviewedByProfile")
   inspectorAppointments    Appointment[]        @relation("InspectorAppointments")
-  offerInspectorRequests        ServiceRequest[]     @relation("OfferInspector")
-  offerSecondInspectorRequests  ServiceRequest[]     @relation("OfferSecondInspector")
+  offerInspectorRequests        FileNumber[]     @relation("OfferInspector")
+  offerSecondInspectorRequests  FileNumber[]     @relation("OfferSecondInspector")
 
   inspectorAvailableDates InspectorAvailableDate[] @relation("InspectorAvailableDates")
 
   questionResponses QuestionResponse[]       @relation("AnsweredByProfile")
-  uploadedDocuments ServiceRequestDocument[] @relation("UploadedByProfile")
+  uploadedDocuments FileNumberDocument[] @relation("UploadedByProfile")
 
   reviewedPropertyTypeRequests PropertyTypeRequest[] @relation("ReviewedPropertyTypeRequests")
 
@@ -153,7 +153,7 @@ model Strata {
   strataSections StrataSection[]
   strataPropertyTypes StrataPropertyType[]
 
-  serviceRequests ServiceRequest[]
+  fileNumbers FileNumber[]
 
   @@map("strata")
   @@schema("public")
@@ -276,7 +276,7 @@ model ReviewStatus {
   statusName     String @unique @map("status_name") @db.VarChar(50)
 
   appointmentReviews      AppointmentReview[]
-  serviceRequestDocuments ServiceRequestDocument[]
+  fileNumberDocuments FileNumberDocument[]
 
   @@map("review_status")
   @@schema("public")
@@ -312,7 +312,7 @@ model AppointmentType {
   appointmentTypeTimeSlots AppointmentTypeTimeSlot[]
   appointmentRequests      AppointmentRequest[]
   appointments             Appointment[]
-  offerServiceRequests     ServiceRequest[]      @relation("OfferAppointmentType")
+  offerFileNumbers     FileNumber[]      @relation("OfferAppointmentType")
 
   @@map("appointment_type")
   @@schema("public")
@@ -332,11 +332,11 @@ model AppointmentTypeTimeSlot {
 }
 
 // ============================================
-// Service Request Tables
+// File Number Tables
 // ============================================
 
-model ServiceRequest {
-  serviceRequestId       Int       @id @default(autoincrement()) @map("service_request_id")
+model FileNumber {
+  fileNumberId       Int       @id @default(autoincrement()) @map("file_number_id")
   requestDate            DateTime  @default(now()) @map("request_date") @db.Timestamptz
   status                 String    @db.VarChar(50)
   submittedForReviewDate DateTime? @map("submitted_for_review_date") @db.Timestamptz
@@ -373,25 +373,25 @@ model ServiceRequest {
   appointments           Appointment[]
 
   questionResponses       QuestionResponse[]
-  serviceRequestDocuments ServiceRequestDocument[]
-  documentRequirements    ServiceRequestDocumentRequirement[]
-  surveyRequirements      ServiceRequestSurveyRequirement[]
-  srSurveyQuestions       SrSurveyQuestion[]
+  fileNumberDocuments FileNumberDocument[]
+  documentRequirements    FileNumberDocumentRequirement[]
+  surveyRequirements      FileNumberSurveyRequirement[]
+  fnSurveyQuestions       FnSurveyQuestion[]
 
-  @@map("service_request")
+  @@map("file_number")
   @@schema("public")
 }
 
-model ServiceRequestSurveyRequirement {
-  srSurveyRequirementId Int @id @default(autoincrement()) @map("sr_survey_requirement_id")
-  serviceRequestId      Int @map("service_request_id")
+model FileNumberSurveyRequirement {
+  fnSurveyRequirementId Int @id @default(autoincrement()) @map("fn_survey_requirement_id")
+  fileNumberId      Int @map("file_number_id")
   propertyTypeId        Int @map("property_type_id")
 
-  serviceRequest ServiceRequest @relation(fields: [serviceRequestId], references: [serviceRequestId], onDelete: Cascade)
+  fileNumber FileNumber @relation(fields: [fileNumberId], references: [fileNumberId], onDelete: Cascade)
   propertyType   PropertyType   @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: Cascade)
 
-  @@unique([serviceRequestId, propertyTypeId])
-  @@map("sr_survey_requirement")
+  @@unique([fileNumberId, propertyTypeId])
+  @@map("fn_survey_requirement")
   @@schema("public")
 }
 
@@ -406,13 +406,13 @@ model AppointmentRequest {
   specialRequirements    String?   @map("special_requirements") @db.Text
   status                 String    @db.VarChar(50)
   requestDate            DateTime  @default(now()) @map("request_date") @db.Timestamptz
-  serviceRequestId       Int       @map("service_request_id")
+  fileNumberId       Int       @map("file_number_id")
   appointmentTypeId      Int       @map("appointment_type_id")
   firstChoiceTimeSlotId  Int       @map("first_choice_time_slot_id")
   secondChoiceTimeSlotId Int?      @map("second_choice_time_slot_id")
   requestedByProfileId   String    @map("requested_by_profile_id") @db.Uuid
 
-  serviceRequest       ServiceRequest       @relation(fields: [serviceRequestId], references: [serviceRequestId], onDelete: Cascade)
+  fileNumber       FileNumber       @relation(fields: [fileNumberId], references: [fileNumberId], onDelete: Cascade)
   appointmentType      AppointmentType      @relation(fields: [appointmentTypeId], references: [appointmentTypeId], onDelete: Cascade)
   firstChoiceTimeSlot  AppointmentTimeSlot  @relation("FirstChoiceTimeSlot", fields: [firstChoiceTimeSlotId], references: [timeSlotId], onDelete: Cascade)
   secondChoiceTimeSlot AppointmentTimeSlot? @relation("SecondChoiceTimeSlot", fields: [secondChoiceTimeSlotId], references: [timeSlotId], onDelete: SetNull)
@@ -455,13 +455,13 @@ model Appointment {
   cancellationReason   String?   @map("cancellation_reason") @db.Text
   rescheduleReason     String?   @map("reschedule_reason") @db.Text
   appointmentRequestId Int?      @map("appointment_request_id")
-  serviceRequestId     Int       @map("service_request_id")
+  fileNumberId     Int       @map("file_number_id")
   appointmentTypeId    Int       @map("appointment_type_id")
   timeSlotId           Int       @map("time_slot_id")
   inspectorProfileId   String?   @map("inspector_profile_id") @db.Uuid
 
   appointmentRequest AppointmentRequest?  @relation(fields: [appointmentRequestId], references: [appointmentRequestId], onDelete: Cascade)
-  serviceRequest     ServiceRequest      @relation(fields: [serviceRequestId], references: [serviceRequestId], onDelete: Cascade)
+  fileNumber     FileNumber      @relation(fields: [fileNumberId], references: [fileNumberId], onDelete: Cascade)
   appointmentType    AppointmentType     @relation(fields: [appointmentTypeId], references: [appointmentTypeId], onDelete: Cascade)
   timeSlot           AppointmentTimeSlot @relation(fields: [timeSlotId], references: [timeSlotId], onDelete: Cascade)
   inspector          Profile?            @relation("InspectorAppointments", fields: [inspectorProfileId], references: [id], onDelete: SetNull)
@@ -565,7 +565,7 @@ model Question {
   multipleChoiceOptions MultipleChoiceOption[]
   questionPropertyTypes QuestionPropertyType[]
   questionResponses     QuestionResponse[]
-  srSurveyQuestions     SrSurveyQuestion[]
+  fnSurveyQuestions     FnSurveyQuestion[]
 
   @@map("question")
   @@schema("public")
@@ -622,13 +622,13 @@ model QuestionResponse {
   createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
   archivedAt             DateTime? @map("archived_at") @db.Timestamptz
-  serviceRequestId       Int       @map("service_request_id")
+  fileNumberId       Int       @map("file_number_id")
   answeredByProfileId    String    @map("answered_by_profile_id") @db.Uuid
   questionId             Int       @map("question_id")
   propertyTypeId         Int       @map("property_type_id")
   multipleChoiceOptionId Int?      @map("multiple_choice_option_id")
 
-  serviceRequest       ServiceRequest        @relation(fields: [serviceRequestId], references: [serviceRequestId], onDelete: Cascade)
+  fileNumber       FileNumber        @relation(fields: [fileNumberId], references: [fileNumberId], onDelete: Cascade)
   answeredBy           Profile               @relation("AnsweredByProfile", fields: [answeredByProfileId], references: [id], onDelete: Cascade)
   question             Question              @relation(fields: [questionId], references: [questionId], onDelete: Cascade)
   propertyType         PropertyType          @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: Cascade)
@@ -638,18 +638,18 @@ model QuestionResponse {
   @@schema("public")
 }
 
-model SrSurveyQuestion {
-  srSurveyQuestionId Int @id @default(autoincrement()) @map("sr_survey_question_id")
-  serviceRequestId   Int @map("service_request_id")
+model FnSurveyQuestion {
+  fnSurveyQuestionId Int @id @default(autoincrement()) @map("fn_survey_question_id")
+  fileNumberId   Int @map("file_number_id")
   questionId         Int @map("question_id")
   propertyTypeId     Int @map("property_type_id")
 
-  serviceRequest ServiceRequest @relation(fields: [serviceRequestId], references: [serviceRequestId], onDelete: Cascade)
+  fileNumber FileNumber @relation(fields: [fileNumberId], references: [fileNumberId], onDelete: Cascade)
   question       Question       @relation(fields: [questionId], references: [questionId], onDelete: Cascade)
   propertyType   PropertyType   @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: Cascade)
 
-  @@unique([serviceRequestId, questionId, propertyTypeId])
-  @@map("sr_survey_question")
+  @@unique([fileNumberId, questionId, propertyTypeId])
+  @@map("fn_survey_question")
   @@schema("public")
 }
 
@@ -661,52 +661,52 @@ model DocumentType {
   documentTypeId          Int                      @id @default(autoincrement()) @map("document_type_id")
   typeName                String                   @unique @map("type_name") @db.VarChar(100)
   createdAt               DateTime                 @default(now()) @map("created_at") @db.Timestamptz
-  serviceRequestDocuments ServiceRequestDocument[]
-  srDocRequirements       ServiceRequestDocumentRequirement[]
+  fileNumberDocuments FileNumberDocument[]
+  fnDocRequirements       FileNumberDocumentRequirement[]
 
   @@map("document_type")
   @@schema("public")
 }
 
-model ServiceRequestDocument {
-  serviceRequestDocumentId Int      @id @default(autoincrement()) @map("service_request_document_id")
+model FileNumberDocument {
+  fileNumberDocumentId Int      @id @default(autoincrement()) @map("file_number_document_id")
   filePath                 String   @map("file_path") @db.VarChar(500)
   fileName                 String   @map("file_name") @db.VarChar(255)
   fileSize                 Int      @map("file_size")
   uploadedAt               DateTime @default(now()) @map("uploaded_at") @db.Timestamptz
   notes                    String?  @db.Text
-  serviceRequestId         Int      @map("service_request_id")
+  fileNumberId         Int      @map("file_number_id")
   documentTypeId           Int      @map("document_type_id")
   uploadedByProfileId      String   @map("uploaded_by_profile_id") @db.Uuid
   reviewStatusId           Int?     @map("review_status_id")
   sectionId                Int?     @map("section_id")
   propertyTypeId           Int?     @map("property_type_id")
 
-  serviceRequest ServiceRequest @relation(fields: [serviceRequestId], references: [serviceRequestId], onDelete: Cascade)
+  fileNumber FileNumber @relation(fields: [fileNumberId], references: [fileNumberId], onDelete: Cascade)
   documentType   DocumentType   @relation(fields: [documentTypeId], references: [documentTypeId], onDelete: Cascade)
   uploadedBy     Profile        @relation("UploadedByProfile", fields: [uploadedByProfileId], references: [id], onDelete: Cascade)
   reviewStatus   ReviewStatus?  @relation(fields: [reviewStatusId], references: [reviewStatusId], onDelete: SetNull)
   section        Section?       @relation(fields: [sectionId], references: [sectionId], onDelete: SetNull)
   propertyType   PropertyType?  @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: SetNull)
 
-  @@map("service_request_document")
+  @@map("file_number_document")
   @@schema("public")
 }
 
-model ServiceRequestDocumentRequirement {
-  srDocRequirementId Int     @id @default(autoincrement()) @map("sr_doc_requirement_id")
-  serviceRequestId   Int     @map("service_request_id")
+model FileNumberDocumentRequirement {
+  fnDocRequirementId Int     @id @default(autoincrement()) @map("fn_doc_requirement_id")
+  fileNumberId   Int     @map("file_number_id")
   documentTypeId     Int     @map("document_type_id")
   propertyTypeId     Int?    @map("property_type_id")
   isRequired         Boolean @default(true) @map("is_required")
   quantity           Int     @default(1)
   notes              String? @db.Text
 
-  serviceRequest ServiceRequest @relation(fields: [serviceRequestId], references: [serviceRequestId], onDelete: Cascade)
+  fileNumber FileNumber @relation(fields: [fileNumberId], references: [fileNumberId], onDelete: Cascade)
   documentType   DocumentType   @relation(fields: [documentTypeId], references: [documentTypeId], onDelete: Cascade)
   propertyType   PropertyType?  @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: SetNull)
 
-  @@unique([serviceRequestId, documentTypeId, propertyTypeId])
-  @@map("sr_document_requirement")
+  @@unique([fileNumberId, documentTypeId, propertyTypeId])
+  @@map("fn_document_requirement")
   @@schema("public")
 }
