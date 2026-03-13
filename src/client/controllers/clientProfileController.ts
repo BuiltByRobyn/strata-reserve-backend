@@ -1,5 +1,6 @@
 import { success, error, asyncHandler } from '../../shared/helpers/responseHelper';
 import prisma from '../../shared/lib/prismaClient';
+import * as propertyTypeRequestService from '../../shared/services/propertyTypeRequestService';
 
 export const getClientProfile = asyncHandler(async (c) => {
   const user = c.get('user');
@@ -11,6 +12,13 @@ export const getClientProfile = asyncHandler(async (c) => {
         include: {
           strata: {
             select: { strataPlan: true, complexName: true }
+          },
+          strataProfilePropertyTypes: {
+            include: {
+              propertyType: {
+                select: { propertyTypeId: true, propertyTypeName: true }
+              }
+            }
           }
         },
         take: 1
@@ -32,6 +40,7 @@ export const getClientProfile = asyncHandler(async (c) => {
     companyName: profile.companyName,
     strataPlan: strataProfile?.strata?.strataPlan || null,
     strataPosition: strataProfile?.strataPosition || null,
+    propertyTypes: strataProfile?.strataProfilePropertyTypes?.map((p) => p.propertyType) ?? [],
     role: 'client'
   });
 }, 'Failed to fetch client profile');
@@ -46,6 +55,7 @@ export const updateClientProfile = asyncHandler(async (c) => {
       firstName: body.firstName,
       lastName: body.lastName,
       phoneNumber: body.phoneNumber,
+      ...(body.companyName !== undefined && { companyName: body.companyName || null }),
     }
   });
 
@@ -67,3 +77,34 @@ export const updateClientProfile = asyncHandler(async (c) => {
     }
   });
 }, 'Failed to update client profile');
+
+export const requestSectionChange = asyncHandler(async (c) => {
+  const user = c.get('user');
+  const { propertyTypeIds } = await c.req.json<{ propertyTypeIds: number[] }>();
+
+  if (!propertyTypeIds || propertyTypeIds.length === 0) {
+    return error(c, 'At least one property type must be selected', 400);
+  }
+
+  const strataProfile = await prisma.strataProfile.findFirst({
+    where: { profileId: user.id }
+  });
+
+  if (!strataProfile) {
+    return error(c, 'Strata profile not found', 404);
+  }
+
+  try {
+    const request = await propertyTypeRequestService.create(
+      strataProfile.strataProfileId,
+      propertyTypeIds
+    );
+    return success(c, request);
+  } catch (err: unknown) {
+    const typed = err as Error & { code?: string };
+    if (typed?.code === 'DUPLICATE') {
+      return error(c, typed.message, 400);
+    }
+    throw err;
+  }
+}, 'Failed to submit section change request');
