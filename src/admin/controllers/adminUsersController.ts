@@ -1,6 +1,5 @@
 import * as userService from '../../shared/services/userService';
 import { success, created, error, asyncHandler } from '../../shared/helpers/responseHelper';
-import { sendWelcomeEmail } from '../../shared/lib/emailService';
 import { supabase } from '../../shared/lib/supabaseClient';
 import type { CreateUserInput, UpdateUserInput } from '../../shared/types/user.types';
 
@@ -32,18 +31,6 @@ export const createUser = asyncHandler(async (c) => {
   }
 
   const user = await userService.createUser(body);
-
-  // Send welcome email with login link (non-blocking)
-  try {
-    const { data: linkData } = await supabase.auth.admin.generateLink({
-      type: 'recovery',
-      email,
-    });
-    const loginLink = linkData?.properties?.action_link ?? undefined;
-    await sendWelcomeEmail({ to: email, firstName, loginLink });
-  } catch (emailErr) {
-    console.error('Failed to send welcome email:', emailErr);
-  }
 
   return created(c, user);
 }, 'Failed to create user');

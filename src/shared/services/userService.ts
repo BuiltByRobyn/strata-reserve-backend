@@ -85,16 +85,17 @@ export const getUserById = async (id: string) => {
 };
 
 export const createUser = async (data: CreateUserInput) => {
-  const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-    email: data.email,
-    email_confirm: true,
-    user_metadata: {
-      first_name: data.firstName,
-      last_name: data.lastName,
-      display_name: `${data.firstName} ${data.lastName}`,
-      must_change_password: true
+  const { data: authData, error: authError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+    data.email,
+    {
+      data: {
+        first_name: data.firstName,
+        last_name: data.lastName,
+        display_name: `${data.firstName} ${data.lastName}`,
+        must_change_password: true
+      }
     }
-  });
+  );
 
   if (authError) {
     throw authError;
