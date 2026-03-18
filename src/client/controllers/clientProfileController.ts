@@ -11,7 +11,17 @@ export const getClientProfile = asyncHandler(async (c) => {
       strataProfiles: {
         include: {
           strata: {
-            select: { strataPlan: true, complexName: true }
+            select: {
+              strataPlan: true,
+              complexName: true,
+              strataPropertyTypes: {
+                include: {
+                  propertyType: {
+                    select: { propertyTypeId: true, propertyTypeName: true }
+                  }
+                }
+              }
+            }
           },
           strataProfilePropertyTypes: {
             include: {
@@ -32,6 +42,12 @@ export const getClientProfile = asyncHandler(async (c) => {
 
   const strataProfile = profile.strataProfiles[0];
 
+  const strataPropertyTypes = strataProfile?.strata?.strataPropertyTypes?.map((s) => s.propertyType) ?? [];
+  const strataPropertyTypeIds = new Set(strataPropertyTypes.map((p) => p.propertyTypeId));
+  const propertyTypes = (strataProfile?.strataProfilePropertyTypes ?? [])
+    .map((p) => p.propertyType)
+    .filter((p) => strataPropertyTypeIds.has(p.propertyTypeId));
+
   return success(c, {
     firstName: profile.firstName,
     lastName: profile.lastName,
@@ -40,7 +56,8 @@ export const getClientProfile = asyncHandler(async (c) => {
     companyName: profile.companyName,
     strataPlan: strataProfile?.strata?.strataPlan || null,
     strataPosition: strataProfile?.strataPosition || null,
-    propertyTypes: strataProfile?.strataProfilePropertyTypes?.map((p) => p.propertyType) ?? [],
+    propertyTypes,
+    strataPropertyTypes,
     role: 'client'
   });
 }, 'Failed to fetch client profile');
