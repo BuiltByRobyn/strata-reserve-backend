@@ -1,8 +1,11 @@
 import * as inspectorAvailabilityService from '../../shared/services/inspectorAvailabilityService';
 import { success, created, error, asyncHandler, getByIdHandler } from '../../shared/helpers/responseHelper';
 import { parseIntParam } from '../../shared/helpers/parseParams';
-import { VALID_LOCATION_CODES } from '../../shared/constants/validation';
+import { VALID_LOCATION_CODES, LOCATION_CODE_MAP } from '../../shared/constants/validation';
 import { toUTCDate } from '../../shared/helpers/dateUtils';
+
+const normalizeLocationCodes = (codes: string[] | undefined) =>
+  codes?.map(c => LOCATION_CODE_MAP[c] ?? c);
 
 const validateLocationCodes = (locationCodes: string[] | undefined): string | null => {
   if (!locationCodes?.length) return null;
@@ -29,7 +32,8 @@ export const createAvailableDate = asyncHandler(async (c) => {
     return error(c, 'Start date, end date, and inspector profile ID are required', 400);
   }
 
-  const locationError = validateLocationCodes(locationCodes);
+  const normalizedCodes = normalizeLocationCodes(locationCodes);
+  const locationError = validateLocationCodes(normalizedCodes);
   if (locationError) {
     return error(c, locationError, 400);
   }
@@ -40,7 +44,7 @@ export const createAvailableDate = asyncHandler(async (c) => {
     availableStartTime: availableStartTime ? new Date(`1970-01-01T${availableStartTime}Z`) : null,
     availableEndTime: availableEndTime ? new Date(`1970-01-01T${availableEndTime}Z`) : null,
     inspectorProfileId,
-    locationCodes: locationCodes || [],
+    locationCodes: normalizedCodes || [],
   });
   return created(c, newAvailableDate);
 }, 'Failed to create available date');
@@ -50,7 +54,8 @@ export const updateAvailableDate = asyncHandler(async (c) => {
   const body = await c.req.json();
   const { availableStartDate, availableEndDate, availableStartTime, availableEndTime, locationCodes } = body;
 
-  const locationError = validateLocationCodes(locationCodes);
+  const normalizedCodes = normalizeLocationCodes(locationCodes);
+  const locationError = validateLocationCodes(normalizedCodes);
   if (locationError) {
     return error(c, locationError, 400);
   }
@@ -71,7 +76,7 @@ export const updateAvailableDate = asyncHandler(async (c) => {
   if (availableEndTime !== undefined) {
     updateData.availableEndTime = availableEndTime ? new Date(`1970-01-01T${availableEndTime}Z`) : null;
   }
-  if (locationCodes !== undefined) updateData.locationCodes = locationCodes;
+  if (normalizedCodes !== undefined) updateData.locationCodes = normalizedCodes;
 
   try {
     const updatedAvailableDate = await inspectorAvailabilityService.updateAvailableDate(id, updateData);

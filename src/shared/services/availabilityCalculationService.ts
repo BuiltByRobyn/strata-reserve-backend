@@ -45,12 +45,13 @@ export async function getAvailableSlots(
   });
   if (!sr) throw new Error('Service request not found');
 
-  const locationCode = sr.strata.location?.locationCode;
+  const locationCode = isDraftMeeting ? 'Virtual' : sr.strata.location?.locationCode;
 
-  // If inspector(s) are assigned via offer, only show their availability
   const assignedInspectorIds: string[] = [];
-  if (sr.appointmentOfferInspectorId) assignedInspectorIds.push(sr.appointmentOfferInspectorId);
-  if (sr.appointmentOfferSecondInspectorId) assignedInspectorIds.push(sr.appointmentOfferSecondInspectorId);
+  if (!isDraftMeeting) {
+    if (sr.appointmentOfferInspectorId) assignedInspectorIds.push(sr.appointmentOfferInspectorId);
+    if (sr.appointmentOfferSecondInspectorId) assignedInspectorIds.push(sr.appointmentOfferSecondInspectorId);
+  }
 
   const start = new Date(startDate + 'T00:00:00Z');
   const end = new Date(endDate + 'T00:00:00Z');
@@ -169,7 +170,6 @@ export async function getAvailableSlots(
     const availableSlots: AvailableSlot[] = [];
 
     for (const slot of timeSlots) {
-      if (isDraftMeeting && slot.slotTime !== '18:00') continue;
       if (!isDraftMeeting && slot.slotTime === '18:00') continue;
 
       const slotKey = `${dateStr}_${slot.timeSlotId}`;
@@ -232,12 +232,14 @@ export async function getAvailableSlots(
 }
 
 export async function isDraftMeetingEligible(fileNumberId: number): Promise<boolean> {
-  const completedInspection = await prisma.appointment.findFirst({
-    where: {
-      fileNumberId,
-      status: 'Completed',
-      appointmentType: { isDraftMeeting: false }
-    }
-  });
-  return !!completedInspection;
+  const [completedInspection, fn] = await Promise.all([
+    prisma.appointment.findFirst({
+      where: { fileNumberId, status: 'Completed', appointmentType: { isDraftMeeting: false } }
+    }),
+    prisma.fileNumber.findUnique({
+      where: { fileNumberId },
+      include: { appointmentOfferType: { select: { isDraftMeeting: true } } }
+    })
+  ]);
+  return !!completedInspection || !!fn?.appointmentOfferType?.isDraftMeeting;
 }
