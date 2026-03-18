@@ -3,6 +3,7 @@ import { parseIntParam } from '../../shared/helpers/parseParams';
 import { isWithin48Hours } from '../../shared/helpers/dateUtils';
 import { getAvailableSlots, isDraftMeetingEligible } from '../../shared/services/availabilityCalculationService';
 import prisma from '../../shared/lib/prismaClient';
+import type { AppointmentNotification } from '../../shared/types/appointment.types';
 
 export const getAvailability = asyncHandler(async (c) => {
   const startDate = c.req.query('startDate');
@@ -55,56 +56,72 @@ export const createAppointmentRequest = asyncHandler(async (c) => {
     return error(c, 'A pending appointment request already exists', 400);
   }
 
-  const result = await prisma.$transaction(async (tx) => {
-    const availability = await getAvailableSlots(
-      firstChoiceDate,
-      secondChoiceDate || firstChoiceDate,
-      parseInt(fileNumberId),
-      false
-    );
-
-    const firstAvailable = availability.find(d =>
-      d.date === firstChoiceDate && d.slots.some(s => s.timeSlotId === parseInt(firstChoiceTimeSlotId))
-    );
-
-    if (!firstAvailable) {
-      throw new Error('First choice slot is no longer available');
-    }
-
-    if (secondChoiceDate && secondChoiceTimeSlotId) {
-      const secondAvailable = availability.find(d =>
-        d.date === secondChoiceDate && d.slots.some(s => s.timeSlotId === parseInt(secondChoiceTimeSlotId))
-      );
-      if (!secondAvailable) {
-        throw new Error('Second choice slot is no longer available');
-      }
-    }
-
-    // Clear rebooking reminder flag when client books a new appointment
-    await tx.fileNumber.update({
-      where: { fileNumberId: parseInt(fileNumberId) },
-      data: { rebookingRequestedAt: null }
-    });
-
-    return tx.appointmentRequest.create({
-      data: {
-        fileNumberId: parseInt(fileNumberId),
-        appointmentTypeId: parseInt(appointmentTypeId),
-        firstChoiceDate: new Date(firstChoiceDate + 'T00:00:00Z'),
-        firstChoiceTimeSlotId: parseInt(firstChoiceTimeSlotId),
-        secondChoiceDate: secondChoiceDate ? new Date(secondChoiceDate + 'T00:00:00Z') : null,
-        secondChoiceTimeSlotId: secondChoiceTimeSlotId ? parseInt(secondChoiceTimeSlotId) : null,
-        specialRequirements: specialRequirements?.trim() || null,
-        status: 'Pending Review',
-        requestedByProfileId: user.id,
-      },
-      include: {
-        firstChoiceTimeSlot: true,
-        secondChoiceTimeSlot: true,
-        appointmentType: true,
-      }
-    });
+  const aptType = await prisma.appointmentType.findUnique({
+    where: { appointmentTypeId: parseInt(appointmentTypeId) },
+    select: { isDraftMeeting: true }
   });
+  const isDraftMeeting = aptType?.isDraftMeeting ?? false;
+
+  let result;
+  try {
+    result = await prisma.$transaction(async (tx) => {
+      const availability = await getAvailableSlots(
+        firstChoiceDate,
+        secondChoiceDate || firstChoiceDate,
+        parseInt(fileNumberId),
+        isDraftMeeting
+      );
+
+      const firstAvailable = availability.find(d =>
+        d.date === firstChoiceDate && d.slots.some(s => s.timeSlotId === parseInt(firstChoiceTimeSlotId))
+      );
+
+      if (!firstAvailable) {
+        throw new Error('The selected time slot is no longer available. Please choose a different date or time.');
+      }
+
+      if (secondChoiceDate && secondChoiceTimeSlotId) {
+        const secondAvailable = availability.find(d =>
+          d.date === secondChoiceDate && d.slots.some(s => s.timeSlotId === parseInt(secondChoiceTimeSlotId))
+        );
+        if (!secondAvailable) {
+          throw new Error('Your second choice slot is no longer available. Please choose a different date or time.');
+        }
+      }
+
+      await tx.fileNumber.update({
+        where: { fileNumberId: parseInt(fileNumberId) },
+        data: { rebookingRequestedAt: null }
+      });
+
+      return tx.appointmentRequest.create({
+        data: {
+          fileNumberId: parseInt(fileNumberId),
+          appointmentTypeId: parseInt(appointmentTypeId),
+          firstChoiceDate: new Date(firstChoiceDate + 'T00:00:00Z'),
+          firstChoiceTimeSlotId: parseInt(firstChoiceTimeSlotId),
+          secondChoiceDate: secondChoiceDate ? new Date(secondChoiceDate + 'T00:00:00Z') : null,
+          secondChoiceTimeSlotId: secondChoiceTimeSlotId ? parseInt(secondChoiceTimeSlotId) : null,
+          specialRequirements: specialRequirements?.trim() || null,
+          status: 'Pending Review',
+          requestedByProfileId: user.id,
+        },
+        include: {
+          firstChoiceTimeSlot: true,
+          secondChoiceTimeSlot: true,
+          appointmentType: true,
+        }
+      });
+    });
+  } catch (err: any) {
+    if (
+      err.message?.includes('is no longer available') ||
+      err.message?.includes('Please choose a different')
+    ) {
+      return error(c, err.message, 400);
+    }
+    throw err;
+  }
 
   return success(c, result, 201);
 }, 'Failed to create appointment request');
@@ -154,8 +171,32 @@ export const getActiveAppointment = asyncHandler(async (c) => {
   });
 
   if (appointment) {
+    const dateStr = appointment.appointmentDate.toISOString().split('T')[0];
+    const [startHour, startMin] = appointment.timeSlot.slotTime.split(':').map(Number);
+    const isDraft = appointment.appointmentType.isDraftMeeting;
+    const isFullDay = appointment.appointmentType.durationType === 'Full Day';
+    const endHour = isDraft ? startHour : isFullDay ? 18 : startHour + 4;
+    const endMin = isDraft ? startMin + 30 : 0;
+    const appointmentEnd = new Date(
+      `${dateStr}T${String(endHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')}:00Z`
+    );
+
+    if (appointmentEnd < new Date()) {
+      await prisma.appointment.update({
+        where: { appointmentId: appointment.appointmentId },
+        data: { status: 'Completed', completedAt: new Date() }
+      });
+      if (isDraft) return success(c, { type: 'completed_draft' });
+      return success(c, null);
+    }
     return success(c, { type: 'scheduled', data: appointment });
   }
+
+  const completedDraft = await prisma.appointment.findFirst({
+    where: { fileNumberId: sr.fileNumberId, status: 'Completed', appointmentType: { isDraftMeeting: true } },
+    select: { appointmentId: true }
+  });
+  if (completedDraft) return success(c, { type: 'completed_draft' });
 
   return success(c, null);
 }, 'Failed to fetch active appointment');
@@ -290,3 +331,88 @@ export const getDraftMeetingEligibility = asyncHandler(async (c) => {
   const eligible = await isDraftMeetingEligible(parseInt(fileNumberId));
   return success(c, { eligible });
 }, 'Failed to check draft meeting eligibility');
+
+export const getNotifications = asyncHandler(async (c) => {
+  const user = c.get('user');
+
+  const sr = await prisma.fileNumber.findFirst({
+    where: {
+      archived: false,
+      OR: [
+        { strata: { strataProfiles: { some: { profileId: user.id } } } },
+        { requestedByProfileId: user.id }
+      ]
+    },
+    select: { fileNumberId: true }
+  });
+
+  if (!sr) return success(c, []);
+
+  const oneWeekAgo = new Date();
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+  const [approvedRequests, rejectedRequests, cancelledAppointments, rescheduledAppointments] = await Promise.all([
+    prisma.appointmentRequest.findMany({
+      where: { fileNumberId: sr.fileNumberId, status: 'Approved', requestDate: { gte: oneWeekAgo } },
+      orderBy: { requestDate: 'desc' },
+      select: { appointmentRequestId: true, requestDate: true }
+    }),
+    prisma.appointmentRequest.findMany({
+      where: { fileNumberId: sr.fileNumberId, status: 'Rejected', requestDate: { gte: oneWeekAgo } },
+      orderBy: { requestDate: 'desc' },
+      include: {
+        appointmentReviews: {
+          orderBy: { reviewDate: 'desc' },
+          take: 1,
+          select: { rejectionReason: true, reviewDate: true }
+        }
+      }
+    }),
+    prisma.appointment.findMany({
+      where: { fileNumberId: sr.fileNumberId, status: 'Cancelled', appointmentDate: { gte: oneWeekAgo } },
+      orderBy: { appointmentDate: 'desc' },
+      select: { appointmentId: true, appointmentDate: true, cancellationReason: true }
+    }),
+    prisma.appointment.findMany({
+      where: { fileNumberId: sr.fileNumberId, status: 'Rescheduled', appointmentDate: { gte: oneWeekAgo } },
+      orderBy: { appointmentDate: 'desc' },
+      select: { appointmentId: true, appointmentDate: true, rescheduleReason: true }
+    })
+  ]);
+
+  const notifications: AppointmentNotification[] = [
+    ...approvedRequests.map(r => ({
+      type: 'request_approved' as const,
+      message: 'Your appointment request was approved.',
+      reason: null,
+      date: r.requestDate.toISOString()
+    })),
+    ...rejectedRequests.map(r => ({
+      type: 'request_rejected' as const,
+      message: 'Your appointment request was rejected.',
+      reason: r.appointmentReviews[0]?.rejectionReason ?? null,
+      date: (r.appointmentReviews[0]?.reviewDate ?? r.requestDate).toISOString()
+    })),
+    ...cancelledAppointments.map(a => ({
+      type: 'appointment_cancelled' as const,
+      message: 'Your appointment was cancelled.',
+      reason: a.cancellationReason,
+      date: a.appointmentDate.toISOString()
+    })),
+    ...rescheduledAppointments.map(a => ({
+      type: 'appointment_rescheduled' as const,
+      message: 'Your appointment has been rescheduled.',
+      reason: a.rescheduleReason,
+      date: a.appointmentDate.toISOString()
+    }))
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const seen = new Set<string>();
+  const deduped = notifications.filter((n) => {
+    if (seen.has(n.type)) return false;
+    seen.add(n.type);
+    return true;
+  });
+
+  return success(c, deduped);
+}, 'Failed to fetch notifications');

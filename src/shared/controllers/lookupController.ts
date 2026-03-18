@@ -46,3 +46,8 @@ export const getLocations = asyncHandler(async (c) => {
   const locations = await lookupService.getLocations();
   return success(c, locations);
 }, 'Failed to fetch locations');
+
+export const getAppointmentTypes = asyncHandler(async (c) => {
+  const appointmentTypes = await lookupService.getAppointmentTypes();
+  return success(c, appointmentTypes);
+}, 'Failed to fetch appointment types');
