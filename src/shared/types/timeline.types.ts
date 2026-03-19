@@ -5,4 +5,5 @@ export interface UpdateTimelinesInput {
   lastDepreciationReportDate?: string | null;
   noReportToDate?: boolean;
   targetDate?: string | null;
+  timelinesSubmittedAt?: string | null;
 }

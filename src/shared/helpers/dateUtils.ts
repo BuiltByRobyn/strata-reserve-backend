@@ -25,6 +25,28 @@ export function formatDateStr(date: Date): string {
 }
 
 /**
+ * Given a base date, return the most recent anniversary (same month/day) that is
+ * on or before today (UTC). Clamps Feb 29 to Feb 28 in non-leap years.
+ */
+export function mostRecentAnniversary(baseDate: Date): Date {
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  const month = baseDate.getUTCMonth();
+  const day = baseDate.getUTCDate();
+  let year = today.getUTCFullYear();
+
+  for (let i = 0; i < 10; i++) {
+    let candidate = new Date(Date.UTC(year, month, day));
+    if (candidate.getUTCMonth() !== month) {
+      candidate = new Date(Date.UTC(year, month + 1, 0));
+    }
+    if (candidate <= today) return candidate;
+    year--;
+  }
+  return baseDate;
+}
+
+/**
  * Format an ISO date string as "DD Month YYYY" (e.g. "01 January 2024").
  * Uses en-GB locale. Returns the raw input if the date is invalid.
  */

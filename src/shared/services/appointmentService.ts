@@ -12,7 +12,7 @@ export const getAppointments = async () => {
       },
       fileNumber: {
         select: {
-          fileNumberId: true,
+          fileId: true,
           strata: {
             select: { strataId: true, complexName: true, strataPlan: true, town: true, location: { select: { locationId: true, locationName: true } } }
           },
@@ -111,10 +111,10 @@ export const rescheduleAppointment = async (
   options?: { inspectorProfileId?: string; secondInspectorProfileId?: string; reason?: string }
 ) => {
   if (options?.secondInspectorProfileId !== undefined) {
-    const apt = await prisma.appointment.findUnique({ where: { appointmentId: id }, select: { fileNumberId: true } });
+    const apt = await prisma.appointment.findUnique({ where: { appointmentId: id }, select: { fileId: true } });
     if (apt) {
       await prisma.fileNumber.update({
-        where: { fileNumberId: apt.fileNumberId },
+        where: { fileId: apt.fileId },
         data: { appointmentOfferSecondInspectorId: options.secondInspectorProfileId || null },
       });
     }
@@ -135,13 +135,13 @@ export const rescheduleAppointment = async (
 export const requestRebooking = async (appointmentId: number) => {
   const apt = await prisma.appointment.findUnique({
     where: { appointmentId },
-    select: { fileNumberId: true, status: true }
+    select: { fileId: true, status: true }
   });
   if (!apt) throw new Error('Appointment not found');
   if (apt.status !== 'Cancelled') throw new Error('Only cancelled appointments can request rebooking');
 
   await prisma.fileNumber.update({
-    where: { fileNumberId: apt.fileNumberId },
+    where: { fileId: apt.fileId },
     data: { rebookingRequestedAt: new Date() }
   });
   return { success: true };
@@ -160,7 +160,7 @@ export const getAppointmentRequests = async (status?: string) => {
       },
       fileNumber: {
         select: {
-          fileNumberId: true,
+          fileId: true,
           status: true,
           requestDate: true,
           strata: {
@@ -196,7 +196,7 @@ export const getAppointmentRequestById = async (id: number) => {
       },
       fileNumber: {
         select: {
-          fileNumberId: true,
+          fileId: true,
           status: true,
           strata: {
             select: { strataId: true, complexName: true, strataPlan: true, town: true, location: { select: { locationId: true, locationName: true } } }
@@ -269,7 +269,7 @@ export const reviewAppointmentRequest = async (data: {
           appointmentDate,
           timeSlotId,
           status: 'Scheduled',
-          fileNumberId: request.fileNumberId,
+          fileId: request.fileId,
           appointmentTypeId: request.appointmentTypeId,
           appointmentRequestId: request.appointmentRequestId,
           inspectorProfileId: data.inspectorProfileId || null,
@@ -277,7 +277,7 @@ export const reviewAppointmentRequest = async (data: {
       });
 
       await tx.fileNumber.update({
-        where: { fileNumberId: request.fileNumberId },
+        where: { fileId: request.fileId },
         data: { status: 'Appointment Scheduled' }
       });
 
@@ -296,7 +296,7 @@ export const reviewAppointmentRequest = async (data: {
 export const createAppointment = async (data: {
   appointmentDate: Date;
   timeSlotId: number;
-  fileNumberId: number;
+  fileId: number;
   appointmentTypeId: number;
   inspectorProfileId?: string | null;
   secondInspectorProfileId?: string | null;
@@ -313,7 +313,7 @@ export const createAppointment = async (data: {
     where: {
       appointmentDate: data.appointmentDate,
       timeSlotId: data.timeSlotId,
-      fileNumberId: data.fileNumberId,
+      fileId: data.fileId,
       status: { not: 'Cancelled' },
     },
   });
@@ -338,7 +338,7 @@ export const createAppointment = async (data: {
 
   if (data.secondInspectorProfileId !== undefined) {
     await prisma.fileNumber.update({
-      where: { fileNumberId: data.fileNumberId },
+      where: { fileId: data.fileId },
       data: { appointmentOfferSecondInspectorId: data.secondInspectorProfileId || null },
     });
   }
@@ -347,7 +347,7 @@ export const createAppointment = async (data: {
     data: {
       appointmentDate: data.appointmentDate,
       timeSlotId: data.timeSlotId,
-      fileNumberId: data.fileNumberId,
+      fileId: data.fileId,
       appointmentTypeId: data.appointmentTypeId,
       inspectorProfileId: data.inspectorProfileId || null,
       status: 'Scheduled',
@@ -357,7 +357,7 @@ export const createAppointment = async (data: {
       timeSlot: { select: { timeSlotId: true, slotTime: true, slotName: true } },
       fileNumber: {
         select: {
-          fileNumberId: true,
+          fileId: true,
           strata: { select: { strataId: true, complexName: true, strataPlan: true, town: true, location: { select: { locationId: true, locationName: true } } } },
           service: { select: { serviceId: true, serviceName: true } },
           appointmentOfferSecondInspector: { select: { id: true, firstName: true, lastName: true, displayName: true } },

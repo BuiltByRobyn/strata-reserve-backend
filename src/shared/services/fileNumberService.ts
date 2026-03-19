@@ -1,6 +1,8 @@
 import prisma from '../lib/prismaClient';
 import type { CreateFileNumberInput } from '../types/fileNumber.types';
 import { fileNumberIncludeList, profileSelectBrief, profileSelectWithEmail, documentIncludeCompact } from '../constants/prismaIncludes';
+import { validateFileNumber } from '../helpers/fileNumberUtils';
+import { mostRecentAnniversary } from '../helpers/dateUtils';
 
 export const getFileNumbers = async (filters?: { strataId?: number; archived?: boolean }) => {
   const results = await prisma.fileNumber.findMany({
@@ -34,7 +36,7 @@ export const getFileNumbers = async (filters?: { strataId?: number; archived?: b
 
 export const getFileNumberById = async (id: number) => {
   return prisma.fileNumber.findUnique({
-    where: { fileNumberId: id },
+    where: { fileId: id },
     include: {
       service: true,
       strata: true,
@@ -85,6 +87,10 @@ export const getActiveByProfile = async (profileId: string) => {
 };
 
 export const createFileNumber = async (data: CreateFileNumberInput) => {
+  if (!validateFileNumber(data.fileNumber)) {
+    throw new Error('INVALID_FORMAT');
+  }
+
   const existing = await prisma.fileNumber.findFirst({
     where: { strataId: data.strataId, archived: false }
   });
@@ -93,13 +99,20 @@ export const createFileNumber = async (data: CreateFileNumberInput) => {
     throw new Error('This strata already has an active file number');
   }
 
+  const strata = await prisma.strata.findUnique({
+    where: { strataId: data.strataId },
+    select: { fiscalYearEnd: true }
+  });
+
   return prisma.fileNumber.create({
     data: {
+      fileNumber: data.fileNumber,
       serviceId: data.serviceId,
       strataId: data.strataId,
       requestedByProfileId: data.requestedByProfileId,
       status: 'Draft',
-      notes: data.notes
+      notes: data.notes,
+      fiscalYearEnd: strata?.fiscalYearEnd ? mostRecentAnniversary(strata.fiscalYearEnd) : null
     },
     include: {
       service: { select: { serviceId: true, serviceName: true } },
@@ -109,15 +122,26 @@ export const createFileNumber = async (data: CreateFileNumberInput) => {
   });
 };
 
+export const updateFileNumber = async (id: number, fileNumber: string) => {
+  if (!validateFileNumber(fileNumber)) {
+    throw new Error('INVALID_FORMAT');
+  }
+  return prisma.fileNumber.update({
+    where: { fileId: id },
+    data: { fileNumber },
+    include: fileNumberIncludeList
+  });
+};
+
 export const submitForReview = async (id: number) => {
   const sr = await prisma.fileNumber.findUnique({
-    where: { fileNumberId: id },
+    where: { fileId: id },
   });
   if (!sr) throw new Error('Service request not found');
 
   // Only validate questions actually assigned to this SR (respects surveyRequirements)
   const srQuestions = await prisma.fnSurveyQuestion.findMany({
-    where: { fileNumberId: id },
+    where: { fileId: id },
     include: { question: { select: { questionId: true, isRequired: true, parentQuestionId: true } } },
   });
 
@@ -126,7 +150,7 @@ export const submitForReview = async (id: number) => {
     .map(sq => sq.question.questionId);
 
   const responses = await prisma.questionResponse.findMany({
-    where: { fileNumberId: id, archivedAt: null },
+    where: { fileId: id, archivedAt: null },
     select: { questionId: true },
   });
   const answeredIds = new Set(responses.map(r => r.questionId));
@@ -139,7 +163,7 @@ export const submitForReview = async (id: number) => {
   }
 
   return prisma.fileNumber.update({
-    where: { fileNumberId: id },
+    where: { fileId: id },
     data: {
       submittedForReviewDate: new Date(),
       status: 'Pending Approval',
@@ -149,7 +173,7 @@ export const submitForReview = async (id: number) => {
 };
 
 export const offerAppointment = async (
-  fileNumberId: number,
+  fileId: number,
   offeredByProfileId: string,
   offerData?: {
     dueDate?: string;
@@ -160,13 +184,13 @@ export const offerAppointment = async (
   }
 ) => {
   const sr = await prisma.fileNumber.findUnique({
-    where: { fileNumberId },
+    where: { fileId },
   });
 
   if (!sr) throw new Error('Service request not found');
 
   return prisma.fileNumber.update({
-    where: { fileNumberId },
+    where: { fileId },
     data: {
       appointmentOfferedAt: new Date(),
       appointmentOfferedByProfileId: offeredByProfileId,
@@ -182,7 +206,7 @@ export const offerAppointment = async (
 
 export const deleteFileNumber = async (id: number, authToken?: string) => {
   const sr = await prisma.fileNumber.findUnique({
-    where: { fileNumberId: id },
+    where: { fileId: id },
     select: {
       strata: { select: { strataPlan: true } },
       fileNumberDocuments: { select: { filePath: true } }
@@ -193,7 +217,7 @@ export const deleteFileNumber = async (id: number, authToken?: string) => {
     try {
       const { supabase } = await import('../lib/supabaseClient');
       await supabase.functions.invoke('archive-fn-documents', {
-        body: { fileNumberId: id, strataPlan: sr.strata.strataPlan },
+        body: { fileId: id, strataPlan: sr.strata.strataPlan },
         headers: { Authorization: `Bearer ${authToken}` }
       });
     } catch (err) {
@@ -206,7 +230,7 @@ export const deleteFileNumber = async (id: number, authToken?: string) => {
 
   await prisma.appointment.updateMany({
     where: {
-      fileNumberId: id,
+      fileId: id,
       appointmentDate: { gte: today },
       status: { not: 'Cancelled' },
     },
@@ -214,6 +238,6 @@ export const deleteFileNumber = async (id: number, authToken?: string) => {
   });
 
   return prisma.fileNumber.delete({
-    where: { fileNumberId: id }
+    where: { fileId: id }
   });
 };

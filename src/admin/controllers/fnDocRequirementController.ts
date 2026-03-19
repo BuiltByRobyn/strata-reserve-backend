@@ -1,17 +1,16 @@
 import * as fnDocRequirementService from '../../shared/services/fnDocRequirementService';
 import * as documentService from '../../shared/services/documentService';
-import prisma from '../../shared/lib/prismaClient';
 import { success, error, asyncHandler } from '../../shared/helpers/responseHelper';
 import { parseIntParam } from '../../shared/helpers/parseParams';
 
 export const getRequirements = asyncHandler(async (c) => {
-  const fileNumberId = parseIntParam(c, 'id');
-  const requirements = await fnDocRequirementService.getRequirementsBySR(fileNumberId);
+  const fileId = parseIntParam(c, 'id');
+  const requirements = await fnDocRequirementService.getRequirementsBySR(fileId);
   return success(c, requirements);
 }, 'Failed to fetch document requirements');
 
 export const bulkSaveRequirements = asyncHandler(async (c) => {
-  const fileNumberId = parseIntParam(c, 'id');
+  const fileId = parseIntParam(c, 'id');
   const body = await c.req.json();
   const { requirements } = body;
 
@@ -19,56 +18,34 @@ export const bulkSaveRequirements = asyncHandler(async (c) => {
     return error(c, 'Requirements must be an array', 400);
   }
 
-  await prisma.$transaction(async (tx) => {
-    await tx.fileNumberDocumentRequirement.deleteMany({
-      where: { fileNumberId },
-    });
-
-    if (requirements.length > 0) {
-      await tx.fileNumberDocumentRequirement.createMany({
-        data: requirements.map((r: { documentTypeId: number; propertyTypeId: number | null }) => ({
-          fileNumberId,
-          documentTypeId: r.documentTypeId,
-          propertyTypeId: r.propertyTypeId ?? null,
-          isRequired: true,
-          quantity: 1,
-        })),
-        skipDuplicates: true,
-      });
-    }
-  });
-
-  const updated = await fnDocRequirementService.getRequirementsBySR(fileNumberId);
+  await fnDocRequirementService.bulkSaveRequirements(fileId, requirements);
+  const updated = await fnDocRequirementService.getRequirementsBySR(fileId);
   return success(c, updated);
 }, 'Failed to save document requirements');
 
-export const addRequirement = asyncHandler(async (c) => {
-  const fileNumberId = parseIntParam(c, 'id');
-  const { documentTypeId, propertyTypeId } = await c.req.json();
+export const addRequirementVersion = asyncHandler(async (c) => {
+  const fileId = parseIntParam(c, 'id');
+  const { documentTypeId, propertyTypeId, versionLabel } = await c.req.json();
 
-  await prisma.fileNumberDocumentRequirement.upsert({
-    where: {
-      fileNumberId_documentTypeId_propertyTypeId: {
-        fileNumberId,
-        documentTypeId,
-        propertyTypeId: propertyTypeId ?? null,
-      }
-    },
-    update: {},
-    create: {
-      fileNumberId,
-      documentTypeId,
-      propertyTypeId: propertyTypeId ?? null,
-      isRequired: true,
-      quantity: 1,
-    },
-  });
+  if (!documentTypeId) return error(c, 'documentTypeId is required', 400);
 
-  return success(c, { added: true });
-}, 'Failed to add document requirement');
+  const req = await fnDocRequirementService.addRequirementVersion(
+    fileId,
+    documentTypeId,
+    propertyTypeId ?? null,
+    versionLabel ?? ''
+  );
+  return success(c, req);
+}, 'Failed to add requirement version');
+
+export const removeRequirementVersion = asyncHandler(async (c) => {
+  const reqId = parseIntParam(c, 'reqId');
+  await fnDocRequirementService.removeRequirementVersion(reqId);
+  return success(c, { removed: true });
+}, 'Failed to remove requirement version');
 
 export const getDocumentsBySR = asyncHandler(async (c) => {
-  const fileNumberId = parseIntParam(c, 'id');
-  const documents = await documentService.getDocumentsByFileNumber(fileNumberId);
+  const fileId = parseIntParam(c, 'id');
+  const documents = await documentService.getDocumentsByFileNumber(fileId);
   return success(c, documents);
 }, 'Failed to fetch documents for file number');

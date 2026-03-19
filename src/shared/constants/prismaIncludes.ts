@@ -11,7 +11,7 @@ export const documentInclude = {
   documentType: { select: { documentTypeId: true, typeName: true } },
   fileNumber: {
     select: {
-      fileNumberId: true,
+      fileId: true,
       strata: { select: { strataId: true, strataPlan: true, complexName: true } }
     }
   },

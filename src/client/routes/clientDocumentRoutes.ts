@@ -8,3 +8,6 @@ clientDocumentRoutes.get('/documents/search', clientDocumentController.searchMyD
 clientDocumentRoutes.get('/documents/:id', clientDocumentController.getMyDocumentById);
 clientDocumentRoutes.get('/file-numbers/:id/required-documents', clientDocumentController.getRequiredDocuments);
 clientDocumentRoutes.get('/file-numbers/:id/documents', clientDocumentController.getDocumentsByFileNumber);
+clientDocumentRoutes.post('/file-numbers/:id/requirements/:reqId/na-status', clientDocumentController.setNaStatus);
+clientDocumentRoutes.delete('/file-numbers/:id/requirements/:reqId/na-status', clientDocumentController.clearNaStatus);
+clientDocumentRoutes.post('/file-numbers/:id/requirements/:reqId/uploaded', clientDocumentController.markDocumentUploaded);

@@ -29,7 +29,7 @@ export const createStrata = asyncHandler(async (c) => {
     website: body.website?.trim(),
     legalTypeId: body.legalTypeId ? parseInt(body.legalTypeId) : undefined,
     propertyTypeId: body.propertyTypeId ? parseInt(body.propertyTypeId) : undefined,
-    companyId: body.companyId ? parseInt(body.companyId) : undefined,
+    companyName: body.companyName?.trim(),
     locationId: body.locationId !== undefined ? (body.locationId ? parseInt(body.locationId) : null) : undefined,
     fiscalYearEnd: body.fiscalYearEnd || undefined,
     sectionIds: Array.isArray(body.sectionIds) ? body.sectionIds.map(Number) : undefined,
@@ -65,7 +65,7 @@ export const updateStrata = asyncHandler(async (c) => {
     website: body.website?.trim(),
     legalTypeId: body.legalTypeId !== undefined ? parseInt(body.legalTypeId) : undefined,
     propertyTypeId: body.propertyTypeId !== undefined ? parseInt(body.propertyTypeId) : undefined,
-    companyId: body.companyId !== undefined ? parseInt(body.companyId) : undefined,
+    companyName: body.companyName !== undefined ? body.companyName?.trim() : undefined,
     locationId: body.locationId !== undefined ? (body.locationId ? parseInt(body.locationId) : null) : undefined,
     fiscalYearEnd: body.fiscalYearEnd !== undefined ? body.fiscalYearEnd : undefined,
     sectionIds: Array.isArray(body.sectionIds) ? body.sectionIds.map(Number) : undefined,
@@ -149,9 +149,9 @@ export const getStrataTimelines = asyncHandler(async (c) => {
 }, 'Failed to fetch strata timelines');
 
 export const updateFileNumberTimelines = asyncHandler(async (c) => {
-  const fileNumberId = parseIntParam(c, 'fileNumberId');
+  const fileId = parseIntParam(c, 'fileId');
   const body = await c.req.json();
-  const updated = await timelinesService.updateTimelines(fileNumberId, {
+  const updated = await timelinesService.updateTimelines(fileId, {
     fiscalYearEnd: body.fiscalYearEnd,
     lastAgmDate: body.lastAgmDate,
     noAgmToDate: body.noAgmToDate,

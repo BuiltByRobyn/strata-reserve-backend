@@ -1,5 +1,5 @@
 export interface SurveyPdfMeta {
-  fileNumberId: number;
+  fileId: number;
   strataPlan?: string | null;
   complexName?: string | null;
   serviceName?: string | null;
