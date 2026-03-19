@@ -5,7 +5,7 @@ import type { AvailableSlot, AvailableDay } from '../types/appointment.types';
 const SLOT_REQUIREMENTS: Record<string, { startHour: number; endHour: number; durationHours: number }> = {
   '10:00': { startHour: 10, endHour: 14, durationHours: 4 },
   '14:00': { startHour: 14, endHour: 18, durationHours: 4 },
-  '18:00': { startHour: 18, endHour: 19, durationHours: 1 },
+  '19:00': { startHour: 19, endHour: 20, durationHours: 1 },
 };
 
 function inspectorCoversSlot(
@@ -170,7 +170,7 @@ export async function getAvailableSlots(
     const availableSlots: AvailableSlot[] = [];
 
     for (const slot of timeSlots) {
-      if (!isDraftMeeting && slot.slotTime === '18:00') continue;
+      if (!isDraftMeeting && slot.slotTime === '19:00') continue;
 
       const slotKey = `${dateStr}_${slot.timeSlotId}`;
       if (heldSlots.has(slotKey)) continue;

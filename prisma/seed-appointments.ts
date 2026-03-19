@@ -5,7 +5,7 @@ async function main() {
   const timeSlots = [
     { slotTime: '10:00', slotName: 'Morning' },
     { slotTime: '14:00', slotName: 'Afternoon' },
-    { slotTime: '18:00', slotName: 'Evening' },
+    { slotTime: '19:00', slotName: 'Evening' },
   ];
 
   for (const slot of timeSlots) {
@@ -50,7 +50,7 @@ async function main() {
       const allSlots = await prisma.appointmentTimeSlot.findMany();
       if (apt.isDraftMeeting) {
         // Draft meeting only gets evening slot
-        const eveningSlot = allSlots.find(s => s.slotTime === '18:00');
+        const eveningSlot = allSlots.find(s => s.slotTime === '19:00');
         if (eveningSlot) {
           await prisma.appointmentTypeTimeSlot.create({
             data: { appointmentTypeId: created.appointmentTypeId, timeSlotId: eveningSlot.timeSlotId }
@@ -58,7 +58,7 @@ async function main() {
         }
       } else {
         // Inspections get morning and afternoon slots
-        for (const slot of allSlots.filter(s => s.slotTime !== '18:00')) {
+        for (const slot of allSlots.filter(s => s.slotTime !== '19:00')) {
           await prisma.appointmentTypeTimeSlot.create({
             data: { appointmentTypeId: created.appointmentTypeId, timeSlotId: slot.timeSlotId }
           });

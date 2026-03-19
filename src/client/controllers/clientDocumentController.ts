@@ -52,7 +52,7 @@ export const getRequiredDocuments = asyncHandler(async (c) => {
   }));
 
   return success(c, checklist);
-}, 'Failed to fetch required documents');
+}, 'Failed to fetch requested documents');
 
 export const getDocumentsByFileNumber = asyncHandler(async (c) => {
   const user = c.get('user');

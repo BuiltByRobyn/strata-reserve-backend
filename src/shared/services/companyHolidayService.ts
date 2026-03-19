@@ -12,6 +12,12 @@ export const getCompanyHolidayById = async (id: number) => {
   });
 };
 
+export const findByExactDate = async (date: Date) => {
+  return prisma.companyHoliday.findFirst({
+    where: { holidayDate: date }
+  });
+};
+
 export const createCompanyHoliday = async (data: {
   holidayDate: Date;
   holidayName: string;

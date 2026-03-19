@@ -28,6 +28,7 @@ export const documentIncludeCompact = {
 
 export const fileNumberIncludeList = {
   service: { select: { serviceId: true, serviceName: true } },
+  appointmentOfferType: { select: { isDraftMeeting: true } },
   strata: {
     select: {
       strataId: true,
@@ -44,7 +45,13 @@ export const fileNumberIncludeList = {
   requestedBy: { select: profileSelectBrief },
   appointments: {
     where: { status: { not: 'Cancelled' } },
-    select: { appointmentId: true, appointmentDate: true, status: true, timeSlotId: true },
+    select: {
+      appointmentId: true,
+      appointmentDate: true,
+      status: true,
+      timeSlotId: true,
+      appointmentType: { select: { isDraftMeeting: true } }
+    },
     orderBy: { appointmentDate: 'asc' as const }
   },
   _count: {

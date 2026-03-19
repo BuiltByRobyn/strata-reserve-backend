@@ -2,7 +2,7 @@ import { Resend } from 'resend';
 import type { NewStrataEmailParams } from '../types/email.types';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Strata Reserve <noreply@stratareserve.com>';
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Strata Reserve Planning <noreply@stratareserveplanning.com>';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const FRONTEND_URL = (process.env.FRONTEND_URL || 'https://your-app-url.com').replace(/\/$/, '');
 
