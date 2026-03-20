@@ -28,7 +28,7 @@ export const submitDocumentsForReview = asyncHandler(async (c) => {
   const id = parseInt(c.req.param('id'));
 
   const fileNumber = await fileNumberService.getActiveByProfile(user.id);
-  if (!fileNumber || fileNumber.fileNumberId !== id) {
+  if (!fileNumber || fileNumber.fileId !== id) {
     return error(c, 'Service request not found or access denied', 404);
   }
 

@@ -39,11 +39,7 @@ export const getAppointmentById = async (id: number) => {
       timeSlot: true,
       fileNumber: {
         include: {
-          strata: {
-            include: {
-              company: { select: { companyId: true, companyName: true } }
-            }
-          },
+          strata: true,
           service: true,
           requestedBy: {
             select: { id: true, firstName: true, lastName: true, displayName: true, email: true }

@@ -25,7 +25,6 @@ export const getProfileById = async (id: string) => {
               strataId: true,
               strataPlan: true,
               complexName: true,
-              company: { select: { companyName: true } }
             }
           }
         }

@@ -59,7 +59,7 @@ export const approve = async (requestId: number, reviewerProfileId: string) => {
   });
 };
 
-export const reject = async (requestId: number, reviewerProfileId: string, rejectionReason: string) => {
+export const reject = async (requestId: number, reviewerProfileId: string, rejectionReason?: string) => {
   const request = await prisma.activationRequest.findUnique({
     where: { activationRequestId: requestId }
   });
@@ -71,7 +71,7 @@ export const reject = async (requestId: number, reviewerProfileId: string, rejec
     where: { activationRequestId: requestId },
     data: {
       status: 'Rejected',
-      rejectionReason,
+      rejectionReason: rejectionReason || null,
       reviewedByProfileId: reviewerProfileId,
       reviewedAt: new Date()
     },

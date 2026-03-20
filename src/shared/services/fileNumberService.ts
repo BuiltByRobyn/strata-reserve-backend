@@ -13,10 +13,17 @@ export const getFileNumbers = async (filters?: { strataId?: number; archived?: b
     orderBy: { requestDate: 'desc' },
     include: {
       ...fileNumberIncludeList,
-      fileNumberDocuments: {
-        orderBy: { uploadedAt: 'desc' },
+      documentReviews: {
+        where: {
+          items: {
+            every: {
+              reviewStatus: { statusName: 'Approved' }
+            }
+          }
+        },
+        orderBy: { reviewedAt: 'desc' },
         take: 1,
-        select: { uploadedAt: true }
+        select: { reviewedAt: true }
       },
       questionResponses: {
         where: { archivedAt: null },
@@ -27,9 +34,9 @@ export const getFileNumbers = async (filters?: { strataId?: number; archived?: b
     }
   });
 
-  return results.map(({ fileNumberDocuments, questionResponses, ...sr }) => ({
+  return results.map(({ documentReviews, questionResponses, ...sr }) => ({
     ...sr,
-    latestDocumentUploadDate: fileNumberDocuments[0]?.uploadedAt ?? null,
+    latestDocumentFinalizedDate: documentReviews[0]?.reviewedAt ?? null,
     latestSurveyAnswerDate: questionResponses[0]?.updatedAt ?? null,
   }));
 };
@@ -140,13 +147,25 @@ export const submitForReview = async (id: number) => {
   if (!sr) throw new Error('Service request not found');
 
   // Only validate questions actually assigned to this SR (respects surveyRequirements)
-  const srQuestions = await prisma.fnSurveyQuestion.findMany({
-    where: { fileId: id },
-    include: { question: { select: { questionId: true, isRequired: true, parentQuestionId: true } } },
-  });
+  const [srQuestions, surveyRequirements] = await Promise.all([
+    prisma.fnSurveyQuestion.findMany({
+      where: { fileId: id },
+      include: { question: { select: { questionId: true, isRequired: true, parentQuestionId: true } } },
+    }),
+    prisma.fileNumberSurveyRequirement.findMany({
+      where: { fileId: id },
+      select: { propertyTypeId: true },
+    }),
+  ]);
+
+  const clientPropertyTypeIds = new Set(surveyRequirements.map(r => r.propertyTypeId));
 
   const requiredQuestionIds = srQuestions
-    .filter(sq => sq.question.isRequired && sq.question.parentQuestionId == null)
+    .filter(sq =>
+      sq.question.isRequired &&
+      sq.question.parentQuestionId == null &&
+      (clientPropertyTypeIds.size === 0 || clientPropertyTypeIds.has(sq.propertyTypeId))
+    )
     .map(sq => sq.question.questionId);
 
   const responses = await prisma.questionResponse.findMany({

@@ -18,12 +18,9 @@ export const approveRequest = asyncHandler(async (c) => {
 export const rejectRequest = asyncHandler(async (c) => {
   const id = parseIntParam(c, 'id');
   const user = c.get('user');
-  const { rejectionReason } = await c.req.json<{ rejectionReason: string }>();
+  const body = await c.req.json<{ rejectionReason?: string }>();
+  const rejectionReason = body.rejectionReason?.trim() || undefined;
 
-  if (!rejectionReason?.trim()) {
-    return error(c, 'Rejection reason is required', 400);
-  }
-
-  const result = await activationRequestService.reject(id, user.id, rejectionReason.trim());
+  const result = await activationRequestService.reject(id, user.id, rejectionReason);
   return success(c, result);
 }, 'Failed to reject activation request');
