@@ -88,7 +88,7 @@ export const reviewAppointmentRequest = asyncHandler(async (c) => {
   const user = c.get('user');
   const body = await c.req.json();
 
-  const { approved, approvedDateChoice, rejectionReason, inspectorProfileId, comments } = body;
+  const { approved, approvedDateChoice, rejectionReason, inspectorProfileId, secondInspectorProfileId, comments } = body;
 
   if (typeof approved !== 'boolean') {
     return error(c, 'approved field is required (true/false)', 400);
@@ -110,6 +110,7 @@ export const reviewAppointmentRequest = asyncHandler(async (c) => {
       approvedDateChoice: approvedDateChoice ? parseInt(approvedDateChoice) : undefined,
       rejectionReason,
       inspectorProfileId,
+      secondInspectorProfileId,
       comments,
     });
     return success(c, result, 201);
@@ -123,8 +124,8 @@ export const createAppointment = asyncHandler(async (c) => {
   const body = await c.req.json();
   const { fileId, appointmentDate, timeSlotId, appointmentTypeId, inspectorProfileId, secondInspectorProfileId } = body;
 
-  if (!fileId || !appointmentDate || !timeSlotId || !appointmentTypeId) {
-    return error(c, 'Strata, date, time slot, and appointment type are required', 400);
+  if (!fileId || !appointmentDate || !timeSlotId || !appointmentTypeId || !inspectorProfileId) {
+    return error(c, 'Strata, date, time slot, appointment type, and inspector are required', 400);
   }
 
   try {

@@ -1,5 +1,5 @@
 import prisma from '../lib/prismaClient';
-import { documentInclude, documentIncludeCompact } from '../constants/prismaIncludes';
+import { documentInclude, documentIncludeCompact, requirementInclude } from '../constants/prismaIncludes';
 import { filterClientDocumentNotes } from '../helpers/noteFilterHelper';
 import * as emailService from '../lib/emailService';
 import type { NaStatusValue, BatchDocumentReviewItemInput } from '../types/document.types';
@@ -197,22 +197,7 @@ export const getRequiredDocumentsChecklist = async (profileId: string, fileId: n
 
   const requirements = await prisma.fileNumberDocumentRequirement.findMany({
     where: { fileId },
-    include: {
-      documentType: { select: { documentTypeId: true, typeName: true } },
-      propertyType: { select: { propertyTypeId: true, propertyTypeName: true } },
-      naStatus: { select: { status: true } },
-      fileNumberDocuments: {
-        orderBy: { uploadedAt: 'desc' },
-        take: 1,
-        select: {
-          fileNumberDocumentId: true,
-          fileName: true,
-          filePath: true,
-          uploadedAt: true,
-          fnDocRequirementId: true,
-        },
-      },
-    },
+    include: requirementInclude,
     orderBy: { fnDocRequirementId: 'asc' },
   });
 
@@ -432,5 +417,38 @@ export const createClientReviewCompleteNotification = async (
   await prisma.fileNumberDocumentReview.update({
     where: { reviewId },
     data: { clientNotifiedAt: new Date() },
+  });
+};
+
+export const handleDuplicateUpload = async (fileId: number, reqId: number) => {
+  const docs = await prisma.fileNumberDocument.findMany({
+    where: { fnDocRequirementId: reqId },
+    orderBy: { uploadedAt: 'desc' },
+    select: { fileNumberDocumentId: true },
+  });
+
+  if (docs.length <= 1) return;
+
+  const req = await prisma.fileNumberDocumentRequirement.findUnique({
+    where: { fnDocRequirementId: reqId },
+  });
+  if (!req) return;
+
+  const existingCount = await prisma.fileNumberDocumentRequirement.count({
+    where: { fileId, documentTypeId: req.documentTypeId, propertyTypeId: req.propertyTypeId },
+  });
+
+  const newReq = await prisma.fileNumberDocumentRequirement.create({
+    data: {
+      fileId,
+      documentTypeId: req.documentTypeId,
+      propertyTypeId: req.propertyTypeId,
+      versionLabel: `Additional ${existingCount}`,
+    },
+  });
+
+  await prisma.fileNumberDocument.update({
+    where: { fileNumberDocumentId: docs[0].fileNumberDocumentId },
+    data: { fnDocRequirementId: newReq.fnDocRequirementId },
   });
 };

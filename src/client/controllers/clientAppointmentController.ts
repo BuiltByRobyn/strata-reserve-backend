@@ -1,7 +1,7 @@
 import { success, error, asyncHandler } from '../../shared/helpers/responseHelper';
 import { parseIntParam } from '../../shared/helpers/parseParams';
 import { isWithin48Hours } from '../../shared/helpers/dateUtils';
-import { getAvailableSlots, isDraftMeetingEligible } from '../../shared/services/availabilityCalculationService';
+import { getAvailableSlots, checkDraftMeetingEligibility } from '../../shared/services/availabilityCalculationService';
 import prisma from '../../shared/lib/prismaClient';
 import type { AppointmentNotification } from '../../shared/types/appointment.types';
 
@@ -172,13 +172,12 @@ export const getActiveAppointment = asyncHandler(async (c) => {
 
   if (appointment) {
     const dateStr = appointment.appointmentDate.toISOString().split('T')[0];
-    const [startHour, startMin] = appointment.timeSlot.slotTime.split(':').map(Number);
+    const [startHour] = appointment.timeSlot.slotTime.split(':').map(Number);
     const isDraft = appointment.appointmentType.isDraftMeeting;
     const isFullDay = appointment.appointmentType.durationType === 'Full Day';
-    const endHour = isDraft ? startHour : isFullDay ? 18 : startHour + 4;
-    const endMin = isDraft ? startMin + 30 : 0;
+    const endHour = isDraft ? startHour + 1 : isFullDay ? 18 : startHour + 4;
     const appointmentEnd = new Date(
-      `${dateStr}T${String(endHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')}:00Z`
+      `${dateStr}T${String(endHour).padStart(2, '0')}:00:00Z`
     );
 
     if (appointmentEnd < new Date()) {
@@ -186,6 +185,14 @@ export const getActiveAppointment = asyncHandler(async (c) => {
         where: { appointmentId: appointment.appointmentId },
         data: { status: 'Completed', completedAt: new Date() }
       });
+      // When a non-draft inspection auto-completes, sync the inspector to FileNumber
+      // so the upcoming draft meeting defaults to the same inspector
+      if (!isDraft && appointment.inspectorProfileId) {
+        await prisma.fileNumber.update({
+          where: { fileId: appointment.fileId },
+          data: { appointmentOfferInspectorId: appointment.inspectorProfileId },
+        });
+      }
       if (isDraft) return success(c, { type: 'completed_draft' });
       return success(c, null);
     }
@@ -328,8 +335,8 @@ export const getDraftMeetingEligibility = asyncHandler(async (c) => {
     return error(c, 'fileId is required', 400);
   }
 
-  const eligible = await isDraftMeetingEligible(parseInt(fileId));
-  return success(c, { eligible });
+  const result = await checkDraftMeetingEligibility(parseInt(fileId));
+  return success(c, result);
 }, 'Failed to check draft meeting eligibility');
 
 export const getNotifications = asyncHandler(async (c) => {

@@ -68,6 +68,11 @@ export const markDocumentUploaded = asyncHandler(async (c) => {
 
   await documentService.clearNaStatus(reqId);
 
+  const body = await c.req.json().catch(() => ({})) as { isReplace?: boolean };
+  if (!body.isReplace) {
+    await documentService.handleDuplicateUpload(fileId, reqId);
+  }
+
   const allAnswered = await fnDocRequirementService.checkAllRequirementsAnswered(fileId);
   if (allAnswered) {
     await documentService.createAdminReadyForReviewNotification(fileId);

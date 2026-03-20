@@ -72,19 +72,32 @@ export const getAppointmentById = async (id: number) => {
 };
 
 export const updateAppointmentStatus = async (id: number, status: string, completionNote?: string) => {
-  const updateData: { status: string; completionNote?: string; completedAt?: Date } = { status };
+  const appointment = await prisma.appointment.findUnique({
+    where: { appointmentId: id },
+    select: { fileId: true, inspectorProfileId: true, appointmentType: { select: { isDraftMeeting: true } } },
+  });
 
+  const updateData: { status: string; completionNote?: string; completedAt?: Date } = { status };
   if (status === 'Completed') {
     updateData.completedAt = new Date();
-    if (completionNote) {
-      updateData.completionNote = completionNote;
-    }
+    if (completionNote) updateData.completionNote = completionNote;
   }
 
-  return prisma.appointment.update({
+  const updated = await prisma.appointment.update({
     where: { appointmentId: id },
-    data: updateData
+    data: updateData,
   });
+
+  // When a non-draft inspection is manually marked Completed, sync the inspector
+  // to FileNumber so the upcoming draft meeting defaults to the same inspector
+  if (status === 'Completed' && appointment && !appointment.appointmentType.isDraftMeeting && appointment.inspectorProfileId) {
+    await prisma.fileNumber.update({
+      where: { fileId: appointment.fileId },
+      data: { appointmentOfferInspectorId: appointment.inspectorProfileId },
+    });
+  }
+
+  return updated;
 };
 
 export const cancelAppointment = async (id: number, reason?: string) => {
@@ -225,6 +238,7 @@ export const reviewAppointmentRequest = async (data: {
   approvedDateChoice?: number;
   rejectionReason?: string;
   inspectorProfileId?: string;
+  secondInspectorProfileId?: string;
   comments?: string;
 }) => {
   return prisma.$transaction(async (tx) => {
@@ -278,7 +292,12 @@ export const reviewAppointmentRequest = async (data: {
 
       await tx.fileNumber.update({
         where: { fileId: request.fileId },
-        data: { status: 'Appointment Scheduled' }
+        data: {
+          status: 'Appointment Scheduled',
+          ...(data.secondInspectorProfileId !== undefined && {
+            appointmentOfferSecondInspectorId: data.secondInspectorProfileId || null,
+          }),
+        },
       });
 
       return appointment;

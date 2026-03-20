@@ -1,3 +1,20 @@
+export const requirementInclude = {
+  documentType: { select: { documentTypeId: true, typeName: true } },
+  propertyType: { select: { propertyTypeId: true, propertyTypeName: true } },
+  naStatus: { select: { status: true } },
+  fileNumberDocuments: {
+    orderBy: { uploadedAt: 'desc' as const },
+    take: 1,
+    select: {
+      fileNumberDocumentId: true,
+      fileName: true,
+      filePath: true,
+      uploadedAt: true,
+      fnDocRequirementId: true,
+    },
+  },
+} as const;
+
 export const profileSelectBrief = {
   id: true, firstName: true, lastName: true, displayName: true
 } as const;
