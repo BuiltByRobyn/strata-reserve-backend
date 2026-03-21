@@ -88,7 +88,7 @@ export const createUser = async (data: CreateUserInput) => {
   const { data: authData, error: authError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
     data.email,
     {
-      redirectTo: `${process.env.FRONTEND_URL}/auth/callback`,
+      redirectTo: `${(process.env.FRONTEND_URL || '').replace(/\/$/, '')}/auth/callback`,
       data: {
         first_name: data.firstName,
         last_name: data.lastName,
@@ -178,7 +178,7 @@ export const deleteUser = async (id: string) => {
 
   await prisma.$transaction([
     prisma.strataProfile.deleteMany({ where: { profileId: id } }),
-    prisma.profile.delete({ where: { id } }),
+    prisma.profile.deleteMany({ where: { id } }),
   ]);
 
   return true;

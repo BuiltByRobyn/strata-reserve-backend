@@ -78,7 +78,7 @@ export const fileNumberIncludeList = {
 
 export const strataSelectBrief = {
   strataId: true, strataPlan: true, complexName: true,
-  company: { select: { companyId: true, companyName: true } }
+  companyName: true
 } as const;
 
 export const strataProfilesInclude = {
@@ -88,7 +88,7 @@ export const strataProfilesInclude = {
         strataId: true,
         strataPlan: true,
         complexName: true,
-        company: { select: { companyId: true, companyName: true } },
+        companyName: true,
         strataPropertyTypes: {
           select: { propertyTypeId: true, propertyType: { select: { propertyTypeId: true, propertyTypeName: true } } }
         }
