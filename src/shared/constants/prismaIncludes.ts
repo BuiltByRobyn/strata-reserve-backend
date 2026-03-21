@@ -1,3 +1,20 @@
+export const requirementInclude = {
+  documentType: { select: { documentTypeId: true, typeName: true } },
+  propertyType: { select: { propertyTypeId: true, propertyTypeName: true } },
+  naStatus: { select: { status: true } },
+  fileNumberDocuments: {
+    orderBy: { uploadedAt: 'desc' as const },
+    take: 1,
+    select: {
+      fileNumberDocumentId: true,
+      fileName: true,
+      filePath: true,
+      uploadedAt: true,
+      fnDocRequirementId: true,
+    },
+  },
+} as const;
+
 export const profileSelectBrief = {
   id: true, firstName: true, lastName: true, displayName: true
 } as const;
@@ -11,7 +28,7 @@ export const documentInclude = {
   documentType: { select: { documentTypeId: true, typeName: true } },
   fileNumber: {
     select: {
-      fileNumberId: true,
+      fileId: true,
       strata: { select: { strataId: true, strataPlan: true, complexName: true } }
     }
   },
@@ -28,6 +45,7 @@ export const documentIncludeCompact = {
 
 export const fileNumberIncludeList = {
   service: { select: { serviceId: true, serviceName: true } },
+  appointmentOfferType: { select: { isDraftMeeting: true } },
   strata: {
     select: {
       strataId: true,
@@ -44,7 +62,13 @@ export const fileNumberIncludeList = {
   requestedBy: { select: profileSelectBrief },
   appointments: {
     where: { status: { not: 'Cancelled' } },
-    select: { appointmentId: true, appointmentDate: true, status: true, timeSlotId: true },
+    select: {
+      appointmentId: true,
+      appointmentDate: true,
+      status: true,
+      timeSlotId: true,
+      appointmentType: { select: { isDraftMeeting: true } }
+    },
     orderBy: { appointmentDate: 'asc' as const }
   },
   _count: {

@@ -159,6 +159,17 @@ export const deleteUser = async (id: string) => {
     return null;
   }
 
+  const futureAppointment = await prisma.appointment.findFirst({
+    where: {
+      inspectorProfileId: id,
+      status: { not: 'Cancelled' },
+      appointmentDate: { gte: new Date() }
+    }
+  });
+  if (futureAppointment) {
+    throw new Error('This inspector has future appointments already arranged, please reassign appointment inspector before continuing');
+  }
+
   // Delete from auth first — if this fails, DB stays intact
   const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(id);
   if (authError) {

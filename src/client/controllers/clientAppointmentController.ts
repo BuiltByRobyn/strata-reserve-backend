@@ -1,21 +1,21 @@
 import { success, error, asyncHandler } from '../../shared/helpers/responseHelper';
 import { parseIntParam } from '../../shared/helpers/parseParams';
 import { isWithin48Hours } from '../../shared/helpers/dateUtils';
-import { getAvailableSlots, isDraftMeetingEligible } from '../../shared/services/availabilityCalculationService';
+import { getAvailableSlots, checkDraftMeetingEligibility } from '../../shared/services/availabilityCalculationService';
 import prisma from '../../shared/lib/prismaClient';
 import type { AppointmentNotification } from '../../shared/types/appointment.types';
 
 export const getAvailability = asyncHandler(async (c) => {
   const startDate = c.req.query('startDate');
   const endDate = c.req.query('endDate');
-  const fileNumberId = c.req.query('fileNumberId');
+  const fileId = c.req.query('fileId');
   const isDraftMeeting = c.req.query('isDraftMeeting') === 'true';
 
-  if (!startDate || !endDate || !fileNumberId) {
-    return error(c, 'startDate, endDate, and fileNumberId are required', 400);
+  if (!startDate || !endDate || !fileId) {
+    return error(c, 'startDate, endDate, and fileId are required', 400);
   }
 
-  const slots = await getAvailableSlots(startDate, endDate, parseInt(fileNumberId), isDraftMeeting);
+  const slots = await getAvailableSlots(startDate, endDate, parseInt(fileId), isDraftMeeting);
   return success(c, slots);
 }, 'Failed to fetch availability');
 
@@ -24,7 +24,7 @@ export const createAppointmentRequest = asyncHandler(async (c) => {
   const body = await c.req.json();
 
   const {
-    fileNumberId,
+    fileId,
     appointmentTypeId,
     firstChoiceDate,
     firstChoiceTimeSlotId,
@@ -33,12 +33,12 @@ export const createAppointmentRequest = asyncHandler(async (c) => {
     specialRequirements
   } = body;
 
-  if (!fileNumberId || !appointmentTypeId || !firstChoiceDate || !firstChoiceTimeSlotId) {
+  if (!fileId || !appointmentTypeId || !firstChoiceDate || !firstChoiceTimeSlotId) {
     return error(c, 'Missing required fields', 400);
   }
 
   const sr = await prisma.fileNumber.findUnique({
-    where: { fileNumberId: parseInt(fileNumberId) }
+    where: { fileId: parseInt(fileId) }
   });
 
   if (!sr || !sr.appointmentOfferedAt) {
@@ -47,7 +47,7 @@ export const createAppointmentRequest = asyncHandler(async (c) => {
 
   const existingRequest = await prisma.appointmentRequest.findFirst({
     where: {
-      fileNumberId: parseInt(fileNumberId),
+      fileId: parseInt(fileId),
       status: 'Pending Review'
     }
   });
@@ -68,7 +68,7 @@ export const createAppointmentRequest = asyncHandler(async (c) => {
       const availability = await getAvailableSlots(
         firstChoiceDate,
         secondChoiceDate || firstChoiceDate,
-        parseInt(fileNumberId),
+        parseInt(fileId),
         isDraftMeeting
       );
 
@@ -90,13 +90,13 @@ export const createAppointmentRequest = asyncHandler(async (c) => {
       }
 
       await tx.fileNumber.update({
-        where: { fileNumberId: parseInt(fileNumberId) },
+        where: { fileId: parseInt(fileId) },
         data: { rebookingRequestedAt: null }
       });
 
       return tx.appointmentRequest.create({
         data: {
-          fileNumberId: parseInt(fileNumberId),
+          fileId: parseInt(fileId),
           appointmentTypeId: parseInt(appointmentTypeId),
           firstChoiceDate: new Date(firstChoiceDate + 'T00:00:00Z'),
           firstChoiceTimeSlotId: parseInt(firstChoiceTimeSlotId),
@@ -137,14 +137,14 @@ export const getActiveAppointment = asyncHandler(async (c) => {
         { requestedByProfileId: user.id }
       ]
     },
-    select: { fileNumberId: true }
+    select: { fileId: true }
   });
 
   if (!sr) return success(c, null);
 
   const pendingRequest = await prisma.appointmentRequest.findFirst({
     where: {
-      fileNumberId: sr.fileNumberId,
+      fileId: sr.fileId,
       status: 'Pending Review'
     },
     include: {
@@ -160,7 +160,7 @@ export const getActiveAppointment = asyncHandler(async (c) => {
 
   const appointment = await prisma.appointment.findFirst({
     where: {
-      fileNumberId: sr.fileNumberId,
+      fileId: sr.fileId,
       status: { in: ['Scheduled', 'Rescheduled'] }
     },
     include: {
@@ -172,13 +172,12 @@ export const getActiveAppointment = asyncHandler(async (c) => {
 
   if (appointment) {
     const dateStr = appointment.appointmentDate.toISOString().split('T')[0];
-    const [startHour, startMin] = appointment.timeSlot.slotTime.split(':').map(Number);
+    const [startHour] = appointment.timeSlot.slotTime.split(':').map(Number);
     const isDraft = appointment.appointmentType.isDraftMeeting;
     const isFullDay = appointment.appointmentType.durationType === 'Full Day';
-    const endHour = isDraft ? startHour : isFullDay ? 18 : startHour + 4;
-    const endMin = isDraft ? startMin + 30 : 0;
+    const endHour = isDraft ? startHour + 1 : isFullDay ? 18 : startHour + 4;
     const appointmentEnd = new Date(
-      `${dateStr}T${String(endHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')}:00Z`
+      `${dateStr}T${String(endHour).padStart(2, '0')}:00:00Z`
     );
 
     if (appointmentEnd < new Date()) {
@@ -186,6 +185,14 @@ export const getActiveAppointment = asyncHandler(async (c) => {
         where: { appointmentId: appointment.appointmentId },
         data: { status: 'Completed', completedAt: new Date() }
       });
+      // When a non-draft inspection auto-completes, sync the inspector to FileNumber
+      // so the upcoming draft meeting defaults to the same inspector
+      if (!isDraft && appointment.inspectorProfileId) {
+        await prisma.fileNumber.update({
+          where: { fileId: appointment.fileId },
+          data: { appointmentOfferInspectorId: appointment.inspectorProfileId },
+        });
+      }
       if (isDraft) return success(c, { type: 'completed_draft' });
       return success(c, null);
     }
@@ -193,7 +200,7 @@ export const getActiveAppointment = asyncHandler(async (c) => {
   }
 
   const completedDraft = await prisma.appointment.findFirst({
-    where: { fileNumberId: sr.fileNumberId, status: 'Completed', appointmentType: { isDraftMeeting: true } },
+    where: { fileId: sr.fileId, status: 'Completed', appointmentType: { isDraftMeeting: true } },
     select: { appointmentId: true }
   });
   if (completedDraft) return success(c, { type: 'completed_draft' });
@@ -277,7 +284,7 @@ export const rescheduleAppointment = asyncHandler(async (c) => {
       timeSlot: true,
       fileNumber: {
         select: {
-          fileNumberId: true,
+          fileId: true,
           strata: { select: { strataProfiles: { where: { profileId: user.id } } } },
           requestedByProfileId: true
         }
@@ -298,7 +305,7 @@ export const rescheduleAppointment = asyncHandler(async (c) => {
 
   const availability = await getAvailableSlots(
     newDate, newDate,
-    appointment.fileNumber.fileNumberId,
+    appointment.fileNumber.fileId,
     false
   );
 
@@ -323,13 +330,13 @@ export const rescheduleAppointment = asyncHandler(async (c) => {
 }, 'Failed to reschedule appointment');
 
 export const getDraftMeetingEligibility = asyncHandler(async (c) => {
-  const fileNumberId = c.req.query('fileNumberId');
-  if (!fileNumberId) {
-    return error(c, 'fileNumberId is required', 400);
+  const fileId = c.req.query('fileId');
+  if (!fileId) {
+    return error(c, 'fileId is required', 400);
   }
 
-  const eligible = await isDraftMeetingEligible(parseInt(fileNumberId));
-  return success(c, { eligible });
+  const result = await checkDraftMeetingEligibility(parseInt(fileId));
+  return success(c, result);
 }, 'Failed to check draft meeting eligibility');
 
 export const getNotifications = asyncHandler(async (c) => {
@@ -343,7 +350,7 @@ export const getNotifications = asyncHandler(async (c) => {
         { requestedByProfileId: user.id }
       ]
     },
-    select: { fileNumberId: true }
+    select: { fileId: true }
   });
 
   if (!sr) return success(c, []);
@@ -353,12 +360,12 @@ export const getNotifications = asyncHandler(async (c) => {
 
   const [approvedRequests, rejectedRequests, cancelledAppointments, rescheduledAppointments] = await Promise.all([
     prisma.appointmentRequest.findMany({
-      where: { fileNumberId: sr.fileNumberId, status: 'Approved', requestDate: { gte: oneWeekAgo } },
+      where: { fileId: sr.fileId, status: 'Approved', requestDate: { gte: oneWeekAgo } },
       orderBy: { requestDate: 'desc' },
       select: { appointmentRequestId: true, requestDate: true }
     }),
     prisma.appointmentRequest.findMany({
-      where: { fileNumberId: sr.fileNumberId, status: 'Rejected', requestDate: { gte: oneWeekAgo } },
+      where: { fileId: sr.fileId, status: 'Rejected', requestDate: { gte: oneWeekAgo } },
       orderBy: { requestDate: 'desc' },
       include: {
         appointmentReviews: {
@@ -369,12 +376,12 @@ export const getNotifications = asyncHandler(async (c) => {
       }
     }),
     prisma.appointment.findMany({
-      where: { fileNumberId: sr.fileNumberId, status: 'Cancelled', appointmentDate: { gte: oneWeekAgo } },
+      where: { fileId: sr.fileId, status: 'Cancelled', appointmentDate: { gte: oneWeekAgo } },
       orderBy: { appointmentDate: 'desc' },
       select: { appointmentId: true, appointmentDate: true, cancellationReason: true }
     }),
     prisma.appointment.findMany({
-      where: { fileNumberId: sr.fileNumberId, status: 'Rescheduled', appointmentDate: { gte: oneWeekAgo } },
+      where: { fileId: sr.fileId, status: 'Rescheduled', appointmentDate: { gte: oneWeekAgo } },
       orderBy: { appointmentDate: 'desc' },
       select: { appointmentId: true, appointmentDate: true, rescheduleReason: true }
     })

@@ -47,9 +47,16 @@ export const updateUser = asyncHandler(async (c) => {
 
 export const deleteUser = asyncHandler(async (c) => {
   const id = c.req.param('id');
-  const result = await userService.deleteUser(id);
-  if (!result) {
-    return error(c, 'User not found', 404);
+  try {
+    const result = await userService.deleteUser(id);
+    if (!result) {
+      return error(c, 'User not found', 404);
+    }
+    return success(c, { message: 'User deleted successfully' });
+  } catch (err: any) {
+    if (err.message?.includes('future appointments')) {
+      return error(c, err.message, 400);
+    }
+    throw err;
   }
-  return success(c, { message: 'User deleted successfully' });
 }, 'Failed to delete user');

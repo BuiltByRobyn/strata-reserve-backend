@@ -18,8 +18,14 @@ export const createCompanyHoliday = asyncHandler(async (c) => {
     return error(c, 'Holiday date and holiday name are required', 400);
   }
 
+  const utcDate = toUTCDate(holidayDate)!;
+  const existing = await companyHolidayService.findByExactDate(utcDate);
+  if (existing) {
+    return error(c, 'Company holiday already entered', 409);
+  }
+
   const newHoliday = await companyHolidayService.createCompanyHoliday({
-    holidayDate: toUTCDate(holidayDate)!,
+    holidayDate: utcDate,
     holidayName,
     isRecurringAnnually
   });
