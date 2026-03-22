@@ -327,7 +327,7 @@ export const createAdminReadyForReviewNotification = async (fileId: number) => {
   const fnLabel = fileNumberRecord.fileNumber || String(fileId);
 
   const adminProfiles = await prisma.profile.findMany({
-    where: { isAdmin: true },
+    where: { userTypeId: 1 },
     select: { id: true, email: true, firstName: true },
   });
 
