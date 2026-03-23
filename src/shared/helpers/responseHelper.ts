@@ -1,7 +1,7 @@
 import type { Context } from 'hono';
 import { ParamError, parseIntParam } from './parseParams';
 
-type StatusCode = 200 | 201 | 400 | 401 | 403 | 404 | 500;
+type StatusCode = 200 | 201 | 400 | 401 | 403 | 404 | 409 | 500;
 
 export const success = (c: Context, data: unknown, status: StatusCode = 200) => {
   return c.json({ success: true, data }, status);
