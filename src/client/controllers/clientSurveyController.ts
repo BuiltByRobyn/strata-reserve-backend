@@ -9,11 +9,11 @@ import prisma from '../../shared/lib/prismaClient';
 import { renderSurveyAnswersPdf } from '../../shared/services/surveyPdfService';
 
 export const getSurveyQuestions = asyncHandler(async (c) => {
-  const fileNumberId = parseIntParam(c, 'fileNumberId');
+  const fileId = parseIntParam(c, 'fileId');
   const user = c.get('user');
 
   const sr = await prisma.fileNumber.findUnique({
-    where: { fileNumberId },
+    where: { fileId: fileId },
     include: {
       strata: {
         select: {
@@ -38,7 +38,7 @@ export const getSurveyQuestions = asyncHandler(async (c) => {
     return success(c, []);
   }
 
-  const allQuestions = await questionService.getSurveyQuestionsForSR(fileNumberId);
+  const allQuestions = await questionService.getSurveyQuestionsForSR(fileId);
 
   // Filter by the user's assigned sections and property types (matching PDF download logic)
   const allowedSections = await strataService.getSectionNamesByProfileId(user.id);
@@ -63,8 +63,9 @@ export const downloadActiveSurveyPdf = asyncHandler(async (c) => {
     return error(c, 'No active file number found', 404);
   }
 
-  const allQuestions = await questionService.getSurveyQuestionsForSR(sr.fileNumberId);
-  const responses = await questionService.getResponsesByFileNumber(sr.fileNumberId);
+  const allQuestions = await questionService.getSurveyQuestionsForSR(sr.fileId);
+  const blank = c.req.query('blank') === 'true';
+  const responses = blank ? [] : await questionService.getResponsesByFileNumber(sr.fileId);
 
   // Filter questions to only include sections and property types assigned to this client's profile
   const allowedSections = await strataService.getSectionNamesByProfileId(user.id);
@@ -80,11 +81,11 @@ export const downloadActiveSurveyPdf = asyncHandler(async (c) => {
 
   const pdf = await renderSurveyAnswersPdf(
     {
-      fileNumberId: sr.fileNumberId,
+      fileId: sr.fileId,
       strataPlan: sr.strata?.strataPlan ?? null,
       complexName: sr.strata?.complexName ?? null,
       serviceName: sr.service?.serviceName ?? null,
-      fileNumber: String(sr.fileNumberId).padStart(9, '0'),
+      fileNumber: String(sr.fileId).padStart(9, '0'),
       requestDate: sr.requestDate instanceof Date ? sr.requestDate.toISOString() : (sr.requestDate ?? null),
       generatedAtIso: new Date().toISOString(),
     },
@@ -107,12 +108,12 @@ export const downloadActiveSurveyPdf = asyncHandler(async (c) => {
 }, 'Failed to generate survey PDF');
 
 export const downloadSurveyPdf = asyncHandler(async (c) => {
-  const fileNumberId = parseIntParam(c, 'fileNumberId');
+  const fileId = parseIntParam(c, 'fileId');
 
   const sr = await prisma.fileNumber.findUnique({
-    where: { fileNumberId },
+    where: { fileId: fileId },
     select: {
-      fileNumberId: true,
+      fileId: true,
       requestDate: true,
       notes: true,
       strata: { select: { strataPlan: true, complexName: true } },
@@ -124,21 +125,21 @@ export const downloadSurveyPdf = asyncHandler(async (c) => {
     return error(c, 'Service request not found', 404);
   }
 
-  const questions = await questionService.getSurveyQuestionsForSR(fileNumberId);
+  const questions = await questionService.getSurveyQuestionsForSR(fileId);
 
   if (questions.length === 0) {
     return error(c, 'No survey questions found for this file number', 400);
   }
 
-  const responses = await questionService.getResponsesByFileNumber(fileNumberId);
+  const responses = await questionService.getResponsesByFileNumber(fileId);
 
   const pdf = await renderSurveyAnswersPdf(
     {
-      fileNumberId: sr.fileNumberId,
+      fileId: sr.fileId,
       strataPlan: sr.strata?.strataPlan ?? null,
       complexName: sr.strata?.complexName ?? null,
       serviceName: sr.service?.serviceName ?? null,
-      fileNumber: String(sr.fileNumberId).padStart(9, '0'),
+      fileNumber: String(sr.fileId).padStart(9, '0'),
       requestDate: sr.requestDate instanceof Date ? sr.requestDate.toISOString() : (sr.requestDate ?? null),
       generatedAtIso: new Date().toISOString(),
     },
@@ -161,13 +162,13 @@ export const downloadSurveyPdf = asyncHandler(async (c) => {
 }, 'Failed to generate survey PDF');
 
 export const getSurveyResponses = asyncHandler(async (c) => {
-  const fileNumberId = parseIntParam(c, 'fileNumberId');
-  const responses = await questionService.getResponsesByFileNumber(fileNumberId);
+  const fileId = parseIntParam(c, 'fileId');
+  const responses = await questionService.getResponsesByFileNumber(fileId);
   return success(c, responses);
 }, 'Failed to fetch survey responses');
 
 export const saveSurveyResponses = asyncHandler(async (c) => {
-  const fileNumberId = parseIntParam(c, 'fileNumberId');
+  const fileId = parseIntParam(c, 'fileId');
   const user = c.get('user');
   const body = await c.req.json();
 
@@ -176,7 +177,7 @@ export const saveSurveyResponses = asyncHandler(async (c) => {
   }
 
   const inputs = body.responses.map((r: Record<string, unknown>) => ({
-    fileNumberId,
+    fileId,
     answeredByProfileId: user.id,
     questionId: r.questionId as number,
     propertyTypeId: r.propertyTypeId as number,
@@ -192,16 +193,16 @@ export const saveSurveyResponses = asyncHandler(async (c) => {
 }, 'Failed to save survey responses');
 
 export const getArchivedSurveyResponses = asyncHandler(async (c) => {
-  const fileNumberId = parseIntParam(c, 'fileNumberId');
-  const responses = await questionService.getArchivedResponsesByFileNumber(fileNumberId);
+  const fileId = parseIntParam(c, 'fileId');
+  const responses = await questionService.getArchivedResponsesByFileNumber(fileId);
   return success(c, responses);
 }, 'Failed to fetch archived survey responses');
 
 export const getSurveySections = asyncHandler(async (c) => {
-  const fileNumberId = parseIntParam(c, 'fileNumberId');
+  const fileId = parseIntParam(c, 'fileId');
 
   const sr = await prisma.fileNumber.findUnique({
-    where: { fileNumberId },
+    where: { fileId: fileId },
     select: { serviceId: true }
   });
 
@@ -214,37 +215,37 @@ export const getSurveySections = asyncHandler(async (c) => {
 }, 'Failed to fetch survey sections');
 
 export const getSurveyRequirements = asyncHandler(async (c) => {
-  const fileNumberId = parseIntParam(c, 'fileNumberId');
-  
+  const fileId = parseIntParam(c, 'fileId');
+
   const reqs = await prisma.fileNumberSurveyRequirement.findMany({
-    where: { fileNumberId }
+    where: { fileId: fileId }
   });
-  
+
   return success(c, reqs);
 }, 'Failed to fetch survey requirements');
 
 export const saveSurveyRequirements = asyncHandler(async (c) => {
-  const fileNumberId = parseIntParam(c, 'fileNumberId');
+  const fileId = parseIntParam(c, 'fileId');
   const body = await c.req.json();
 
   if (Array.isArray(body.selections)) {
-    const selections = body.selections as { propertyTypeId: number; questionIds: number[] }[];
-    const results = await fnSurveyQuestionService.replaceQuestionsForSR(fileNumberId, selections);
+    const selections = body.selections as { propertyTypeId: number; questions: { id: number; sortOrder: number }[] }[];
+    const results = await fnSurveyQuestionService.replaceQuestionsForSR(fileId, selections);
     return success(c, results);
   }
 
   if (Array.isArray(body.propertyTypeIds)) {
     const propertyTypeIds = body.propertyTypeIds as number[];
     await prisma.$transaction(async (tx: any) => {
-      await tx.fileNumberSurveyRequirement.deleteMany({ where: { fileNumberId } });
+      await tx.fileNumberSurveyRequirement.deleteMany({ where: { fileId: fileId } });
       if (propertyTypeIds.length > 0) {
         await tx.fileNumberSurveyRequirement.createMany({
-          data: propertyTypeIds.map(id => ({ fileNumberId, propertyTypeId: id }))
+          data: propertyTypeIds.map(id => ({ fileId: fileId, propertyTypeId: id }))
         });
       }
     });
-    await fnSurveyQuestionService.autoPopulateFromTemplates(fileNumberId, propertyTypeIds);
-    const results = await prisma.fileNumberSurveyRequirement.findMany({ where: { fileNumberId } });
+    await fnSurveyQuestionService.autoPopulateFromTemplates(fileId, propertyTypeIds);
+    const results = await prisma.fileNumberSurveyRequirement.findMany({ where: { fileId: fileId } });
     return success(c, results);
   }
 

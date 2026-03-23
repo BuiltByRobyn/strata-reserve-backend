@@ -3,19 +3,19 @@ import { success, created, error, asyncHandler, deleteHandler } from '../../shar
 import { parseIntParam } from '../../shared/helpers/parseParams';
 
 export const getQuestionsBySR = asyncHandler(async (c) => {
-  const fileNumberId = parseIntParam(c, 'id');
-  const questions = await fnSurveyQuestionService.getQuestionsBySR(fileNumberId);
+  const fileId = parseIntParam(c, 'id');
+  const questions = await fnSurveyQuestionService.getQuestionsBySR(fileId);
   return success(c, questions);
 }, 'Failed to fetch specific questions for File Number');
 
 export const addQuestionToSR = asyncHandler(async (c) => {
-  const fileNumberId = parseIntParam(c, 'id');
+  const fileId = parseIntParam(c, 'id');
   const body = await c.req.json();
   if (!body.questionId || !body.propertyTypeId) {
     return error(c, 'Question ID and Property Type ID are required', 400);
   }
   const result = await fnSurveyQuestionService.addQuestionToSR(
-    fileNumberId,
+    fileId,
     parseInt(body.questionId),
     parseInt(body.propertyTypeId)
   );

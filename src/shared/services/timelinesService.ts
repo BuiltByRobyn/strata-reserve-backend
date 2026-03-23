@@ -5,7 +5,7 @@ import type { UpdateTimelinesInput } from '../types/timeline.types';
 export type { UpdateTimelinesInput };
 
 const timelineSelect = {
-  fileNumberId: true,
+  fileId: true,
   requestDate: true,
   fiscalYearEnd: true,
   lastAgmDate: true,
@@ -13,18 +13,19 @@ const timelineSelect = {
   lastDepreciationReportDate: true,
   noReportToDate: true,
   targetDate: true,
+  timelinesSubmittedAt: true,
 };
 
-export const getTimelinesByFileNumber = async (fileNumberId: number) => {
+export const getTimelinesByFileNumber = async (fileId: number) => {
   return prisma.fileNumber.findUnique({
-    where: { fileNumberId },
+    where: { fileId: fileId },
     select: timelineSelect,
   });
 };
 
-export const updateTimelines = async (fileNumberId: number, data: UpdateTimelinesInput) => {
+export const updateTimelines = async (fileId: number, data: UpdateTimelinesInput) => {
   const result = await prisma.fileNumber.update({
-    where: { fileNumberId },
+    where: { fileId: fileId },
     data: {
       fiscalYearEnd: toUTCDate(data.fiscalYearEnd),
       lastAgmDate: toUTCDate(data.lastAgmDate),
@@ -32,6 +33,9 @@ export const updateTimelines = async (fileNumberId: number, data: UpdateTimeline
       lastDepreciationReportDate: toUTCDate(data.lastDepreciationReportDate),
       noReportToDate: data.noReportToDate,
       targetDate: toUTCDate(data.targetDate),
+      ...(data.timelinesSubmittedAt !== undefined && {
+        timelinesSubmittedAt: toUTCDate(data.timelinesSubmittedAt),
+      }),
     },
     select: { ...timelineSelect, strataId: true },
   });

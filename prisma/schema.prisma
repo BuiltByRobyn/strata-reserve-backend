@@ -80,7 +80,6 @@ model Service {
 
 model Profile {
   id                 String   @id @db.Uuid
-  isAdmin            Boolean? @default(false) @map("is_admin")
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
   firstName          String?  @map("first_name") @db.Text
   lastName           String?  @map("last_name") @db.Text
@@ -105,23 +104,16 @@ model Profile {
   inspectorAvailableDates InspectorAvailableDate[] @relation("InspectorAvailableDates")
 
   questionResponses QuestionResponse[]       @relation("AnsweredByProfile")
-  uploadedDocuments FileNumberDocument[] @relation("UploadedByProfile")
+  uploadedDocuments FileNumberDocument[]     @relation("UploadedByProfile")
 
   reviewedPropertyTypeRequests PropertyTypeRequest[] @relation("ReviewedPropertyTypeRequests")
+  reviewedActivationRequests   ActivationRequest[]   @relation("ReviewedActivationRequests")
+
+  documentNaStatuses          FileNumberDocumentNaStatus[]
+  adminDocumentReviews        FileNumberDocumentReview[]   @relation("AdminDocumentReviews")
+  inAppNotifications          InAppNotification[]
 
   @@map("profiles")
-  @@schema("public")
-}
-
-model Company {
-  companyId        Int      @id @default(autoincrement()) @map("company_id")
-  companyName      String   @map("company_name") @db.VarChar(255)
-  companyTelephone String?  @map("company_telephone") @db.VarChar(20)
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
-  stratas          Strata[]
-
-  @@map("company")
   @@schema("public")
 }
 
@@ -138,7 +130,7 @@ model Strata {
   website        String?  @db.VarChar(255)
   legalTypeId    Int?     @map("legal_type_id")
   propertyTypeId Int?     @map("property_type_id")
-  companyId      Int?      @map("company_id")
+  companyName    String?   @map("company_name") @db.VarChar(255)
   locationId     Int?      @map("location_id")
   fiscalYearEnd  DateTime? @map("fiscal_year_end") @db.Date
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
@@ -146,7 +138,6 @@ model Strata {
 
   legalType      LegalType?      @relation(fields: [legalTypeId], references: [legalTypeId], onDelete: SetNull)
   propertyType   PropertyType?   @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: SetNull)
-  company        Company?        @relation(fields: [companyId], references: [companyId], onDelete: SetNull)
   location       Location?       @relation(fields: [locationId], references: [locationId], onDelete: SetNull)
   strataNotes    StrataNotes[]
   strataProfiles StrataProfile[]
@@ -190,6 +181,7 @@ model StrataProfile {
   strataProfileSections      StrataProfileSection[]
   strataProfilePropertyTypes StrataProfilePropertyType[]
   propertyTypeRequests       PropertyTypeRequest[]
+  activationRequests         ActivationRequest[]
 
   @@unique([strataId, profileId])
   @@map("strata_profiles")
@@ -265,6 +257,22 @@ model PropertyTypeRequest {
   @@schema("public")
 }
 
+model ActivationRequest {
+  activationRequestId Int       @id @default(autoincrement()) @map("activation_request_id")
+  strataProfileId     Int       @map("strata_profile_id")
+  status              String    @default("Pending") @db.VarChar(50)
+  rejectionReason     String?   @map("rejection_reason") @db.Text
+  reviewedByProfileId String?   @map("reviewed_by_profile_id") @db.Uuid
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  reviewedAt          DateTime? @map("reviewed_at") @db.Timestamptz
+
+  strataProfile StrataProfile @relation(fields: [strataProfileId], references: [strataProfileId], onDelete: Cascade)
+  reviewedBy    Profile?      @relation("ReviewedActivationRequests", fields: [reviewedByProfileId], references: [id], onDelete: SetNull)
+
+  @@map("activation_request")
+  @@schema("public")
+}
+
 
 
 // ============================================
@@ -275,8 +283,9 @@ model ReviewStatus {
   reviewStatusId Int    @id @default(autoincrement()) @map("review_status_id")
   statusName     String @unique @map("status_name") @db.VarChar(50)
 
-  appointmentReviews      AppointmentReview[]
-  fileNumberDocuments FileNumberDocument[]
+  appointmentReviews          AppointmentReview[]
+  fileNumberDocuments         FileNumberDocument[]
+  fileNumberDocumentReviewItems FileNumberDocumentReviewItem[]
 
   @@map("review_status")
   @@schema("public")
@@ -336,7 +345,8 @@ model AppointmentTypeTimeSlot {
 // ============================================
 
 model FileNumber {
-  fileNumberId       Int       @id @default(autoincrement()) @map("file_number_id")
+  fileId             Int       @id @default(autoincrement()) @map("file_id")
+  fileNumber         String?   @unique @map("file_number") @db.VarChar(20)
   requestDate            DateTime  @default(now()) @map("request_date") @db.Timestamptz
   status                 String    @db.VarChar(50)
   submittedForReviewDate DateTime? @map("submitted_for_review_date") @db.Timestamptz
@@ -353,6 +363,7 @@ model FileNumber {
   lastDepreciationReportDate DateTime? @map("last_depreciation_report_date") @db.Date
   noReportToDate             Boolean   @default(false) @map("no_report_to_date")
   targetDate                 DateTime? @map("target_date") @db.Date
+  timelinesSubmittedAt       DateTime? @map("timelines_submitted_at") @db.Timestamptz
 
   appointmentOfferedAt              DateTime? @map("appointment_offered_at") @db.Timestamptz
   appointmentOfferedByProfileId     String?   @map("appointment_offered_by_profile_id") @db.Uuid
@@ -373,10 +384,12 @@ model FileNumber {
   appointments           Appointment[]
 
   questionResponses       QuestionResponse[]
-  fileNumberDocuments FileNumberDocument[]
+  fileNumberDocuments     FileNumberDocument[]
   documentRequirements    FileNumberDocumentRequirement[]
   surveyRequirements      FileNumberSurveyRequirement[]
   fnSurveyQuestions       FnSurveyQuestion[]
+  documentReviews         FileNumberDocumentReview[]
+  inAppNotifications      InAppNotification[]
 
   @@map("file_number")
   @@schema("public")
@@ -384,13 +397,13 @@ model FileNumber {
 
 model FileNumberSurveyRequirement {
   fnSurveyRequirementId Int @id @default(autoincrement()) @map("fn_survey_requirement_id")
-  fileNumberId      Int @map("file_number_id")
+  fileId      Int @map("file_id")
   propertyTypeId        Int @map("property_type_id")
 
-  fileNumber FileNumber @relation(fields: [fileNumberId], references: [fileNumberId], onDelete: Cascade)
+  fileNumber FileNumber @relation(fields: [fileId], references: [fileId], onDelete: Cascade)
   propertyType   PropertyType   @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: Cascade)
 
-  @@unique([fileNumberId, propertyTypeId])
+  @@unique([fileId, propertyTypeId])
   @@map("fn_survey_requirement")
   @@schema("public")
 }
@@ -406,13 +419,13 @@ model AppointmentRequest {
   specialRequirements    String?   @map("special_requirements") @db.Text
   status                 String    @db.VarChar(50)
   requestDate            DateTime  @default(now()) @map("request_date") @db.Timestamptz
-  fileNumberId       Int       @map("file_number_id")
+  fileId       Int       @map("file_id")
   appointmentTypeId      Int       @map("appointment_type_id")
   firstChoiceTimeSlotId  Int       @map("first_choice_time_slot_id")
   secondChoiceTimeSlotId Int?      @map("second_choice_time_slot_id")
   requestedByProfileId   String    @map("requested_by_profile_id") @db.Uuid
 
-  fileNumber       FileNumber       @relation(fields: [fileNumberId], references: [fileNumberId], onDelete: Cascade)
+  fileNumber       FileNumber       @relation(fields: [fileId], references: [fileId], onDelete: Cascade)
   appointmentType      AppointmentType      @relation(fields: [appointmentTypeId], references: [appointmentTypeId], onDelete: Cascade)
   firstChoiceTimeSlot  AppointmentTimeSlot  @relation("FirstChoiceTimeSlot", fields: [firstChoiceTimeSlotId], references: [timeSlotId], onDelete: Cascade)
   secondChoiceTimeSlot AppointmentTimeSlot? @relation("SecondChoiceTimeSlot", fields: [secondChoiceTimeSlotId], references: [timeSlotId], onDelete: SetNull)
@@ -455,13 +468,13 @@ model Appointment {
   cancellationReason   String?   @map("cancellation_reason") @db.Text
   rescheduleReason     String?   @map("reschedule_reason") @db.Text
   appointmentRequestId Int?      @map("appointment_request_id")
-  fileNumberId     Int       @map("file_number_id")
+  fileId     Int       @map("file_id")
   appointmentTypeId    Int       @map("appointment_type_id")
   timeSlotId           Int       @map("time_slot_id")
   inspectorProfileId   String?   @map("inspector_profile_id") @db.Uuid
 
   appointmentRequest AppointmentRequest?  @relation(fields: [appointmentRequestId], references: [appointmentRequestId], onDelete: Cascade)
-  fileNumber     FileNumber      @relation(fields: [fileNumberId], references: [fileNumberId], onDelete: Cascade)
+  fileNumber     FileNumber      @relation(fields: [fileId], references: [fileId], onDelete: Cascade)
   appointmentType    AppointmentType     @relation(fields: [appointmentTypeId], references: [appointmentTypeId], onDelete: Cascade)
   timeSlot           AppointmentTimeSlot @relation(fields: [timeSlotId], references: [timeSlotId], onDelete: Cascade)
   inspector          Profile?            @relation("InspectorAppointments", fields: [inspectorProfileId], references: [id], onDelete: SetNull)
@@ -551,6 +564,8 @@ model Question {
   subLabel         String?  @map("sub_label") @db.VarChar(10)
   questionText     String   @map("question_text") @db.Text
   isRequired       Boolean  @map("is_required")
+  allowNa          Boolean  @default(false) @map("allow_na")
+  allowUnavailable Boolean  @default(false) @map("allow_unavailable")
   informationText  String?  @map("information_text") @db.Text
   questionCategory String   @map("question_category") @db.VarChar(50)
   questionTypeId   Int      @map("question_type_id")
@@ -622,13 +637,13 @@ model QuestionResponse {
   createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
   archivedAt             DateTime? @map("archived_at") @db.Timestamptz
-  fileNumberId       Int       @map("file_number_id")
+  fileId       Int       @map("file_id")
   answeredByProfileId    String    @map("answered_by_profile_id") @db.Uuid
   questionId             Int       @map("question_id")
   propertyTypeId         Int       @map("property_type_id")
   multipleChoiceOptionId Int?      @map("multiple_choice_option_id")
 
-  fileNumber       FileNumber        @relation(fields: [fileNumberId], references: [fileNumberId], onDelete: Cascade)
+  fileNumber       FileNumber        @relation(fields: [fileId], references: [fileId], onDelete: Cascade)
   answeredBy           Profile               @relation("AnsweredByProfile", fields: [answeredByProfileId], references: [id], onDelete: Cascade)
   question             Question              @relation(fields: [questionId], references: [questionId], onDelete: Cascade)
   propertyType         PropertyType          @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: Cascade)
@@ -640,15 +655,16 @@ model QuestionResponse {
 
 model FnSurveyQuestion {
   fnSurveyQuestionId Int @id @default(autoincrement()) @map("fn_survey_question_id")
-  fileNumberId   Int @map("file_number_id")
+  fileId             Int @map("file_id")
   questionId         Int @map("question_id")
   propertyTypeId     Int @map("property_type_id")
+  sortOrder          Int @default(0) @map("sort_order")
 
-  fileNumber FileNumber @relation(fields: [fileNumberId], references: [fileNumberId], onDelete: Cascade)
+  fileNumber FileNumber @relation(fields: [fileId], references: [fileId], onDelete: Cascade)
   question       Question       @relation(fields: [questionId], references: [questionId], onDelete: Cascade)
   propertyType   PropertyType   @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: Cascade)
 
-  @@unique([fileNumberId, questionId, propertyTypeId])
+  @@unique([fileId, questionId, propertyTypeId])
   @@map("fn_survey_question")
   @@schema("public")
 }
@@ -669,25 +685,27 @@ model DocumentType {
 }
 
 model FileNumberDocument {
-  fileNumberDocumentId Int      @id @default(autoincrement()) @map("file_number_document_id")
-  filePath                 String   @map("file_path") @db.VarChar(500)
-  fileName                 String   @map("file_name") @db.VarChar(255)
-  fileSize                 Int      @map("file_size")
-  uploadedAt               DateTime @default(now()) @map("uploaded_at") @db.Timestamptz
-  notes                    String?  @db.Text
-  fileNumberId         Int      @map("file_number_id")
-  documentTypeId           Int      @map("document_type_id")
-  uploadedByProfileId      String   @map("uploaded_by_profile_id") @db.Uuid
-  reviewStatusId           Int?     @map("review_status_id")
-  sectionId                Int?     @map("section_id")
-  propertyTypeId           Int?     @map("property_type_id")
+  fileNumberDocumentId    Int      @id @default(autoincrement()) @map("file_number_document_id")
+  filePath                String   @map("file_path") @db.VarChar(500)
+  fileName                String   @map("file_name") @db.VarChar(255)
+  fileSize                Int      @map("file_size")
+  uploadedAt              DateTime @default(now()) @map("uploaded_at") @db.Timestamptz
+  notes                   String?  @db.Text
+  fileId                  Int      @map("file_id")
+  documentTypeId          Int      @map("document_type_id")
+  uploadedByProfileId     String   @map("uploaded_by_profile_id") @db.Uuid
+  reviewStatusId          Int?     @map("review_status_id")
+  sectionId               Int?     @map("section_id")
+  propertyTypeId          Int?     @map("property_type_id")
+  fnDocRequirementId      Int?     @map("fn_doc_requirement_id")
 
-  fileNumber FileNumber @relation(fields: [fileNumberId], references: [fileNumberId], onDelete: Cascade)
-  documentType   DocumentType   @relation(fields: [documentTypeId], references: [documentTypeId], onDelete: Cascade)
-  uploadedBy     Profile        @relation("UploadedByProfile", fields: [uploadedByProfileId], references: [id], onDelete: Cascade)
-  reviewStatus   ReviewStatus?  @relation(fields: [reviewStatusId], references: [reviewStatusId], onDelete: SetNull)
-  section        Section?       @relation(fields: [sectionId], references: [sectionId], onDelete: SetNull)
-  propertyType   PropertyType?  @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: SetNull)
+  fileNumber    FileNumber                      @relation(fields: [fileId], references: [fileId], onDelete: Cascade)
+  documentType  DocumentType                    @relation(fields: [documentTypeId], references: [documentTypeId], onDelete: Cascade)
+  uploadedBy    Profile                         @relation("UploadedByProfile", fields: [uploadedByProfileId], references: [id], onDelete: Cascade)
+  reviewStatus  ReviewStatus?                   @relation(fields: [reviewStatusId], references: [reviewStatusId], onDelete: SetNull)
+  section       Section?                        @relation(fields: [sectionId], references: [sectionId], onDelete: SetNull)
+  propertyType  PropertyType?                   @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: SetNull)
+  requirement   FileNumberDocumentRequirement?  @relation(fields: [fnDocRequirementId], references: [fnDocRequirementId], onDelete: SetNull)
 
   @@map("file_number_document")
   @@schema("public")
@@ -695,18 +713,84 @@ model FileNumberDocument {
 
 model FileNumberDocumentRequirement {
   fnDocRequirementId Int     @id @default(autoincrement()) @map("fn_doc_requirement_id")
-  fileNumberId   Int     @map("file_number_id")
+  fileId             Int     @map("file_id")
   documentTypeId     Int     @map("document_type_id")
   propertyTypeId     Int?    @map("property_type_id")
   isRequired         Boolean @default(true) @map("is_required")
   quantity           Int     @default(1)
   notes              String? @db.Text
+  versionLabel       String  @default("") @map("version_label") @db.VarChar(100)
 
-  fileNumber FileNumber @relation(fields: [fileNumberId], references: [fileNumberId], onDelete: Cascade)
-  documentType   DocumentType   @relation(fields: [documentTypeId], references: [documentTypeId], onDelete: Cascade)
-  propertyType   PropertyType?  @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: SetNull)
+  fileNumber        FileNumber                   @relation(fields: [fileId], references: [fileId], onDelete: Cascade)
+  documentType      DocumentType                 @relation(fields: [documentTypeId], references: [documentTypeId], onDelete: Cascade)
+  propertyType      PropertyType?                @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: SetNull)
+  fileNumberDocuments FileNumberDocument[]
+  naStatus          FileNumberDocumentNaStatus?
+  reviewItems       FileNumberDocumentReviewItem[]
 
-  @@unique([fileNumberId, documentTypeId, propertyTypeId])
+  @@unique([fileId, documentTypeId, propertyTypeId, versionLabel])
   @@map("fn_document_requirement")
+  @@schema("public")
+}
+
+model FileNumberDocumentNaStatus {
+  naStatusId         Int      @id @default(autoincrement()) @map("na_status_id")
+  fnDocRequirementId Int      @unique @map("fn_doc_requirement_id")
+  status             String   @map("status") @db.VarChar(20)
+  setByProfileId     String   @map("set_by_profile_id") @db.Uuid
+  setAt              DateTime @default(now()) @map("set_at") @db.Timestamptz
+
+  requirement FileNumberDocumentRequirement @relation(fields: [fnDocRequirementId], references: [fnDocRequirementId], onDelete: Cascade)
+  setBy       Profile                       @relation(fields: [setByProfileId], references: [id], onDelete: Cascade)
+
+  @@map("fn_document_na_status")
+  @@schema("public")
+}
+
+model FileNumberDocumentReview {
+  reviewId            Int       @id @default(autoincrement()) @map("review_id")
+  fileId              Int       @map("file_id")
+  reviewedByProfileId String    @map("reviewed_by_profile_id") @db.Uuid
+  reviewedAt          DateTime  @default(now()) @map("reviewed_at") @db.Timestamptz
+  clientNotifiedAt    DateTime? @map("client_notified_at") @db.Timestamptz
+
+  fileNumber FileNumber                     @relation(fields: [fileId], references: [fileId], onDelete: Cascade)
+  reviewedBy Profile                        @relation("AdminDocumentReviews", fields: [reviewedByProfileId], references: [id], onDelete: Cascade)
+  items      FileNumberDocumentReviewItem[]
+
+  @@map("fn_document_review")
+  @@schema("public")
+}
+
+model FileNumberDocumentReviewItem {
+  reviewItemId       Int     @id @default(autoincrement()) @map("review_item_id")
+  reviewId           Int     @map("review_id")
+  fnDocRequirementId Int     @map("fn_doc_requirement_id")
+  reviewStatusId     Int     @map("review_status_id")
+  notes              String? @db.Text
+
+  review       FileNumberDocumentReview      @relation(fields: [reviewId], references: [reviewId], onDelete: Cascade)
+  requirement  FileNumberDocumentRequirement @relation(fields: [fnDocRequirementId], references: [fnDocRequirementId], onDelete: Cascade)
+  reviewStatus ReviewStatus                  @relation(fields: [reviewStatusId], references: [reviewStatusId], onDelete: Cascade)
+
+  @@unique([reviewId, fnDocRequirementId])
+  @@map("fn_document_review_item")
+  @@schema("public")
+}
+
+model InAppNotification {
+  notificationId Int       @id @default(autoincrement()) @map("notification_id")
+  profileId      String    @map("profile_id") @db.Uuid
+  fileId         Int?      @map("file_id")
+  type           String    @map("type") @db.VarChar(50)
+  message        String    @map("message") @db.Text
+  isRead         Boolean   @default(false) @map("is_read")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  referenceId    Int?      @map("reference_id")
+
+  profile    Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  fileNumber FileNumber? @relation(fields: [fileId], references: [fileId], onDelete: SetNull)
+
+  @@map("in_app_notification")
   @@schema("public")
 }

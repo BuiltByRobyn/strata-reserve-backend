@@ -34,11 +34,34 @@ export const adminMiddleware = async (c: Context, next: Next) => {
 
     const profile = await prisma.profile.findUnique({
       where: { id: user.id },
-      select: { isAdmin: true },
+      select: { userTypeId: true },
     });
 
-    if (!profile?.isAdmin) {
+    if (profile?.userTypeId !== 1) {
       return c.json({ success: false, error: 'Forbidden - You are not authorized to access this resource' }, 403);
+    }
+
+    await next();
+  } catch {
+    return c.json({ success: false, error: 'Authorization check failed' }, 500);
+  }
+};
+
+// Allows Administrator (1), Inspector (2), and Assistant (4)
+export const internalUserMiddleware = async (c: Context, next: Next) => {
+  try {
+    const user = c.get('user');
+    if (!user) {
+      return c.json({ success: false, error: 'Unauthorized' }, 401);
+    }
+
+    const profile = await prisma.profile.findUnique({
+      where: { id: user.id },
+      select: { userTypeId: true },
+    });
+
+    if (!profile?.userTypeId || ![1, 2, 4].includes(profile.userTypeId)) {
+      return c.json({ success: false, error: 'Forbidden - Insufficient permissions' }, 403);
     }
 
     await next();

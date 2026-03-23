@@ -25,6 +25,8 @@ export const createQuestion = asyncHandler(async (c) => {
     const question = await questionAdminService.createQuestion({
       questionText: body.questionText.trim(),
       isRequired: body.isRequired ?? false,
+      allowNa: body.allowNa ?? false,
+      allowUnavailable: body.allowUnavailable ?? false,
       informationText: body.informationText?.trim() || null,
       questionCategory: body.questionCategory.trim(),
       questionTypeId: Number(body.questionTypeId),
@@ -68,6 +70,8 @@ export const updateQuestion = asyncHandler(async (c) => {
   const question = await questionAdminService.updateQuestion(id, {
     questionText: body.questionText?.trim(),
     isRequired: body.isRequired,
+    allowNa: body.allowNa !== undefined ? body.allowNa : undefined,
+    allowUnavailable: body.allowUnavailable !== undefined ? body.allowUnavailable : undefined,
     informationText: body.informationText !== undefined ? (body.informationText?.trim() || null) : undefined,
     questionCategory: body.questionCategory?.trim(),
     questionTypeId: body.questionTypeId ? Number(body.questionTypeId) : undefined,

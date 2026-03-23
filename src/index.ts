@@ -9,7 +9,6 @@ import prisma from './shared/lib/prismaClient';
 // Admin routes
 import { adminProfileRoutes } from './admin/routes/adminProfileRoutes';
 import { adminUsersRoutes } from './admin/routes/adminUsersRoutes';
-import { companyRoutes } from './admin/routes/companyRoutes';
 import { strataRoutes } from './admin/routes/strataRoutes';
 import { appointmentRoutes } from './admin/routes/appointmentRoutes';
 import { inspectorAvailabilityRoutes } from './admin/routes/inspectorAvailabilityRoutes';
@@ -19,8 +18,11 @@ import { fileNumberRoutes } from './admin/routes/fileNumberRoutes';
 import { adminSurveyRoutes } from './admin/routes/adminSurveyRoutes';
 import { questionRoutes } from './admin/routes/questionRoutes';
 import { fnDocRequirementRoutes } from './admin/routes/fnDocRequirementRoutes';
+import { documentReviewRoutes } from './admin/routes/documentReviewRoutes';
+import { adminNotificationRoutes } from './admin/routes/adminNotificationRoutes';
 import { propertyTypeRequestRoutes } from './admin/routes/propertyTypeRequestRoutes';
 import { fnSurveyQuestionRoutes } from './admin/routes/fnSurveyQuestionRoutes';
+import { activationRequestRoutes } from './admin/routes/activationRequestRoutes';
 
 // Client routes
 import { clientRoutes } from './client/routes/clientRoutes';
@@ -31,6 +33,7 @@ import { clientAppointmentRoutes } from './client/routes/clientAppointmentRoutes
 
 // Shared routes
 import { lookupRoutes } from './shared/routes/lookupRoutes';
+import { notificationRoutes } from './shared/routes/notificationRoutes';
 
 const app = new Hono();
 
@@ -63,7 +66,6 @@ app.use('/admin/*', authMiddleware);
 app.use('/admin/*', adminMiddleware);
 app.route('/admin', adminProfileRoutes);
 app.route('/admin', adminUsersRoutes);
-app.route('/admin', companyRoutes);
 app.route('/admin', strataRoutes);
 app.route('/admin', appointmentRoutes);
 app.route('/admin', inspectorAvailabilityRoutes);
@@ -73,8 +75,10 @@ app.route('/admin', fileNumberRoutes);
 app.route('/admin', adminSurveyRoutes);
 app.route('/admin', questionRoutes);
 app.route('/admin', fnDocRequirementRoutes);
+app.route('/admin', documentReviewRoutes);
 app.route('/admin', propertyTypeRequestRoutes);
 app.route('/admin', fnSurveyQuestionRoutes);
+app.route('/admin', activationRequestRoutes);
 
 // Client routes (auth required)
 app.use('/client/*', authMiddleware);
@@ -83,6 +87,8 @@ app.route('/client', clientProfileRoutes);
 app.route('/client', clientDocumentRoutes);
 app.route('/client', clientSurveyRoutes);
 app.route('/client', clientAppointmentRoutes);
+app.route('/client', notificationRoutes);
+app.route('/admin', adminNotificationRoutes);
 
 const port = Number(process.env.PORT) || 3000;
 

@@ -26,10 +26,6 @@ export const createUser = asyncHandler(async (c) => {
     return error(c, 'Missing required fields', 400);
   }
 
-  if (!strataAssociations || strataAssociations.length === 0) {
-    return error(c, 'At least one strata association is required', 400);
-  }
-
   const user = await userService.createUser(body);
 
   return created(c, user);
@@ -47,9 +43,16 @@ export const updateUser = asyncHandler(async (c) => {
 
 export const deleteUser = asyncHandler(async (c) => {
   const id = c.req.param('id');
-  const result = await userService.deleteUser(id);
-  if (!result) {
-    return error(c, 'User not found', 404);
+  try {
+    const result = await userService.deleteUser(id);
+    if (!result) {
+      return error(c, 'User not found', 404);
+    }
+    return success(c, { message: 'User deleted successfully' });
+  } catch (err: any) {
+    if (err.message?.includes('future appointments')) {
+      return error(c, err.message, 400);
+    }
+    throw err;
   }
-  return success(c, { message: 'User deleted successfully' });
 }, 'Failed to delete user');

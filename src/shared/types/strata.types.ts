@@ -10,7 +10,7 @@ export interface CreateStrataInput {
   website?: string;
   legalTypeId?: number;
   propertyTypeId?: number | null;
-  companyId?: number;
+  companyName?: string;
   fiscalYearEnd?: string | null;
   locationId?: number | null;
   sectionIds?: number[];

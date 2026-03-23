@@ -28,11 +28,13 @@ export const getQuestionById = async (id: number) => {
 };
 
 export const createQuestion = async (data: CreateQuestionInput) => {
-  const { serviceIds, propertyTypeIds, multipleChoiceOptions, questionText, isRequired, informationText, questionCategory, questionTypeId, parentQuestionId, subLabel } = data;
+  const { serviceIds, propertyTypeIds, multipleChoiceOptions, questionText, isRequired, allowNa, allowUnavailable, informationText, questionCategory, questionTypeId, parentQuestionId, subLabel } = data;
 
   const dataPayload = {
     questionText,
     isRequired,
+    allowNa: allowNa ?? false,
+    allowUnavailable: allowUnavailable ?? false,
     informationText: informationText ?? null,
     questionCategory,
     questionTypeId,
@@ -99,6 +101,8 @@ export const updateQuestion = async (id: number, data: UpdateQuestionInput) => {
     if (questionData.questionTypeId !== undefined) updateData.questionTypeId = questionData.questionTypeId;
     if (questionData.parentQuestionId !== undefined) updateData.parentQuestionId = questionData.parentQuestionId;
     if (questionData.subLabel !== undefined) updateData.subLabel = questionData.subLabel;
+    if (questionData.allowNa !== undefined) updateData.allowNa = questionData.allowNa;
+    if (questionData.allowUnavailable !== undefined) updateData.allowUnavailable = questionData.allowUnavailable;
 
     return tx.question.update({
       where: { questionId: id },

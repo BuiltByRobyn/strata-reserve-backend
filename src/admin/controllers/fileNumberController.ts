@@ -1,5 +1,6 @@
 import * as fileNumberService from '../../shared/services/fileNumberService';
 import * as fnSurveyQuestionService from '../../shared/services/fnSurveyQuestionService';
+import * as activationRequestService from '../../shared/services/activationRequestService';
 import prisma from '../../shared/lib/prismaClient';
 import { success, created, error, asyncHandler } from '../../shared/helpers/responseHelper';
 import { parseIntParam, parseIntQuery, parseOptionalIntQuery } from '../../shared/helpers/parseParams';
@@ -29,8 +30,9 @@ export const getActiveByStrata = asyncHandler(async (c) => {
 
 export const createFileNumber = asyncHandler(async (c) => {
   const body = await c.req.json();
-  if (!body.serviceId || !body.strataId || !body.requestedByProfileId) {
-    return error(c, 'serviceId, strataId, and requestedByProfileId are required', 400);
+  const user = c.get('user');
+  if (!body.serviceId || !body.strataId || !body.requestedByProfileId || !body.fileNumber) {
+    return error(c, 'serviceId, strataId, requestedByProfileId, and fileNumber are required', 400);
   }
 
   try {
@@ -38,6 +40,7 @@ export const createFileNumber = asyncHandler(async (c) => {
       serviceId: parseInt(body.serviceId),
       strataId: parseInt(body.strataId),
       requestedByProfileId: body.requestedByProfileId,
+      fileNumber: body.fileNumber.trim(),
       notes: body.notes?.trim()
     });
 
@@ -47,17 +50,51 @@ export const createFileNumber = asyncHandler(async (c) => {
     });
     const ptIds = strata?.strataPropertyTypes.map(spt => spt.propertyTypeId) ?? [];
     if (ptIds.length > 0) {
-      await fnSurveyQuestionService.autoPopulateFromTemplates(fileNumber.fileNumberId, ptIds);
+      await fnSurveyQuestionService.autoPopulateFromTemplates(fileNumber.fileId, ptIds);
+    }
+
+    // Approve the pending activation request for this client on this strata
+    const strataProfile = await prisma.strataProfile.findFirst({
+      where: { strataId: parseInt(body.strataId), profileId: body.requestedByProfileId },
+      select: { strataProfileId: true }
+    });
+    if (strataProfile) {
+      const pendingRequest = await prisma.activationRequest.findFirst({
+        where: { strataProfileId: strataProfile.strataProfileId, status: 'Pending' },
+        select: { activationRequestId: true }
+      });
+      if (pendingRequest) {
+        await activationRequestService.approve(pendingRequest.activationRequestId, user.id);
+      }
     }
 
     return created(c, fileNumber);
   } catch (err) {
-    if (err instanceof Error && err.message.includes('already has an active file number')) {
-      return error(c, err.message, 400);
+    if (err instanceof Error) {
+      if (err.message === 'INVALID_FORMAT') return error(c, 'File number must be in the format 12345-01.', 400);
+      if (err.message.includes('already has an active file number')) return error(c, err.message, 400);
     }
+    if ((err as any)?.code === 'P2002') return error(c, 'This file number already exists.', 400);
     throw err;
   }
 }, 'Failed to create file number');
+
+export const updateFileNumber = asyncHandler(async (c) => {
+  const id = parseIntParam(c, 'id');
+  const body = await c.req.json();
+  if (!body.fileNumber) {
+    return error(c, 'fileNumber is required', 400);
+  }
+  try {
+    const fileNumber = await fileNumberService.updateFileNumber(id, body.fileNumber.trim());
+    return success(c, fileNumber);
+  } catch (err) {
+    if (err instanceof Error) {
+      if (err.message === 'INVALID_FORMAT') return error(c, 'File number must be in the format 12345-01.', 400);
+    }
+    throw err;
+  }
+}, 'Failed to update file number');
 
 export const offerAppointment = asyncHandler(async (c) => {
   const id = parseIntParam(c, 'id');

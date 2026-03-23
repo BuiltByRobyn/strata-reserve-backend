@@ -10,7 +10,6 @@ export const getStratas = async () => {
   return prisma.strata.findMany({
     orderBy: { strataPlan: 'asc' },
     include: {
-      company: { select: { companyId: true, companyName: true } },
       legalType: { select: { legalTypeId: true, legalTypeName: true } },
       propertyType: { select: { propertyTypeId: true, propertyTypeName: true } },
       location: { select: { locationId: true, locationCode: true, locationName: true } },
@@ -35,7 +34,6 @@ export const getStrataById = async (id: number) => {
   return prisma.strata.findUnique({
     where: { strataId: id },
     include: {
-      company: true,
       legalType: true,
       propertyType: true,
       location: true,
@@ -99,7 +97,7 @@ export const createStrata = async (data: CreateStrataInput) => {
       website: strataData.website,
       legalTypeId: strataData.legalTypeId,
       propertyTypeId: strataData.propertyTypeId,
-      companyId: strataData.companyId,
+      companyName: strataData.companyName,
       locationId: locationId !== undefined ? locationId : undefined,
       fiscalYearEnd: fiscalYearEnd ? new Date(fiscalYearEnd.split('T')[0] + 'T00:00:00Z') : fiscalYearEnd === null ? null : undefined,
       ...(sectionIds?.length ? {
@@ -170,7 +168,7 @@ export const updateStrata = async (id: number, data: UpdateStrataInput) => {
     }
   }
 
-  return prisma.strata.update({
+  const updated = await prisma.strata.update({
     where: { strataId: id },
     data: {
       ...strataData,
@@ -182,6 +180,16 @@ export const updateStrata = async (id: number, data: UpdateStrataInput) => {
       strataPropertyTypes: { include: { propertyType: true } }
     }
   });
+
+  // Sync fiscalYearEnd to all active FileNumbers for this strata
+  if (fiscalYearEndDate !== undefined) {
+    await prisma.fileNumber.updateMany({
+      where: { strataId: id, archived: false },
+      data: { fiscalYearEnd: fiscalYearEndDate ?? null }
+    });
+  }
+
+  return updated;
 };
 
 export const deleteStrata = async (id: number) => {
@@ -263,11 +271,7 @@ export const getStratasByEmployee = async (profileId: string) => {
   return prisma.strataProfile.findMany({
     where: { profileId },
     include: {
-      strata: {
-        include: {
-          company: { select: { companyId: true, companyName: true } }
-        }
-      }
+      strata: true
     }
   });
 };
@@ -300,7 +304,6 @@ export const searchStratas = async (query: string) => {
       ]
     },
     include: {
-      company: { select: { companyId: true, companyName: true } },
       strataPropertyTypes: {
         include: { propertyType: { select: { propertyTypeId: true, propertyTypeName: true } } }
       }

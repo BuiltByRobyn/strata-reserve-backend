@@ -2,9 +2,9 @@ import prisma from '../lib/prismaClient';
 import { toUTCDate } from '../helpers/dateUtils';
 import type { SaveResponseInput } from '../types/question.types';
 
-export const getSurveyQuestionsForSR = async (fileNumberId: number) => {
+export const getSurveyQuestionsForSR = async (fileId: number) => {
   const srQuestions = await prisma.fnSurveyQuestion.findMany({
-    where: { fileNumberId },
+    where: { fileId: fileId },
     include: {
       question: {
         include: {
@@ -23,6 +23,7 @@ export const getSurveyQuestionsForSR = async (fileNumberId: number) => {
     },
     orderBy: [
       { propertyType: { sortOrder: 'asc' } },
+      { sortOrder: 'asc' },
       { questionId: 'asc' }
     ]
   });
@@ -46,7 +47,7 @@ export const getSurveyQuestionsForSR = async (fileNumberId: number) => {
       informationText: srq.question.informationText,
       questionCategory: srq.question.questionCategory,
       questionType: srq.question.questionType.questionTypeName,
-      sortOrder: srq.question.questionId,
+      sortOrder: srq.sortOrder,
       multipleChoiceOptions: srq.question.multipleChoiceOptions.map((o: any) => ({
         optionId: o.multipleChoiceOptionId,
         optionText: o.optionText,
@@ -83,9 +84,9 @@ export const getSurveyQuestionsForSR = async (fileNumberId: number) => {
   return flatQuestions;
 };
 
-export const getResponsesByFileNumber = async (fileNumberId: number) => {
+export const getResponsesByFileNumber = async (fileId: number) => {
   return prisma.questionResponse.findMany({
-    where: { fileNumberId, archivedAt: null },
+    where: { fileId: fileId, archivedAt: null },
     include: {
       answeredBy: { select: { id: true, firstName: true, lastName: true, displayName: true } },
       multipleChoiceOption: { select: { multipleChoiceOptionId: true, optionText: true } }
@@ -93,9 +94,9 @@ export const getResponsesByFileNumber = async (fileNumberId: number) => {
   });
 };
 
-export const getArchivedResponsesByFileNumber = async (fileNumberId: number) => {
+export const getArchivedResponsesByFileNumber = async (fileId: number) => {
   return prisma.questionResponse.findMany({
-    where: { fileNumberId, archivedAt: { not: null } },
+    where: { fileId: fileId, archivedAt: { not: null } },
     include: {
       answeredBy: { select: { id: true, firstName: true, lastName: true, displayName: true } },
       multipleChoiceOption: { select: { multipleChoiceOptionId: true, optionText: true } },
@@ -121,25 +122,25 @@ export const getArchivedResponsesByFileNumber = async (fileNumberId: number) => 
 export const saveResponses = async (responses: SaveResponseInput[]) => {
   if (responses.length === 0) return [];
 
-  const fileNumberIds = [...new Set(responses.map(r => r.fileNumberId))];
+  const fileIds = [...new Set(responses.map(r => r.fileId))];
 
   const existingResponses = await prisma.questionResponse.findMany({
     where: {
-      fileNumberId: { in: fileNumberIds },
+      fileId: { in: fileIds },
       questionId: { in: responses.map(r => r.questionId) },
       archivedAt: null,
     },
-    select: { responseId: true, fileNumberId: true, questionId: true, propertyTypeId: true }
+    select: { responseId: true, fileId: true, questionId: true, propertyTypeId: true }
   });
 
   const existingMap = new Map(
-    existingResponses.map(r => [`${r.fileNumberId}-${r.questionId}-${r.propertyTypeId}`, r.responseId])
+    existingResponses.map(r => [`${r.fileId}-${r.questionId}-${r.propertyTypeId}`, r.responseId])
   );
 
   return prisma.$transaction(async (tx) => {
     const results = [];
     for (const resp of responses) {
-      const key = `${resp.fileNumberId}-${resp.questionId}-${resp.propertyTypeId}`;
+      const key = `${resp.fileId}-${resp.questionId}-${resp.propertyTypeId}`;
       const existingId = existingMap.get(key);
       const data = {
         responseText: resp.responseText ?? null,
@@ -156,10 +157,10 @@ export const saveResponses = async (responses: SaveResponseInput[]) => {
           data: { archivedAt: new Date() },
         });
       }
-      
+
       results.push(await tx.questionResponse.create({
         data: {
-          fileNumberId: resp.fileNumberId,
+          fileId: resp.fileId,
           questionId: resp.questionId,
           propertyTypeId: resp.propertyTypeId,
           ...data,
