@@ -26,10 +26,6 @@ export const createUser = asyncHandler(async (c) => {
     return error(c, 'Missing required fields', 400);
   }
 
-  if (!strataAssociations || strataAssociations.length === 0) {
-    return error(c, 'At least one strata association is required', 400);
-  }
-
   const user = await userService.createUser(body);
 
   return created(c, user);
