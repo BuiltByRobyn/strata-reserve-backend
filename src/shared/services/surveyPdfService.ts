@@ -199,7 +199,7 @@ export async function renderSurveyAnswersPdf(
 
     const parentResp = getResp(q.questionId, q.propertyTypeId);
     const parentFlagged = parentResp?.responseText === 'NOT_APPLICABLE' || parentResp?.responseText === 'UNKNOWN';
-    const sub = (!parentFlagged && subByParent.get(`${q.questionId}-${q.propertyTypeId}`)) ?? [];
+    const sub = parentFlagged ? [] : (subByParent.get(`${q.questionId}-${q.propertyTypeId}`) ?? []);
     if (sub.length > 0) {
       doc.moveDown(1.5);
       for (const sq of sub) {
