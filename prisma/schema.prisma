@@ -80,7 +80,6 @@ model Service {
 
 model Profile {
   id                 String   @id @db.Uuid
-  isAdmin            Boolean? @default(false) @map("is_admin")
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
   firstName          String?  @map("first_name") @db.Text
   lastName           String?  @map("last_name") @db.Text
