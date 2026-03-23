@@ -6,6 +6,8 @@ export type { SurveyPdfMeta, FlatSurveyQuestion, ActiveSurveyResponse };
 
 function answerToText(q: FlatSurveyQuestion, resp?: ActiveSurveyResponse): string {
   if (!resp) return 'No answer';
+  if (resp.responseText === 'NOT_APPLICABLE') return 'Not Applicable';
+  if (resp.responseText === 'UNKNOWN') return 'Unknown';
 
   const type = q.questionType;
 
@@ -181,7 +183,7 @@ export async function renderSurveyAnswersPdf(
 
     // Ensure question + answer box fit on current page
     ensureSpace(100);
-    doc.font('Helvetica').fontSize(10).text(`Q: ${q.questionText}`, BOX_LEFT, doc.y, { width: BOX_WIDTH });
+    doc.font('Helvetica-Bold').fontSize(10).text(q.questionText, BOX_LEFT, doc.y, { width: BOX_WIDTH });
     doc.moveDown(0.6);
 
     const answerText = answerToText(q, getResp(q.questionId, q.propertyTypeId));
@@ -192,12 +194,12 @@ export async function renderSurveyAnswersPdf(
       doc.rect(BOX_LEFT, boxY, BOX_WIDTH, boxH).lineWidth(0.5).strokeColor('#cccccc').stroke();
       doc.y = boxY + boxH;
     } else {
-      doc.font('Helvetica').fontSize(10).text(`A: ${answerText}`, BOX_LEFT, doc.y, { width: BOX_WIDTH });
+      doc.font('Helvetica').fontSize(10).text(answerText, BOX_LEFT, doc.y, { width: BOX_WIDTH });
     }
 
-    // Sub-questions are always shown in the PDF regardless of whether the parent
-    // has an answer (unlike the on-screen client view which gates on hasAnswer).
-    const sub = subByParent.get(`${q.questionId}-${q.propertyTypeId}`) ?? [];
+    const parentResp = getResp(q.questionId, q.propertyTypeId);
+    const parentFlagged = parentResp?.responseText === 'NOT_APPLICABLE' || parentResp?.responseText === 'UNKNOWN';
+    const sub = (!parentFlagged && subByParent.get(`${q.questionId}-${q.propertyTypeId}`)) ?? [];
     if (sub.length > 0) {
       doc.moveDown(1.5);
       for (const sq of sub) {
@@ -221,6 +223,18 @@ export async function renderSurveyAnswersPdf(
     }
 
     doc.moveDown(2.5);
+  }
+
+  if (mode === 'client') {
+    doc.moveDown(2);
+    doc.font('Helvetica-Bold').fontSize(14).text('Submission Instructions', CONTENT_LEFT, doc.y, { width: CONTENT_WIDTH });
+    doc.moveDown(1);
+    doc.font('Helvetica').fontSize(11).text(
+      'Once completed please email to clientcare@stratareserveplanning.com, or mail to our regional office in Vancouver 720-999 West Broadway, Vancouver, BC V5Z 1J5',
+      CONTENT_LEFT,
+      doc.y,
+      { width: CONTENT_WIDTH }
+    );
   }
 
   doc.end();

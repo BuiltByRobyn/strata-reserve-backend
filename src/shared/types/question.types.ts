@@ -31,6 +31,8 @@ export interface CreateQuestionInput {
   subLabel?: string | null;
   questionText: string;
   isRequired: boolean;
+  allowNa?: boolean;
+  allowUnavailable?: boolean;
   informationText?: string | null;
   questionCategory: string;
   questionTypeId: number;
@@ -56,6 +58,8 @@ export interface UpdateQuestionInput {
   subLabel?: string | null;
   questionText?: string;
   isRequired?: boolean;
+  allowNa?: boolean;
+  allowUnavailable?: boolean;
   informationText?: string | null;
   questionCategory?: string;
   questionTypeId?: number;

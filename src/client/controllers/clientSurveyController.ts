@@ -64,7 +64,8 @@ export const downloadActiveSurveyPdf = asyncHandler(async (c) => {
   }
 
   const allQuestions = await questionService.getSurveyQuestionsForSR(sr.fileId);
-  const responses = await questionService.getResponsesByFileNumber(sr.fileId);
+  const blank = c.req.query('blank') === 'true';
+  const responses = blank ? [] : await questionService.getResponsesByFileNumber(sr.fileId);
 
   // Filter questions to only include sections and property types assigned to this client's profile
   const allowedSections = await strataService.getSectionNamesByProfileId(user.id);
@@ -228,7 +229,7 @@ export const saveSurveyRequirements = asyncHandler(async (c) => {
   const body = await c.req.json();
 
   if (Array.isArray(body.selections)) {
-    const selections = body.selections as { propertyTypeId: number; questionIds: number[] }[];
+    const selections = body.selections as { propertyTypeId: number; questions: { id: number; sortOrder: number }[] }[];
     const results = await fnSurveyQuestionService.replaceQuestionsForSR(fileId, selections);
     return success(c, results);
   }

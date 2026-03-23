@@ -21,6 +21,7 @@ export const getQuestionsBySR = async (fileId: number) => {
     },
     orderBy: [
       { propertyType: { sortOrder: 'asc' } },
+      { sortOrder: 'asc' },
       { questionId: 'asc' }
     ]
   });
@@ -44,7 +45,7 @@ export const removeQuestionFromSR = async (fnSurveyQuestionId: number) => {
 
 export const replaceQuestionsForSR = async (
   fileId: number,
-  selections: { propertyTypeId: number; questionIds: number[] }[]
+  selections: { propertyTypeId: number; questions: { id: number; sortOrder: number }[] }[]
 ) => {
   return prisma.$transaction(async (tx) => {
     await tx.fnSurveyQuestion.deleteMany({ where: { fileId: fileId } });
@@ -56,16 +57,23 @@ export const replaceQuestionsForSR = async (
       data: selections.map(s => ({ fileId: fileId, propertyTypeId: s.propertyTypeId }))
     });
 
-    const payload: { fileId: number; questionId: number; propertyTypeId: number }[] = [];
+    const payload: { fileId: number; questionId: number; propertyTypeId: number; sortOrder: number }[] = [];
+    let subSortOffset = 10000;
 
     for (const sel of selections) {
+      const questionIds = sel.questions.map(q => q.id);
       const subQuestions = await tx.question.findMany({
-        where: { parentQuestionId: { in: sel.questionIds } },
-        select: { questionId: true }
+        where: { parentQuestionId: { in: questionIds } },
+        select: { questionId: true, parentQuestionId: true }
       });
-      const allIds = [...sel.questionIds, ...subQuestions.map(sq => sq.questionId)];
-      for (const qId of allIds) {
-        payload.push({ fileId: fileId, questionId: qId, propertyTypeId: sel.propertyTypeId });
+
+      for (const q of sel.questions) {
+        payload.push({ fileId, questionId: q.id, propertyTypeId: sel.propertyTypeId, sortOrder: q.sortOrder });
+      }
+      for (const sq of subQuestions) {
+        const parentOrder = sel.questions.find(q => q.id === sq.parentQuestionId)?.sortOrder ?? 0;
+        payload.push({ fileId, questionId: sq.questionId, propertyTypeId: sel.propertyTypeId, sortOrder: parentOrder * 100 + subSortOffset });
+        subSortOffset++;
       }
     }
 

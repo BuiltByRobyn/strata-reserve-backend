@@ -23,6 +23,7 @@ export const getSurveyQuestionsForSR = async (fileId: number) => {
     },
     orderBy: [
       { propertyType: { sortOrder: 'asc' } },
+      { sortOrder: 'asc' },
       { questionId: 'asc' }
     ]
   });
@@ -46,7 +47,7 @@ export const getSurveyQuestionsForSR = async (fileId: number) => {
       informationText: srq.question.informationText,
       questionCategory: srq.question.questionCategory,
       questionType: srq.question.questionType.questionTypeName,
-      sortOrder: srq.question.questionId,
+      sortOrder: srq.sortOrder,
       multipleChoiceOptions: srq.question.multipleChoiceOptions.map((o: any) => ({
         optionId: o.multipleChoiceOptionId,
         optionText: o.optionText,

@@ -564,6 +564,8 @@ model Question {
   subLabel         String?  @map("sub_label") @db.VarChar(10)
   questionText     String   @map("question_text") @db.Text
   isRequired       Boolean  @map("is_required")
+  allowNa          Boolean  @default(false) @map("allow_na")
+  allowUnavailable Boolean  @default(false) @map("allow_unavailable")
   informationText  String?  @map("information_text") @db.Text
   questionCategory String   @map("question_category") @db.VarChar(50)
   questionTypeId   Int      @map("question_type_id")
@@ -653,9 +655,10 @@ model QuestionResponse {
 
 model FnSurveyQuestion {
   fnSurveyQuestionId Int @id @default(autoincrement()) @map("fn_survey_question_id")
-  fileId   Int @map("file_id")
+  fileId             Int @map("file_id")
   questionId         Int @map("question_id")
   propertyTypeId     Int @map("property_type_id")
+  sortOrder          Int @default(0) @map("sort_order")
 
   fileNumber FileNumber @relation(fields: [fileId], references: [fileId], onDelete: Cascade)
   question       Question       @relation(fields: [questionId], references: [questionId], onDelete: Cascade)
