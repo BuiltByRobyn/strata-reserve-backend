@@ -195,11 +195,32 @@ export const getRequiredDocumentsChecklist = async (profileId: string, fileId: n
   const sr = await getFileNumberByIdForProfile(profileId, fileId);
   if (!sr) return null;
 
-  const requirements = await prisma.fileNumberDocumentRequirement.findMany({
-    where: { fileId },
-    include: requirementInclude,
-    orderBy: { fnDocRequirementId: 'asc' },
-  });
+  const [requirements, latestReview] = await Promise.all([
+    prisma.fileNumberDocumentRequirement.findMany({
+      where: { fileId },
+      include: requirementInclude,
+      orderBy: { fnDocRequirementId: 'asc' },
+    }),
+    prisma.fileNumberDocumentReview.findFirst({
+      where: { fileId },
+      orderBy: { reviewedAt: 'desc' },
+      select: {
+        reviewId: true,
+        reviewedAt: true,
+        items: {
+          select: {
+            fnDocRequirementId: true,
+            notes: true,
+            reviewStatus: { select: { reviewStatusId: true, statusName: true } },
+          },
+        },
+      },
+    }),
+  ]);
+
+  const reviewItemMap = new Map(
+    latestReview?.items.map(item => [item.fnDocRequirementId, item]) ?? []
+  );
 
   return requirements.map((req) => ({
     fnDocRequirementId: req.fnDocRequirementId,
@@ -211,6 +232,10 @@ export const getRequiredDocumentsChecklist = async (profileId: string, fileId: n
     propertyType: req.propertyType,
     naStatus: req.naStatus?.status ?? null,
     uploadedDocument: req.fileNumberDocuments[0] ?? null,
+    reviewId: latestReview?.reviewId ?? null,
+    reviewedAt: latestReview?.reviewedAt?.toISOString() ?? null,
+    reviewStatus: reviewItemMap.get(req.fnDocRequirementId)?.reviewStatus ?? null,
+    denialNote: reviewItemMap.get(req.fnDocRequirementId)?.notes ?? null,
   }));
 };
 

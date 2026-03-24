@@ -1,8 +1,9 @@
+import { Prisma } from '@prisma/client';
 import prisma from '../lib/prismaClient';
 
 export async function logProfileChange(strataProfileId: number, changedFields: Record<string, unknown>) {
   await prisma.profileActivityLog.create({
-    data: { strataProfileId, changedFields },
+    data: { strataProfileId, changedFields: changedFields as Prisma.InputJsonValue },
   });
 }
 
