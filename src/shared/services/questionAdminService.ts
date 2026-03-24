@@ -6,29 +6,43 @@ const questionInclude = {
   questionServices: { include: { service: true }, orderBy: { sortOrder: 'asc' as const } },
   questionPropertyTypes: { include: { propertyType: true } },
   multipleChoiceOptions: { orderBy: { sortOrder: 'asc' as const } },
-  parentQuestion: { select: { questionId: true, questionText: true, subLabel: true } },
-  subQuestions: {
-    orderBy: { questionId: 'asc' as const },
-    select: { questionId: true, subLabel: true, questionText: true, isRequired: true, questionTypeId: true, questionCategory: true, informationText: true },
+  parentRelations: {
+    orderBy: { sortOrder: 'asc' as const },
+    include: {
+      subQuestion: {
+        select: { questionId: true, subLabel: true, questionText: true, isRequired: true, questionTypeId: true, questionCategory: true, informationText: true },
+      }
+    }
   },
+  subRelations: { select: { id: true } },
 };
 
+const mapQuestion = (q: any) => ({
+  ...q,
+  isSubQuestion: q.subRelations.length > 0,
+  subQuestions: q.parentRelations.map((r: any) => r.subQuestion),
+  subRelations: undefined,
+  parentRelations: undefined,
+});
+
 export const getQuestions = async () => {
-  return prisma.question.findMany({
+  const results = await prisma.question.findMany({
     include: questionInclude,
     orderBy: { questionId: 'asc' },
   });
+  return results.map(mapQuestion);
 };
 
 export const getQuestionById = async (id: number) => {
-  return prisma.question.findUnique({
+  const result = await prisma.question.findUnique({
     where: { questionId: id },
     include: questionInclude,
   });
+  return result ? mapQuestion(result) : null;
 };
 
 export const createQuestion = async (data: CreateQuestionInput) => {
-  const { serviceIds, propertyTypeIds, multipleChoiceOptions, questionText, isRequired, allowNa, allowUnavailable, informationText, questionCategory, questionTypeId, parentQuestionId, subLabel } = data;
+  const { serviceIds, propertyTypeIds, multipleChoiceOptions, questionText, isRequired, allowNa, allowUnavailable, informationText, questionCategory, questionTypeId, subLabel } = data;
 
   const dataPayload = {
     questionText,
@@ -38,7 +52,6 @@ export const createQuestion = async (data: CreateQuestionInput) => {
     informationText: informationText ?? null,
     questionCategory,
     questionTypeId,
-    parentQuestionId: parentQuestionId ?? null,
     subLabel: subLabel ?? null,
     ...(serviceIds.length > 0
       ? { questionServices: { create: serviceIds.map(s => ({ serviceId: s.serviceId, sortOrder: s.sortOrder })) } }
@@ -51,16 +64,17 @@ export const createQuestion = async (data: CreateQuestionInput) => {
       : {}),
   };
 
-  return prisma.question.create({
+  const result = await prisma.question.create({
     data: dataPayload,
     include: questionInclude,
   });
+  return mapQuestion(result);
 };
 
 export const updateQuestion = async (id: number, data: UpdateQuestionInput) => {
   const { serviceIds, propertyTypeIds, multipleChoiceOptions, ...questionData } = data;
 
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     await tx.questionResponse.updateMany({
       where: { questionId: id, archivedAt: null },
       data: { archivedAt: new Date() },
@@ -85,6 +99,10 @@ export const updateQuestion = async (id: number, data: UpdateQuestionInput) => {
     }
 
     if (multipleChoiceOptions !== undefined) {
+      await tx.questionResponse.updateMany({
+        where: { questionId: id, multipleChoiceOptionId: { not: null } },
+        data: { multipleChoiceOptionId: null },
+      });
       await tx.multipleChoiceOption.deleteMany({ where: { questionId: id } });
       if (multipleChoiceOptions.length > 0) {
         await tx.multipleChoiceOption.createMany({
@@ -99,7 +117,6 @@ export const updateQuestion = async (id: number, data: UpdateQuestionInput) => {
     if (questionData.informationText !== undefined) updateData.informationText = questionData.informationText;
     if (questionData.questionCategory !== undefined) updateData.questionCategory = questionData.questionCategory;
     if (questionData.questionTypeId !== undefined) updateData.questionTypeId = questionData.questionTypeId;
-    if (questionData.parentQuestionId !== undefined) updateData.parentQuestionId = questionData.parentQuestionId;
     if (questionData.subLabel !== undefined) updateData.subLabel = questionData.subLabel;
     if (questionData.allowNa !== undefined) updateData.allowNa = questionData.allowNa;
     if (questionData.allowUnavailable !== undefined) updateData.allowUnavailable = questionData.allowUnavailable;
@@ -110,8 +127,38 @@ export const updateQuestion = async (id: number, data: UpdateQuestionInput) => {
       include: questionInclude,
     });
   });
+  return mapQuestion(result);
+};
+
+export const setSubQuestions = async (parentId: number, subQuestionIds: number[]) => {
+  return prisma.$transaction(async (tx) => {
+    await tx.questionSubQuestion.deleteMany({ where: { parentQuestionId: parentId } });
+    if (subQuestionIds.length > 0) {
+      await tx.questionSubQuestion.createMany({
+        data: subQuestionIds.map((subId, i) => ({ parentQuestionId: parentId, subQuestionId: subId, sortOrder: i + 1 })),
+      });
+    }
+    const result = await tx.question.findUnique({ where: { questionId: parentId }, include: questionInclude });
+    return result ? mapQuestion(result) : null;
+  });
 };
 
 export const deleteQuestion = async (id: number) => {
-  return prisma.question.delete({ where: { questionId: id } });
+  return prisma.$transaction(async (tx) => {
+    // Null out MC option FK in responses first
+    await tx.questionResponse.updateMany({
+      where: { questionId: id, multipleChoiceOptionId: { not: null } },
+      data: { multipleChoiceOptionId: null },
+    });
+    // Explicitly delete all dependents (don't rely on DB-level cascade)
+    await tx.questionResponse.deleteMany({ where: { questionId: id } });
+    await tx.fnSurveyQuestion.deleteMany({ where: { questionId: id } });
+    await tx.multipleChoiceOption.deleteMany({ where: { questionId: id } });
+    await tx.questionService.deleteMany({ where: { questionId: id } });
+    await tx.questionPropertyType.deleteMany({ where: { questionId: id } });
+    await tx.questionSubQuestion.deleteMany({
+      where: { OR: [{ parentQuestionId: id }, { subQuestionId: id }] },
+    });
+    return tx.question.delete({ where: { questionId: id } });
+  });
 };

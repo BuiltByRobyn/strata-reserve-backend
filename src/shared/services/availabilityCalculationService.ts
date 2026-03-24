@@ -194,6 +194,7 @@ export async function getAvailableSlots(
 
     for (const slot of timeSlots) {
       if (!isDraftMeeting && slot.slotTime === '19:00') continue;
+      if (isDraftMeeting && slot.slotTime !== '19:00') continue;
 
       const slotKey = `${dateStr}_${slot.timeSlotId}`;
       if (heldSlots.has(slotKey)) continue;

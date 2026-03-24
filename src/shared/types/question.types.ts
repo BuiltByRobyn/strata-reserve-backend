@@ -2,14 +2,14 @@ export interface SubQuestionDef {
   id?: number;
   label: string;  // e.g. 'a', 'b', 'c'
   text: string;
-  type: 'textarea' | 'text' | 'number' | 'select' | 'multi_select' | 'boolean' | 'none_or_explain' | 'checkbox' | 'multiple_choice';
+  type: 'textarea' | 'text' | 'number' | 'select' | 'multi_select' | 'boolean' | 'checkbox' | 'multiple_choice';
 }
 
 export interface QuestionDef {
   id?: number;
   text: string;
   category: string;
-  type: 'textarea' | 'boolean' | 'none_or_explain' | 'checkbox' | 'multiple_choice' | 'text' | 'number' | 'select' | 'multi_select';
+  type: 'textarea' | 'boolean' | 'checkbox' | 'multiple_choice' | 'text' | 'number' | 'select' | 'multi_select';
   propertyTypes: string[];
   informationText?: string;
   multipleChoiceOptions?: string[];
@@ -27,7 +27,6 @@ export interface MultipleChoiceOptionInput {
 }
 
 export interface CreateQuestionInput {
-  parentQuestionId?: number | null;
   subLabel?: string | null;
   questionText: string;
   isRequired: boolean;
@@ -54,7 +53,6 @@ export interface SaveResponseInput {
 }
 
 export interface UpdateQuestionInput {
-  parentQuestionId?: number | null;
   subLabel?: string | null;
   questionText?: string;
   isRequired?: boolean;

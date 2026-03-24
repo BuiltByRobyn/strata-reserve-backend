@@ -58,6 +58,9 @@ async function main() {
   await prisma.propertyTypeRequest.deleteMany({})
   console.log('✓ Cleared property type requests')
 
+  await prisma.profileActivityLog.deleteMany({})
+  console.log('✓ Cleared profile activity logs')
+
   console.log('\n✅ Reset complete. Stratas, profiles, inspector availability, and all lookup data retained.')
 }
 

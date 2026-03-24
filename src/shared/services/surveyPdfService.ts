@@ -45,12 +45,7 @@ function answerToText(q: FlatSurveyQuestion, resp?: ActiveSurveyResponse): strin
     return resp.responseDate ? formatDateLong(resp.responseDate) : 'No answer';
   }
 
-  if (type === 'none_or_explain') {
-    if (!resp.responseText) return 'No answer';
-    return resp.responseText === 'NONE' ? 'None' : resp.responseText;
-  }
-
-  return resp.responseText?.trim() ? resp.responseText : 'No answer';
+return resp.responseText?.trim() ? resp.responseText : 'No answer';
 }
 
 export async function renderSurveyAnswersPdf(

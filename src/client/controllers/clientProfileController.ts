@@ -1,6 +1,7 @@
 import { success, error, asyncHandler } from '../../shared/helpers/responseHelper';
 import prisma from '../../shared/lib/prismaClient';
 import * as propertyTypeRequestService from '../../shared/services/propertyTypeRequestService';
+import { logProfileChange } from '../../shared/services/clientActivityService';
 
 export const getClientProfile = asyncHandler(async (c) => {
   const user = c.get('user');
@@ -66,6 +67,11 @@ export const updateClientProfile = asyncHandler(async (c) => {
   const user = c.get('user');
   const body = await c.req.json();
 
+  const currentProfile = await prisma.profile.findUnique({
+    where: { id: user.id },
+    select: { firstName: true, lastName: true, phoneNumber: true, companyName: true },
+  });
+
   const updatedProfile = await prisma.profile.update({
     where: { id: user.id },
     data: {
@@ -81,6 +87,24 @@ export const updateClientProfile = asyncHandler(async (c) => {
       where: { profileId: user.id },
       data: { strataPosition: body.strataPosition }
     });
+  }
+
+  if (currentProfile) {
+    const changed: Record<string, { from: unknown; to: unknown }> = {};
+    if (body.firstName !== undefined && body.firstName !== currentProfile.firstName)
+      changed.firstName = { from: currentProfile.firstName, to: body.firstName };
+    if (body.lastName !== undefined && body.lastName !== currentProfile.lastName)
+      changed.lastName = { from: currentProfile.lastName, to: body.lastName };
+    if (body.phoneNumber !== undefined && body.phoneNumber !== currentProfile.phoneNumber)
+      changed.phoneNumber = { from: currentProfile.phoneNumber, to: body.phoneNumber };
+    if (body.companyName !== undefined && (body.companyName || null) !== currentProfile.companyName)
+      changed.companyName = { from: currentProfile.companyName, to: body.companyName || null };
+    if (Object.keys(changed).length > 0) {
+      const strataProfile = await prisma.strataProfile.findFirst({ where: { profileId: user.id }, select: { strataProfileId: true } });
+      if (strataProfile) {
+        await logProfileChange(strataProfile.strataProfileId, changed);
+      }
+    }
   }
 
   return success(c, {

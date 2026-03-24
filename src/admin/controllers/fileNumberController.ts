@@ -92,6 +92,7 @@ export const updateFileNumber = asyncHandler(async (c) => {
     if (err instanceof Error) {
       if (err.message === 'INVALID_FORMAT') return error(c, 'File number must be in the format 12345-01.', 400);
     }
+    if ((err as any)?.code === 'P2002') return error(c, 'This file number already exists.', 400);
     throw err;
   }
 }, 'Failed to update file number');

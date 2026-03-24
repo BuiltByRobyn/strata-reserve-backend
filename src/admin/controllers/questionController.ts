@@ -7,7 +7,12 @@ export const getQuestions = asyncHandler(async (c) => {
   return success(c, questions);
 }, 'Failed to fetch questions');
 
-export const getQuestionById = getByIdHandler(questionAdminService.getQuestionById, 'Question');
+export const getQuestionById = asyncHandler(async (c) => {
+  const id = parseIntParam(c, 'id');
+  const question = await questionAdminService.getQuestionById(id);
+  if (!question) return error(c, 'Question not found', 404);
+  return success(c, question);
+}, 'Failed to fetch question');
 
 export const createQuestion = asyncHandler(async (c) => {
   const body = await c.req.json();
@@ -30,7 +35,6 @@ export const createQuestion = asyncHandler(async (c) => {
       informationText: body.informationText?.trim() || null,
       questionCategory: body.questionCategory.trim(),
       questionTypeId: Number(body.questionTypeId),
-      parentQuestionId: body.parentQuestionId != null ? Number(body.parentQuestionId) : null,
       subLabel: body.subLabel?.trim() || null,
       serviceIds: Array.isArray(body.serviceIds) ? body.serviceIds.map((s: { serviceId: number; sortOrder: number }) => ({
         serviceId: Number(s.serviceId),
@@ -75,7 +79,6 @@ export const updateQuestion = asyncHandler(async (c) => {
     informationText: body.informationText !== undefined ? (body.informationText?.trim() || null) : undefined,
     questionCategory: body.questionCategory?.trim(),
     questionTypeId: body.questionTypeId ? Number(body.questionTypeId) : undefined,
-    parentQuestionId: body.parentQuestionId !== undefined ? (body.parentQuestionId != null ? Number(body.parentQuestionId) : null) : undefined,
     subLabel: body.subLabel !== undefined ? (body.subLabel?.trim() || null) : undefined,
     serviceIds: body.serviceIds !== undefined ? (Array.isArray(body.serviceIds) ? body.serviceIds.map((s: { serviceId: number; sortOrder: number }) => ({
       serviceId: Number(s.serviceId),
@@ -89,5 +92,13 @@ export const updateQuestion = asyncHandler(async (c) => {
   });
   return success(c, question);
 }, 'Failed to update question');
+
+export const setSubQuestions = asyncHandler(async (c) => {
+  const id = parseIntParam(c, 'id');
+  const body = await c.req.json();
+  const subQuestionIds = Array.isArray(body.subQuestionIds) ? body.subQuestionIds.map(Number) : [];
+  const result = await questionAdminService.setSubQuestions(id, subQuestionIds);
+  return success(c, result);
+}, 'Failed to update sub-questions');
 
 export const deleteQuestion = deleteHandler(questionAdminService.deleteQuestion, 'Question');

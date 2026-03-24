@@ -3,6 +3,9 @@ export interface AppointmentNotification {
   message: string;
   reason: string | null;
   date: string;
+  previousDate?: string;
+  previousSlotTime?: string;
+  previousSlotName?: string;
 }
 
 export interface AvailableSlot {
