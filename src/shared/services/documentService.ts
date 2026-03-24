@@ -256,8 +256,8 @@ export const submitBatchDocumentReview = async (
   reviewedByProfileId: string,
   items: BatchDocumentReviewItemInput[]
 ) => {
-  return prisma.$transaction(async (tx) => {
-    const review = await tx.fileNumberDocumentReview.create({
+  const review = await prisma.$transaction(async (tx) => {
+    const created = await tx.fileNumberDocumentReview.create({
       data: {
         fileId,
         reviewedByProfileId,
@@ -291,8 +291,29 @@ export const submitBatchDocumentReview = async (
       data: { status: 'Documents Reviewed' },
     });
 
-    return review;
+    return created;
   });
+
+  const allApproved = review.items.every((item) => item.reviewStatus.statusName === 'Approved');
+  if (allApproved) {
+    const fn = await prisma.fileNumber.findUnique({
+      where: { fileId },
+      select: {
+        fileNumber: true,
+        requestedBy: { select: { email: true } },
+      },
+    });
+
+    if (fn?.requestedBy?.email) {
+      emailService.sendDocumentsFinalizedEmail({
+        to: fn.requestedBy.email,
+        fileNumber: fn.fileNumber || '',
+        finalizedDate: new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' }),
+      }).catch((err) => console.error('Failed to send documents finalized email:', err));
+    }
+  }
+
+  return review;
 };
 
 export const getLatestDocumentReview = async (fileId: number) => {

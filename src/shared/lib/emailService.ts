@@ -3,6 +3,13 @@ import type {
   NewStrataEmailParams,
   DocumentReviewReadyEmailParams,
   DocumentReviewResultEmailParams,
+  FileCreatedEmailParams,
+  MeetingStatusUpdateEmailParams,
+  AppointmentBookingOpenEmailParams,
+  DocumentsFinalizedEmailParams,
+  SurveyFinalizedEmailParams,
+  FileCompletionEmailParams,
+  PropertyTypeUpdatedEmailParams,
 } from '../types/email.types';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
@@ -11,6 +18,128 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const FRONTEND_URL = (process.env.FRONTEND_URL || 'https://your-app-url.com').replace(/\/$/, '');
 
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
+
+export async function sendPropertyTypeUpdatedEmail(params: PropertyTypeUpdatedEmailParams): Promise<void> {
+  if (!resend || !params.to) return;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: params.to,
+    subject: 'Your property type has been updated – Strata Reserve Planning',
+    template_alias: 'property-type-updated',
+    variables: {
+      FileNumber: params.fileNumber,
+      OldPropertyType: params.oldPropertyType,
+      NewPropertyType: params.newPropertyType,
+      ChangedDate: params.changedDate,
+      SiteURL: FRONTEND_URL,
+    },
+  } as any);
+}
+
+export async function sendFileCompletionEmail(params: FileCompletionEmailParams): Promise<void> {
+  if (!resend || !params.to) return;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: params.to,
+    subject: 'Your file has been completed – Strata Reserve Planning',
+    template_alias: 'file-completion-notification',
+    variables: {
+      FileNumber: params.fileNumber,
+      CompletedDate: params.completedDate,
+      ReportURL: `${FRONTEND_URL}/documents`,
+      SiteURL: FRONTEND_URL,
+    },
+  } as any);
+}
+
+export async function sendSurveyFinalizedEmail(params: SurveyFinalizedEmailParams): Promise<void> {
+  if (!resend || !params.to) return;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: params.to,
+    subject: 'Your survey has been finalized – Strata Reserve Planning',
+    template_alias: 'survey-finalized-notification',
+    variables: {
+      FileNumber: params.fileNumber,
+      FinalizedDate: params.finalizedDate,
+      SurveyURL: `${FRONTEND_URL}/survey`,
+      SiteURL: FRONTEND_URL,
+    },
+  } as any);
+}
+
+export async function sendDocumentsFinalizedEmail(params: DocumentsFinalizedEmailParams): Promise<void> {
+  if (!resend || !params.to) return;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: params.to,
+    subject: 'Your documents have been finalized – Strata Reserve Planning',
+    template_alias: 'documents-finalized-notification',
+    variables: {
+      FileNumber: params.fileNumber,
+      FinalizedDate: params.finalizedDate,
+      DocumentsURL: `${FRONTEND_URL}/documents`,
+      SiteURL: FRONTEND_URL,
+    },
+  } as any);
+}
+
+export async function sendAppointmentBookingOpenEmail(params: AppointmentBookingOpenEmailParams): Promise<void> {
+  if (!resend || !params.to) return;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: params.to,
+    subject: `Book your ${params.meetingType} appointment – Strata Reserve Planning`,
+    template_alias: 'appointment-booking-open',
+    variables: {
+      FileNumber: params.fileNumber,
+      MeetingType: params.meetingType,
+      BookingURL: `${FRONTEND_URL}/appointments`,
+      BookingDeadline: params.bookingDeadline || '',
+      SiteURL: FRONTEND_URL,
+    },
+  } as any);
+}
+
+export async function sendMeetingStatusUpdateEmail(params: MeetingStatusUpdateEmailParams): Promise<void> {
+  if (!resend || !params.to) return;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: params.to,
+    subject: `Your meeting request has been ${params.status} – Strata Reserve Planning`,
+    template_alias: 'meeting-status-update',
+    variables: {
+      FileNumber: params.fileNumber,
+      MeetingType: params.meetingType,
+      MeetingStatus: params.status,
+      MeetingDate: params.meetingDate || '',
+      MeetingTime: params.meetingTime || '',
+      DenialReason: params.denialReason || '',
+      SiteURL: FRONTEND_URL,
+    },
+  } as any);
+}
+
+export async function sendFileCreatedEmail(params: FileCreatedEmailParams): Promise<void> {
+  if (!resend || !params.to) return;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: params.to,
+    subject: 'Your file has been created – Strata Reserve Planning',
+    template_alias: 'file-creation-notification',
+    variables: {
+      FileNumber: params.fileNumber,
+      SiteURL: FRONTEND_URL,
+    },
+  } as any);
+}
 
 export async function sendDocumentReviewReadyEmail(params: DocumentReviewReadyEmailParams): Promise<void> {
   if (!resend || !params.to) return;

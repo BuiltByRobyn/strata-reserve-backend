@@ -1,4 +1,5 @@
 import prisma from '../lib/prismaClient';
+import { sendPropertyTypeUpdatedEmail } from '../lib/emailService';
 
 const requestInclude = {
   strataProfile: {
@@ -52,7 +53,18 @@ export const approve = async (requestId: number, reviewerProfileId: string) => {
     throw new Error('Request not found or already reviewed');
   }
 
-  return prisma.$transaction(async (tx) => {
+  const [oldTypes, newTypes] = await Promise.all([
+    prisma.strataProfilePropertyType.findMany({
+      where: { strataProfileId: request.strataProfileId },
+      select: { propertyType: { select: { propertyTypeName: true } } },
+    }),
+    prisma.propertyType.findMany({
+      where: { propertyTypeId: { in: request.requestedPropertyTypeIds } },
+      select: { propertyTypeName: true },
+    }),
+  ]);
+
+  const result = await prisma.$transaction(async (tx) => {
     await tx.strataProfilePropertyType.deleteMany({
       where: { strataProfileId: request.strataProfileId }
     });
@@ -76,6 +88,25 @@ export const approve = async (requestId: number, reviewerProfileId: string) => {
       include: requestInclude
     });
   });
+
+  const profile = result.strataProfile?.profile;
+  const strata = result.strataProfile?.strata;
+  if (profile?.email && strata) {
+    const activeFile = await prisma.fileNumber.findFirst({
+      where: { strataId: strata.strataId, archived: false },
+      select: { fileNumber: true },
+    });
+
+    sendPropertyTypeUpdatedEmail({
+      to: profile.email,
+      fileNumber: activeFile?.fileNumber || '',
+      oldPropertyType: oldTypes.map(t => t.propertyType.propertyTypeName).join(', ') || 'None',
+      newPropertyType: newTypes.map(t => t.propertyTypeName).join(', ') || 'None',
+      changedDate: new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' }),
+    }).catch((err) => console.error('Failed to send property type updated email:', err));
+  }
+
+  return result;
 };
 
 export const reject = async (requestId: number, reviewerProfileId: string, rejectionReason: string) => {
