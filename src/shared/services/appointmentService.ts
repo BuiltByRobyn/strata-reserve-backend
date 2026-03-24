@@ -1,4 +1,5 @@
 import prisma from '../lib/prismaClient';
+import { sendMeetingStatusUpdateEmail, sendFileCompletionEmail } from '../lib/emailService';
 
 export const getAppointments = async () => {
   return prisma.appointment.findMany({
@@ -70,7 +71,17 @@ export const getAppointmentById = async (id: number) => {
 export const updateAppointmentStatus = async (id: number, status: string, completionNote?: string) => {
   const appointment = await prisma.appointment.findUnique({
     where: { appointmentId: id },
-    select: { fileId: true, inspectorProfileId: true, appointmentType: { select: { isDraftMeeting: true } } },
+    select: {
+      fileId: true,
+      inspectorProfileId: true,
+      appointmentType: { select: { isDraftMeeting: true } },
+      fileNumber: {
+        select: {
+          fileNumber: true,
+          requestedBy: { select: { email: true } },
+        },
+      },
+    },
   });
 
   const updateData: { status: string; completionNote?: string; completedAt?: Date } = { status };
@@ -84,13 +95,21 @@ export const updateAppointmentStatus = async (id: number, status: string, comple
     data: updateData,
   });
 
-  // When a non-draft inspection is manually marked Completed, sync the inspector
-  // to FileNumber so the upcoming draft meeting defaults to the same inspector
-  if (status === 'Completed' && appointment && !appointment.appointmentType.isDraftMeeting && appointment.inspectorProfileId) {
-    await prisma.fileNumber.update({
-      where: { fileId: appointment.fileId },
-      data: { appointmentOfferInspectorId: appointment.inspectorProfileId },
-    });
+  if (status === 'Completed' && appointment) {
+    if (!appointment.appointmentType.isDraftMeeting && appointment.inspectorProfileId) {
+      await prisma.fileNumber.update({
+        where: { fileId: appointment.fileId },
+        data: { appointmentOfferInspectorId: appointment.inspectorProfileId },
+      });
+    }
+
+    if (appointment.appointmentType.isDraftMeeting && appointment.fileNumber?.requestedBy?.email) {
+      sendFileCompletionEmail({
+        to: appointment.fileNumber.requestedBy.email,
+        fileNumber: appointment.fileNumber.fileNumber || '',
+        completedDate: new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' }),
+      }).catch((err) => console.error('Failed to send file completion email:', err));
+    }
   }
 
   return updated;
@@ -119,17 +138,34 @@ export const rescheduleAppointment = async (
   timeSlotId: number,
   options?: { inspectorProfileId?: string; secondInspectorProfileId?: string; reason?: string }
 ) => {
-  if (options?.secondInspectorProfileId !== undefined) {
-    const apt = await prisma.appointment.findUnique({ where: { appointmentId: id }, select: { fileId: true } });
-    if (apt) {
-      await prisma.fileNumber.update({
-        where: { fileId: apt.fileId },
-        data: { appointmentOfferSecondInspectorId: options.secondInspectorProfileId || null },
-      });
-    }
+  const [aptInfo, newTimeSlot] = await Promise.all([
+    prisma.appointment.findUnique({
+      where: { appointmentId: id },
+      select: {
+        fileId: true,
+        appointmentType: { select: { typeName: true, isDraftMeeting: true } },
+        fileNumber: {
+          select: {
+            fileNumber: true,
+            requestedBy: { select: { email: true } },
+          },
+        },
+      },
+    }),
+    prisma.appointmentTimeSlot.findUnique({
+      where: { timeSlotId },
+      select: { slotName: true, slotTime: true },
+    }),
+  ]);
+
+  if (aptInfo?.fileId && options?.secondInspectorProfileId !== undefined) {
+    await prisma.fileNumber.update({
+      where: { fileId: aptInfo.fileId },
+      data: { appointmentOfferSecondInspectorId: options.secondInspectorProfileId || null },
+    });
   }
 
-  return prisma.appointment.update({
+  const updated = await prisma.appointment.update({
     where: { appointmentId: id },
     data: {
       appointmentDate,
@@ -139,6 +175,21 @@ export const rescheduleAppointment = async (
       rescheduleReason: options?.reason ?? null,
     }
   });
+
+  const email = aptInfo?.fileNumber?.requestedBy?.email;
+  if (email) {
+    const meetingType = aptInfo?.appointmentType?.isDraftMeeting ? 'Draft Meeting' : 'Inspection';
+    sendMeetingStatusUpdateEmail({
+      to: email,
+      fileNumber: aptInfo?.fileNumber?.fileNumber || '',
+      meetingType,
+      status: 'Rescheduled',
+      meetingDate: appointmentDate.toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' }),
+      meetingTime: newTimeSlot?.slotName || newTimeSlot?.slotTime || undefined,
+    }).catch((err) => console.error('Failed to send rescheduled email:', err));
+  }
+
+  return updated;
 };
 
 export const requestRebooking = async (appointmentId: number) => {
@@ -237,7 +288,22 @@ export const reviewAppointmentRequest = async (data: {
   secondInspectorProfileId?: string;
   comments?: string;
 }) => {
-  return prisma.$transaction(async (tx) => {
+  const requestInfo = await prisma.appointmentRequest.findUnique({
+    where: { appointmentRequestId: data.appointmentRequestId },
+    select: {
+      firstChoiceDate: true,
+      secondChoiceDate: true,
+      firstChoiceTimeSlot: { select: { slotName: true, slotTime: true } },
+      secondChoiceTimeSlot: { select: { slotName: true, slotTime: true } },
+      appointmentType: { select: { typeName: true, isDraftMeeting: true } },
+      requestedBy: { select: { email: true } },
+      fileNumber: {
+        select: { fileNumber: true },
+      },
+    },
+  });
+
+  const result = await prisma.$transaction(async (tx) => {
     const request = await tx.appointmentRequest.findUnique({
       where: { appointmentRequestId: data.appointmentRequestId },
       include: {
@@ -306,6 +372,25 @@ export const reviewAppointmentRequest = async (data: {
       return { rejected: true };
     }
   });
+
+  if (requestInfo?.requestedBy?.email) {
+    const choiceNum = data.approvedDateChoice || 1;
+    const chosenDate = choiceNum === 1 ? requestInfo.firstChoiceDate : requestInfo.secondChoiceDate;
+    const chosenSlot = choiceNum === 1 ? requestInfo.firstChoiceTimeSlot : requestInfo.secondChoiceTimeSlot;
+    const meetingType = requestInfo.appointmentType?.isDraftMeeting ? 'Draft Meeting' : 'Inspection';
+
+    sendMeetingStatusUpdateEmail({
+      to: requestInfo.requestedBy.email,
+      fileNumber: requestInfo.fileNumber?.fileNumber || '',
+      meetingType,
+      status: data.approved ? 'Approved' : 'Rejected',
+      meetingDate: chosenDate ? chosenDate.toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' }) : undefined,
+      meetingTime: chosenSlot?.slotName || chosenSlot?.slotTime || undefined,
+      denialReason: !data.approved ? data.rejectionReason : undefined,
+    }).catch((err) => console.error('Failed to send meeting status email:', err));
+  }
+
+  return result;
 };
 
 export const createAppointment = async (data: {

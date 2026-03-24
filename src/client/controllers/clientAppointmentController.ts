@@ -4,6 +4,7 @@ import { isWithin48Hours } from '../../shared/helpers/dateUtils';
 import { getAvailableSlots, checkDraftMeetingEligibility } from '../../shared/services/availabilityCalculationService';
 import prisma from '../../shared/lib/prismaClient';
 import type { AppointmentNotification } from '../../shared/types/appointment.types';
+import { sendFileCompletionEmail } from '../../shared/lib/emailService';
 
 export const getAvailability = asyncHandler(async (c) => {
   const startDate = c.req.query('startDate');
@@ -193,7 +194,20 @@ export const getActiveAppointment = asyncHandler(async (c) => {
           data: { appointmentOfferInspectorId: appointment.inspectorProfileId },
         });
       }
-      if (isDraft) return success(c, { type: 'completed_draft' });
+      if (isDraft) {
+        const fn = await prisma.fileNumber.findUnique({
+          where: { fileId: appointment.fileId },
+          select: { fileNumber: true, requestedBy: { select: { email: true } } },
+        });
+        if (fn?.requestedBy?.email) {
+          sendFileCompletionEmail({
+            to: fn.requestedBy.email,
+            fileNumber: fn.fileNumber || '',
+            completedDate: new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' }),
+          }).catch((err) => console.error('Failed to send file completion email:', err));
+        }
+        return success(c, { type: 'completed_draft' });
+      }
       return success(c, null);
     }
     return success(c, { type: 'scheduled', data: appointment });

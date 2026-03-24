@@ -3,6 +3,7 @@ import type { CreateFileNumberInput } from '../types/fileNumber.types';
 import { fileNumberIncludeList, profileSelectBrief, profileSelectWithEmail, documentIncludeCompact } from '../constants/prismaIncludes';
 import { validateFileNumber } from '../helpers/fileNumberUtils';
 import { mostRecentAnniversary } from '../helpers/dateUtils';
+import { sendFileCreatedEmail, sendAppointmentBookingOpenEmail, sendSurveyFinalizedEmail } from '../lib/emailService';
 
 export const getFileNumbers = async (filters?: { strataId?: number; archived?: boolean }) => {
   const results = await prisma.fileNumber.findMany({
@@ -111,7 +112,7 @@ export const createFileNumber = async (data: CreateFileNumberInput) => {
     select: { fiscalYearEnd: true }
   });
 
-  return prisma.fileNumber.create({
+  const created = await prisma.fileNumber.create({
     data: {
       fileNumber: data.fileNumber,
       serviceId: data.serviceId,
@@ -124,9 +125,18 @@ export const createFileNumber = async (data: CreateFileNumberInput) => {
     include: {
       service: { select: { serviceId: true, serviceName: true } },
       strata: { select: { strataId: true, strataPlan: true, complexName: true } },
-      requestedBy: { select: profileSelectBrief }
+      requestedBy: { select: profileSelectWithEmail }
     }
   });
+
+  if (created.requestedBy?.email) {
+    sendFileCreatedEmail({
+      to: created.requestedBy.email,
+      fileNumber: created.fileNumber || '',
+    }).catch((err) => console.error('Failed to send file created email:', err));
+  }
+
+  return created;
 };
 
 export const updateFileNumber = async (id: number, fileNumber: string) => {
@@ -185,7 +195,7 @@ export const submitForReview = async (id: number, profileId: string) => {
     throw err;
   }
 
-  return prisma.fileNumber.update({
+  const updated = await prisma.fileNumber.update({
     where: { fileId: id },
     data: {
       submittedForReviewDate: new Date(),
@@ -193,6 +203,21 @@ export const submitForReview = async (id: number, profileId: string) => {
     },
     include: fileNumberIncludeList,
   });
+
+  const profile = await prisma.profile.findUnique({
+    where: { id: profileId },
+    select: { email: true },
+  });
+
+  if (profile?.email) {
+    sendSurveyFinalizedEmail({
+      to: profile.email,
+      fileNumber: updated.fileNumber || '',
+      finalizedDate: new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' }),
+    }).catch((err) => console.error('Failed to send survey finalized email:', err));
+  }
+
+  return updated;
 };
 
 export const offerAppointment = async (
@@ -208,11 +233,18 @@ export const offerAppointment = async (
 ) => {
   const sr = await prisma.fileNumber.findUnique({
     where: { fileId },
+    select: {
+      fileNumber: true,
+      requestedBy: { select: { email: true } },
+      ...(offerData?.appointmentTypeId && {
+        appointmentOfferType: { select: { typeName: true, isDraftMeeting: true } },
+      }),
+    },
   });
 
   if (!sr) throw new Error('Service request not found');
 
-  return prisma.fileNumber.update({
+  const updated = await prisma.fileNumber.update({
     where: { fileId },
     data: {
       appointmentOfferedAt: new Date(),
@@ -225,6 +257,28 @@ export const offerAppointment = async (
     },
     include: fileNumberIncludeList,
   });
+
+  if (sr.requestedBy?.email) {
+    let meetingType = 'Inspection';
+    if (offerData?.appointmentTypeId) {
+      const apptType = await prisma.appointmentType.findUnique({
+        where: { appointmentTypeId: offerData.appointmentTypeId },
+        select: { typeName: true, isDraftMeeting: true },
+      });
+      meetingType = apptType?.isDraftMeeting ? 'Draft Meeting' : (apptType?.typeName || 'Inspection');
+    }
+
+    sendAppointmentBookingOpenEmail({
+      to: sr.requestedBy.email,
+      fileNumber: sr.fileNumber || '',
+      meetingType,
+      bookingDeadline: offerData?.dueDate
+        ? new Date(offerData.dueDate).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' })
+        : undefined,
+    }).catch((err) => console.error('Failed to send booking open email:', err));
+  }
+
+  return updated;
 };
 
 export const deleteFileNumber = async (id: number, authToken?: string) => {
