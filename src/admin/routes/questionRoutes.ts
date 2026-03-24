@@ -7,4 +7,5 @@ questionRoutes.get('/questions', questionController.getQuestions);
 questionRoutes.get('/questions/:id', questionController.getQuestionById);
 questionRoutes.post('/questions', questionController.createQuestion);
 questionRoutes.put('/questions/:id', questionController.updateQuestion);
+questionRoutes.put('/questions/:id/sub-questions', questionController.setSubQuestions);
 questionRoutes.delete('/questions/:id', questionController.deleteQuestion);

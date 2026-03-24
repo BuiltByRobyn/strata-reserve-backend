@@ -10,11 +10,15 @@ export const getSurveyQuestionsForSR = async (fileId: number) => {
         include: {
           questionType: true,
           multipleChoiceOptions: { orderBy: { sortOrder: 'asc' } },
-          subQuestions: {
-            orderBy: { questionId: 'asc' },
+          parentRelations: {
+            orderBy: { sortOrder: 'asc' },
             include: {
-              questionType: true,
-              multipleChoiceOptions: { orderBy: { sortOrder: 'asc' } }
+              subQuestion: {
+                include: {
+                  questionType: true,
+                  multipleChoiceOptions: { orderBy: { sortOrder: 'asc' } }
+                }
+              }
             }
           }
         }
@@ -31,19 +35,18 @@ export const getSurveyQuestionsForSR = async (fileId: number) => {
   const flatQuestions: any[] = [];
 
   for (const srq of srQuestions) {
-    // Skip sub-questions — they're added via their parent's subQuestions relation
-    if (srq.question.parentQuestionId != null) continue;
-
     // Add the parent question
     flatQuestions.push({
       fnSurveyQuestionId: srq.fnSurveyQuestionId,
       propertyTypeId: srq.propertyTypeId,
       propertyTypeName: srq.propertyType.propertyTypeName,
       questionId: srq.question.questionId,
-      parentQuestionId: srq.question.parentQuestionId,
+      parentQuestionId: null,
       subLabel: srq.question.subLabel,
       questionText: srq.question.questionText,
       isRequired: srq.question.isRequired,
+      allowNa: srq.question.allowNa,
+      allowUnavailable: srq.question.allowUnavailable,
       informationText: srq.question.informationText,
       questionCategory: srq.question.questionCategory,
       questionType: srq.question.questionType.questionTypeName,
@@ -55,20 +58,21 @@ export const getSurveyQuestionsForSR = async (fileId: number) => {
       }))
     });
 
-    // Add nested sub-questions if any
-    if (srq.question.subQuestions && srq.question.subQuestions.length > 0) {
-      for (const sq of srq.question.subQuestions) {
+    // Add nested sub-questions via junction table
+    if (srq.question.parentRelations && srq.question.parentRelations.length > 0) {
+      for (const rel of srq.question.parentRelations) {
+        const sq = rel.subQuestion;
         flatQuestions.push({
-          fnSurveyQuestionId: (srq.fnSurveyQuestionId * 10000) + sq.questionId, // Fake ID for React key
+          fnSurveyQuestionId: (srq.fnSurveyQuestionId * 10000) + sq.questionId,
           propertyTypeId: srq.propertyTypeId,
           propertyTypeName: srq.propertyType.propertyTypeName,
           questionId: sq.questionId,
-          parentQuestionId: sq.parentQuestionId,
+          parentQuestionId: srq.question.questionId,
           subLabel: sq.subLabel,
           questionText: sq.questionText,
           isRequired: sq.isRequired,
           informationText: sq.informationText,
-          questionCategory: sq.questionCategory,
+          questionCategory: srq.question.questionCategory,
           questionType: sq.questionType.questionTypeName,
           sortOrder: sq.questionId,
           multipleChoiceOptions: sq.multipleChoiceOptions.map((o: any) => ({

@@ -140,32 +140,36 @@ export const updateFileNumber = async (id: number, fileNumber: string) => {
   });
 };
 
-export const submitForReview = async (id: number) => {
+export const submitForReview = async (id: number, profileId: string) => {
   const sr = await prisma.fileNumber.findUnique({
     where: { fileId: id },
   });
   if (!sr) throw new Error('Service request not found');
 
-  // Only validate questions actually assigned to this SR (respects surveyRequirements)
-  const [srQuestions, surveyRequirements] = await Promise.all([
+  const [srQuestions, surveyRequirements, profilePropertyTypes] = await Promise.all([
     prisma.fnSurveyQuestion.findMany({
       where: { fileId: id },
-      include: { question: { select: { questionId: true, isRequired: true, parentQuestionId: true } } },
+      include: { question: { select: { questionId: true } } },
     }),
     prisma.fileNumberSurveyRequirement.findMany({
       where: { fileId: id },
       select: { propertyTypeId: true },
     }),
+    prisma.strataProfilePropertyType.findMany({
+      where: { strataProfile: { profileId, strataId: sr.strataId } },
+      select: { propertyTypeId: true },
+    }),
   ]);
 
-  const clientPropertyTypeIds = new Set(surveyRequirements.map(r => r.propertyTypeId));
+  const configuredTypeIds = new Set(surveyRequirements.map(r => r.propertyTypeId));
+  const profileTypeIds = new Set(profilePropertyTypes.map(r => r.propertyTypeId));
+
+  const effectiveTypeIds = profileTypeIds.size > 0
+    ? new Set([...configuredTypeIds].filter(id => profileTypeIds.has(id)))
+    : configuredTypeIds;
 
   const requiredQuestionIds = srQuestions
-    .filter(sq =>
-      sq.question.isRequired &&
-      sq.question.parentQuestionId == null &&
-      (clientPropertyTypeIds.size === 0 || clientPropertyTypeIds.has(sq.propertyTypeId))
-    )
+    .filter(sq => effectiveTypeIds.size === 0 || effectiveTypeIds.has(sq.propertyTypeId))
     .map(sq => sq.question.questionId);
 
   const responses = await prisma.questionResponse.findMany({
@@ -256,7 +260,8 @@ export const deleteFileNumber = async (id: number, authToken?: string) => {
     data: { status: 'Cancelled' },
   });
 
-  return prisma.fileNumber.delete({
-    where: { fileId: id }
+  return prisma.fileNumber.update({
+    where: { fileId: id },
+    data: { archived: true, archivedDate: new Date() }
   });
 };

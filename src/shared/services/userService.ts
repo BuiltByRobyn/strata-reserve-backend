@@ -162,7 +162,7 @@ export const deleteUser = async (id: string) => {
   const futureAppointment = await prisma.appointment.findFirst({
     where: {
       inspectorProfileId: id,
-      status: { not: 'Cancelled' },
+      status: { notIn: ['Cancelled', 'Completed'] },
       appointmentDate: { gte: new Date() }
     }
   });

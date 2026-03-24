@@ -362,7 +362,12 @@ export const getNotifications = asyncHandler(async (c) => {
     prisma.appointmentRequest.findMany({
       where: { fileId: sr.fileId, status: 'Approved', requestDate: { gte: oneWeekAgo } },
       orderBy: { requestDate: 'desc' },
-      select: { appointmentRequestId: true, requestDate: true }
+      select: {
+        appointmentRequestId: true,
+        requestDate: true,
+        firstChoiceDate: true,
+        firstChoiceTimeSlot: { select: { slotName: true } }
+      }
     }),
     prisma.appointmentRequest.findMany({
       where: { fileId: sr.fileId, status: 'Rejected', requestDate: { gte: oneWeekAgo } },
@@ -372,7 +377,8 @@ export const getNotifications = asyncHandler(async (c) => {
           orderBy: { reviewDate: 'desc' },
           take: 1,
           select: { rejectionReason: true, reviewDate: true }
-        }
+        },
+        firstChoiceTimeSlot: { select: { slotName: true } }
       }
     }),
     prisma.appointment.findMany({
@@ -388,18 +394,32 @@ export const getNotifications = asyncHandler(async (c) => {
   ]);
 
   const notifications: AppointmentNotification[] = [
-    ...approvedRequests.map(r => ({
-      type: 'request_approved' as const,
-      message: 'Your appointment request was approved.',
-      reason: null,
-      date: r.requestDate.toISOString()
-    })),
-    ...rejectedRequests.map(r => ({
-      type: 'request_rejected' as const,
-      message: 'Your appointment request was rejected.',
-      reason: r.appointmentReviews[0]?.rejectionReason ?? null,
-      date: (r.appointmentReviews[0]?.reviewDate ?? r.requestDate).toISOString()
-    })),
+    ...approvedRequests.map(r => {
+      const dateLabel = r.firstChoiceDate
+        ? new Date(r.firstChoiceDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
+        : null;
+      const timeLabel = r.firstChoiceTimeSlot?.slotName ?? null;
+      const detail = dateLabel && timeLabel ? ` for ${dateLabel} at ${timeLabel}` : dateLabel ? ` for ${dateLabel}` : '';
+      return {
+        type: 'request_approved' as const,
+        message: `Your appointment request${detail} was approved.`,
+        reason: null,
+        date: r.requestDate.toISOString()
+      };
+    }),
+    ...rejectedRequests.map(r => {
+      const dateLabel = r.firstChoiceDate
+        ? new Date(r.firstChoiceDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
+        : null;
+      const timeLabel = r.firstChoiceTimeSlot?.slotName ?? null;
+      const detail = dateLabel && timeLabel ? ` for ${dateLabel} at ${timeLabel}` : dateLabel ? ` for ${dateLabel}` : '';
+      return {
+        type: 'request_rejected' as const,
+        message: `Your appointment request${detail} was rejected.`,
+        reason: r.appointmentReviews[0]?.rejectionReason ?? null,
+        date: (r.appointmentReviews[0]?.reviewDate ?? r.requestDate).toISOString()
+      };
+    }),
     ...cancelledAppointments.map(a => ({
       type: 'appointment_cancelled' as const,
       message: 'Your appointment was cancelled.',

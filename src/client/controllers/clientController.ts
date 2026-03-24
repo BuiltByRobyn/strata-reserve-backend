@@ -33,12 +33,12 @@ export const submitDocumentsForReview = asyncHandler(async (c) => {
   }
 
   try {
-    const updated = await fileNumberService.submitForReview(id);
+    const updated = await fileNumberService.submitForReview(id, user.id);
     return success(c, updated);
   } catch (err: unknown) {
     const typed = err as Error & { code?: string };
     if (typed?.code === 'VALIDATION_ERROR') {
-      return error(c, typed.message, 400);
+      return error(c, 'Once all strata sections have finalized their survey answers and uploaded all required documents, appointment booking will become available.', 400);
     }
     throw err;
   }

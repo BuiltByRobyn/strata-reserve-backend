@@ -8,11 +8,15 @@ export const getQuestionsBySR = async (fileId: number) => {
         include: {
           questionType: true,
           multipleChoiceOptions: { orderBy: { sortOrder: 'asc' } },
-          subQuestions: {
-            orderBy: { questionId: 'asc' },
+          parentRelations: {
+            orderBy: { sortOrder: 'asc' },
             include: {
-              questionType: true,
-              multipleChoiceOptions: { orderBy: { sortOrder: 'asc' } }
+              subQuestion: {
+                include: {
+                  questionType: true,
+                  multipleChoiceOptions: { orderBy: { sortOrder: 'asc' } }
+                }
+              }
             }
           }
         }
@@ -58,22 +62,10 @@ export const replaceQuestionsForSR = async (
     });
 
     const payload: { fileId: number; questionId: number; propertyTypeId: number; sortOrder: number }[] = [];
-    let subSortOffset = 10000;
 
     for (const sel of selections) {
-      const questionIds = sel.questions.map(q => q.id);
-      const subQuestions = await tx.question.findMany({
-        where: { parentQuestionId: { in: questionIds } },
-        select: { questionId: true, parentQuestionId: true }
-      });
-
       for (const q of sel.questions) {
         payload.push({ fileId, questionId: q.id, propertyTypeId: sel.propertyTypeId, sortOrder: q.sortOrder });
-      }
-      for (const sq of subQuestions) {
-        const parentOrder = sel.questions.find(q => q.id === sq.parentQuestionId)?.sortOrder ?? 0;
-        payload.push({ fileId, questionId: sq.questionId, propertyTypeId: sel.propertyTypeId, sortOrder: parentOrder * 100 + subSortOffset });
-        subSortOffset++;
       }
     }
 
@@ -90,43 +82,33 @@ export const autoPopulateFromTemplates = async (fileId: number, propertyTypeIds:
     return { count: 0 };
   }
 
-  // Find questions mapped to these property types (and have no parent)
+  // Find questions mapped to these property types (not sub-questions)
   const mappedQuestions = await prisma.questionPropertyType.findMany({
     where: {
       propertyTypeId: { in: propertyTypeIds },
-      question: { parentQuestionId: null }
+      question: { subRelations: { none: {} } }
     },
     select: { questionId: true, propertyTypeId: true }
   });
 
-  // Find universal questions (no property type mappings, and have no parent)
+  // Find universal questions (no property type mappings, not sub-questions)
   const universalQuestions = await prisma.question.findMany({
     where: {
-      parentQuestionId: null,
-      questionPropertyTypes: { none: {} }
+      questionPropertyTypes: { none: {} },
+      subRelations: { none: {} }
     },
     select: { questionId: true }
   });
 
   const payload: { fileId: number; questionId: number; propertyTypeId: number }[] = [];
 
-  // Add mapped
   for (const mq of mappedQuestions) {
-    payload.push({
-      fileId: fileId,
-      questionId: mq.questionId,
-      propertyTypeId: mq.propertyTypeId
-    });
+    payload.push({ fileId: fileId, questionId: mq.questionId, propertyTypeId: mq.propertyTypeId });
   }
 
-  // Add universal (one per selected property type)
   for (const uq of universalQuestions) {
     for (const ptId of propertyTypeIds) {
-      payload.push({
-        fileId: fileId,
-        questionId: uq.questionId,
-        propertyTypeId: ptId
-      });
+      payload.push({ fileId: fileId, questionId: uq.questionId, propertyTypeId: ptId });
     }
   }
 

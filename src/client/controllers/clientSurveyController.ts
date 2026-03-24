@@ -33,24 +33,45 @@ export const getSurveyQuestions = asyncHandler(async (c) => {
 
   const explicitPropertyTypeIds = sr.surveyRequirements.map((req: { propertyTypeId: number }) => req.propertyTypeId);
 
-  // Strict mode: if no property types are configured, return 0 questions
   if (explicitPropertyTypeIds.length === 0) {
     return success(c, []);
   }
 
   const allQuestions = await questionService.getSurveyQuestionsForSR(fileId);
 
-  // Filter by the user's assigned sections and property types (matching PDF download logic)
   const allowedSections = await strataService.getSectionNamesByProfileId(user.id);
-  const allowedPropertyTypeIds = await strataService.getPropertyTypeIdsByProfileId(user.id);
+  const profilePropertyTypeIds = await strataService.getPropertyTypeIdsByProfileId(user.id);
+
+  const effectivePropertyTypeIds = profilePropertyTypeIds.length > 0
+    ? explicitPropertyTypeIds.filter((id: number) => profilePropertyTypeIds.includes(id))
+    : explicitPropertyTypeIds;
 
   let questions = allowedSections.length > 0
     ? allQuestions.filter((q: any) => allowedSections.includes(q.questionCategory))
     : allQuestions;
 
-  if (allowedPropertyTypeIds.length > 0) {
-    questions = questions.filter((q: any) => allowedPropertyTypeIds.includes(q.propertyTypeId));
+  if (effectivePropertyTypeIds.length > 0) {
+    questions = questions.filter((q: any) => effectivePropertyTypeIds.includes(q.propertyTypeId));
   }
+
+  return success(c, questions);
+}, 'Failed to fetch survey questions');
+
+export const getAdminSurveyQuestions = asyncHandler(async (c) => {
+  const fileId = parseIntParam(c, 'fileId');
+
+  const sr = await prisma.fileNumber.findUnique({
+    where: { fileId },
+    select: { surveyRequirements: { select: { propertyTypeId: true } } }
+  });
+
+  if (!sr) return error(c, 'Service request not found', 404);
+
+  const explicitPropertyTypeIds = sr.surveyRequirements.map((req: { propertyTypeId: number }) => req.propertyTypeId);
+  if (explicitPropertyTypeIds.length === 0) return success(c, []);
+
+  const allQuestions = await questionService.getSurveyQuestionsForSR(fileId);
+  const questions = allQuestions.filter((q: any) => explicitPropertyTypeIds.includes(q.propertyTypeId));
 
   return success(c, questions);
 }, 'Failed to fetch survey questions');

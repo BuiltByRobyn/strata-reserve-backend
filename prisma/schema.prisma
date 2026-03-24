@@ -182,6 +182,7 @@ model StrataProfile {
   strataProfilePropertyTypes StrataProfilePropertyType[]
   propertyTypeRequests       PropertyTypeRequest[]
   activationRequests         ActivationRequest[]
+  profileActivityLogs        ProfileActivityLog[]
 
   @@unique([strataId, profileId])
   @@map("strata_profiles")
@@ -560,7 +561,6 @@ model QuestionType {
 
 model Question {
   questionId       Int      @id @default(autoincrement()) @map("question_id")
-  parentQuestionId Int?     @map("parent_question_id")
   subLabel         String?  @map("sub_label") @db.VarChar(10)
   questionText     String   @map("question_text") @db.Text
   isRequired       Boolean  @map("is_required")
@@ -572,8 +572,8 @@ model Question {
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 
-  parentQuestion   Question?  @relation("SubQuestions", fields: [parentQuestionId], references: [questionId], onDelete: SetNull)
-  subQuestions     Question[] @relation("SubQuestions")
+  parentRelations QuestionSubQuestion[] @relation("ParentRelations")
+  subRelations    QuestionSubQuestion[] @relation("SubRelations")
 
   questionType          QuestionType           @relation(fields: [questionTypeId], references: [questionTypeId], onDelete: Cascade)
   questionServices      QuestionService[]
@@ -583,6 +583,20 @@ model Question {
   fnSurveyQuestions     FnSurveyQuestion[]
 
   @@map("question")
+  @@schema("public")
+}
+
+model QuestionSubQuestion {
+  id               Int @id @default(autoincrement())
+  parentQuestionId Int @map("parent_question_id")
+  subQuestionId    Int @map("sub_question_id")
+  sortOrder        Int @default(0) @map("sort_order")
+
+  parentQuestion Question @relation("ParentRelations", fields: [parentQuestionId], references: [questionId], onDelete: Cascade)
+  subQuestion    Question @relation("SubRelations", fields: [subQuestionId], references: [questionId], onDelete: Cascade)
+
+  @@unique([parentQuestionId, subQuestionId])
+  @@map("question_sub_question")
   @@schema("public")
 }
 
@@ -792,5 +806,17 @@ model InAppNotification {
   fileNumber FileNumber? @relation(fields: [fileId], references: [fileId], onDelete: SetNull)
 
   @@map("in_app_notification")
+  @@schema("public")
+}
+
+model ProfileActivityLog {
+  activityLogId   Int           @id @default(autoincrement()) @map("activity_log_id")
+  strataProfileId Int           @map("strata_profile_id")
+  changedFields   Json          @map("changed_fields")
+  changedAt       DateTime      @default(now()) @map("changed_at") @db.Timestamptz
+
+  strataProfile StrataProfile @relation(fields: [strataProfileId], references: [strataProfileId])
+
+  @@map("profile_activity_log")
   @@schema("public")
 }
