@@ -167,6 +167,11 @@ export const getActiveAppointment = asyncHandler(async (c) => {
       appointmentType: true,
       timeSlot: true,
       inspector: { select: { id: true, firstName: true, lastName: true, displayName: true } },
+      fileNumber: {
+        select: {
+          appointmentOfferSecondInspector: { select: { id: true, firstName: true, lastName: true, displayName: true } }
+        }
+      },
     }
   });
 
@@ -389,7 +394,7 @@ export const getNotifications = asyncHandler(async (c) => {
     prisma.appointment.findMany({
       where: { fileId: sr.fileId, status: 'Rescheduled', appointmentDate: { gte: oneWeekAgo } },
       orderBy: { appointmentDate: 'desc' },
-      select: { appointmentId: true, appointmentDate: true, rescheduleReason: true }
+      select: { appointmentId: true, appointmentDate: true, rescheduleReason: true, timeSlot: { select: { slotTime: true, slotName: true } } }
     })
   ]);
 
@@ -430,7 +435,10 @@ export const getNotifications = asyncHandler(async (c) => {
       type: 'appointment_rescheduled' as const,
       message: 'Your appointment has been rescheduled.',
       reason: a.rescheduleReason,
-      date: a.appointmentDate.toISOString()
+      date: a.appointmentDate.toISOString(),
+      previousDate: a.appointmentDate.toISOString().split('T')[0],
+      previousSlotTime: a.timeSlot.slotTime,
+      previousSlotName: a.timeSlot.slotName,
     }))
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
