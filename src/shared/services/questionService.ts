@@ -134,26 +134,25 @@ export const saveResponses = async (responses: SaveResponseInput[]) => {
       questionId: { in: responses.map(r => r.questionId) },
       archivedAt: null,
     },
-    select: { responseId: true, fileId: true, questionId: true, propertyTypeId: true }
+    select: { responseId: true, fileId: true, questionId: true, propertyTypeId: true, parentQuestionId: true }
   });
 
   const existingMap = new Map(
-    existingResponses.map(r => [`${r.fileId}-${r.questionId}-${r.propertyTypeId}`, r.responseId])
+    existingResponses.map(r => [`${r.fileId}-${r.parentQuestionId ?? ''}-${r.questionId}-${r.propertyTypeId}`, r.responseId])
   );
+
+  const isEmptyPayload = (resp: SaveResponseInput) =>
+    resp.responseText == null &&
+    resp.responseNumber == null &&
+    resp.responseBoolean == null &&
+    resp.responseDate == null &&
+    resp.multipleChoiceOptionId == null;
 
   return prisma.$transaction(async (tx) => {
     const results = [];
     for (const resp of responses) {
-      const key = `${resp.fileId}-${resp.questionId}-${resp.propertyTypeId}`;
+      const key = `${resp.fileId}-${resp.parentQuestionId ?? ''}-${resp.questionId}-${resp.propertyTypeId}`;
       const existingId = existingMap.get(key);
-      const data = {
-        responseText: resp.responseText ?? null,
-        responseDate: resp.responseDate ? toUTCDate(resp.responseDate)! : null,
-        responseNumber: resp.responseNumber ?? null,
-        responseBoolean: resp.responseBoolean ?? null,
-        multipleChoiceOptionId: resp.multipleChoiceOptionId ?? null,
-        answeredByProfileId: resp.answeredByProfileId,
-      };
 
       if (existingId) {
         await tx.questionResponse.update({
@@ -162,14 +161,22 @@ export const saveResponses = async (responses: SaveResponseInput[]) => {
         });
       }
 
-      results.push(await tx.questionResponse.create({
-        data: {
-          fileId: resp.fileId,
-          questionId: resp.questionId,
-          propertyTypeId: resp.propertyTypeId,
-          ...data,
-        },
-      }));
+      if (!isEmptyPayload(resp)) {
+        results.push(await tx.questionResponse.create({
+          data: {
+            fileId: resp.fileId,
+            questionId: resp.questionId,
+            propertyTypeId: resp.propertyTypeId,
+            parentQuestionId: resp.parentQuestionId ?? null,
+            responseText: resp.responseText ?? null,
+            responseDate: resp.responseDate ? toUTCDate(resp.responseDate)! : null,
+            responseNumber: resp.responseNumber ?? null,
+            responseBoolean: resp.responseBoolean ?? null,
+            multipleChoiceOptionId: resp.multipleChoiceOptionId ?? null,
+            answeredByProfileId: resp.answeredByProfileId,
+          },
+        }));
+      }
     }
     return results;
   });

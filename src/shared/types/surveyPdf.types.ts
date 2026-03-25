@@ -27,6 +27,7 @@ export interface FlatSurveyQuestion {
 export interface ActiveSurveyResponse {
   questionId: number;
   propertyTypeId: number;
+  parentQuestionId: number | null;
   responseText: string | null;
   responseDate: string | null;
   responseNumber: number | null;

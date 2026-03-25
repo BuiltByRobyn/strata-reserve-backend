@@ -84,20 +84,33 @@ export const downloadActiveSurveyPdf = asyncHandler(async (c) => {
     return error(c, 'No active file number found', 404);
   }
 
+  const fileRecord = await prisma.fileNumber.findUnique({
+    where: { fileId: sr.fileId },
+    select: { surveyRequirements: { select: { propertyTypeId: true } } }
+  });
+
+  const explicitPropertyTypeIds = (fileRecord?.surveyRequirements ?? []).map((req: { propertyTypeId: number }) => req.propertyTypeId);
+  if (explicitPropertyTypeIds.length === 0) {
+    return error(c, 'No survey questions found for this file number', 400);
+  }
+
   const allQuestions = await questionService.getSurveyQuestionsForSR(sr.fileId);
   const blank = c.req.query('blank') === 'true';
   const responses = blank ? [] : await questionService.getResponsesByFileNumber(sr.fileId);
 
-  // Filter questions to only include sections and property types assigned to this client's profile
   const allowedSections = await strataService.getSectionNamesByProfileId(user.id);
-  const allowedPropertyTypeIds = await strataService.getPropertyTypeIdsByProfileId(user.id);
+  const profilePropertyTypeIds = await strataService.getPropertyTypeIdsByProfileId(user.id);
+
+  const effectivePropertyTypeIds = profilePropertyTypeIds.length > 0
+    ? explicitPropertyTypeIds.filter((id: number) => profilePropertyTypeIds.includes(id))
+    : explicitPropertyTypeIds;
 
   let questions = allowedSections.length > 0
     ? allQuestions.filter((q: any) => allowedSections.includes(q.questionCategory))
     : allQuestions;
 
-  if (allowedPropertyTypeIds.length > 0) {
-    questions = questions.filter((q: any) => allowedPropertyTypeIds.includes(q.propertyTypeId));
+  if (effectivePropertyTypeIds.length > 0) {
+    questions = questions.filter((q: any) => effectivePropertyTypeIds.includes(q.propertyTypeId));
   }
 
   const pdf = await renderSurveyAnswersPdf(
@@ -202,6 +215,7 @@ export const saveSurveyResponses = asyncHandler(async (c) => {
     answeredByProfileId: user.id,
     questionId: r.questionId as number,
     propertyTypeId: r.propertyTypeId as number,
+    parentQuestionId: (r.parentQuestionId as number) ?? null,
     responseText: (r.responseText as string) ?? null,
     responseDate: (r.responseDate as string) ?? null,
     responseNumber: (r.responseNumber as number) ?? null,

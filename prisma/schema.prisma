@@ -579,7 +579,8 @@ model Question {
   questionServices      QuestionService[]
   multipleChoiceOptions MultipleChoiceOption[]
   questionPropertyTypes QuestionPropertyType[]
-  questionResponses     QuestionResponse[]
+  questionResponses     QuestionResponse[]     @relation("QuestionResponses")
+  parentContextResponses QuestionResponse[]    @relation("ParentContextRelation")
   fnSurveyQuestions     FnSurveyQuestion[]
 
   @@map("question")
@@ -655,11 +656,13 @@ model QuestionResponse {
   answeredByProfileId    String    @map("answered_by_profile_id") @db.Uuid
   questionId             Int       @map("question_id")
   propertyTypeId         Int       @map("property_type_id")
+  parentQuestionId       Int?      @map("parent_question_id")
   multipleChoiceOptionId Int?      @map("multiple_choice_option_id")
 
   fileNumber       FileNumber        @relation(fields: [fileId], references: [fileId], onDelete: Cascade)
   answeredBy           Profile               @relation("AnsweredByProfile", fields: [answeredByProfileId], references: [id], onDelete: Cascade)
-  question             Question              @relation(fields: [questionId], references: [questionId], onDelete: Cascade)
+  question             Question              @relation("QuestionResponses", fields: [questionId], references: [questionId], onDelete: Cascade)
+  parentQuestion       Question?             @relation("ParentContextRelation", fields: [parentQuestionId], references: [questionId], onDelete: SetNull)
   propertyType         PropertyType          @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: Cascade)
   multipleChoiceOption MultipleChoiceOption? @relation(fields: [multipleChoiceOptionId], references: [multipleChoiceOptionId], onDelete: SetNull)
 

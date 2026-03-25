@@ -59,11 +59,11 @@ export async function renderSurveyAnswersPdf(
 
   const responseMap = new Map<string, ActiveSurveyResponse>();
   for (const r of responses) {
-    responseMap.set(`${r.questionId}-${r.propertyTypeId}`, r);
+    responseMap.set(`${r.parentQuestionId ?? ''}-${r.questionId}-${r.propertyTypeId}`, r);
   }
 
-  const getResp = (questionId: number, propertyTypeId: number) => {
-    return responseMap.get(`${questionId}-${propertyTypeId}`);
+  const getResp = (questionId: number, propertyTypeId: number, parentQuestionId?: number | null) => {
+    return responseMap.get(`${parentQuestionId ?? ''}-${questionId}-${propertyTypeId}`);
   };
 
   const parents = questions
@@ -203,7 +203,7 @@ export async function renderSurveyAnswersPdf(
         doc.font('Helvetica').fontSize(9).text(`${label}${sq.questionText}`, BOX_LEFT, doc.y, { width: BOX_WIDTH });
         doc.moveDown(0.6);
 
-        const subAnswerText = answerToText(sq, getResp(sq.questionId, sq.propertyTypeId));
+        const subAnswerText = answerToText(sq, getResp(sq.questionId, sq.propertyTypeId, sq.parentQuestionId));
         if (subAnswerText === 'No answer') {
           ensureSpace(60);
           const boxY = doc.y;
