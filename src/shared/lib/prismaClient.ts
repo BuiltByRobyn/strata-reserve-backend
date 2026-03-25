@@ -9,7 +9,7 @@ if (!connectionString) {
   throw new Error('DATABASE_URL environment variable is not set');
 }
 
-const pool = new Pool({ connectionString });
+const pool = new Pool({ connectionString, max: 3 });
 
 const adapter = new PrismaPg(pool);
 
