@@ -15,16 +15,18 @@ export const getFileNumbers = async (filters?: { strataId?: number; archived?: b
     include: {
       ...fileNumberIncludeList,
       documentReviews: {
-        where: {
-          items: {
-            every: {
-              reviewStatus: { statusName: 'Approved' }
-            }
-          }
-        },
         orderBy: { reviewedAt: 'desc' },
         take: 1,
-        select: { reviewedAt: true }
+        include: {
+          items: {
+            select: { reviewStatus: { select: { statusName: true } } }
+          }
+        }
+      },
+      inAppNotifications: {
+        where: { type: 'docs_ready_for_review' },
+        take: 1,
+        select: { notificationId: true }
       },
       questionResponses: {
         where: { archivedAt: null },
@@ -35,11 +37,19 @@ export const getFileNumbers = async (filters?: { strataId?: number; archived?: b
     }
   });
 
-  return results.map(({ documentReviews, questionResponses, ...sr }) => ({
-    ...sr,
-    latestDocumentFinalizedDate: documentReviews[0]?.reviewedAt ?? null,
-    latestSurveyAnswerDate: questionResponses[0]?.updatedAt ?? null,
-  }));
+  return results.map(({ documentReviews, inAppNotifications, questionResponses, ...sr }) => {
+    const latestReview = documentReviews[0] ?? null;
+    const allApproved = latestReview
+      ? latestReview.items.every(i => i.reviewStatus.statusName.toLowerCase().includes('approv'))
+      : false;
+    return {
+      ...sr,
+      latestDocumentFinalizedDate: (latestReview && allApproved) ? latestReview.reviewedAt : null,
+      latestDocumentReviewDate: latestReview?.reviewedAt ?? null,
+      docsReadyForReview: inAppNotifications.length > 0,
+      latestSurveyAnswerDate: questionResponses[0]?.updatedAt ?? null,
+    };
+  });
 };
 
 export const getFileNumberById = async (id: number) => {

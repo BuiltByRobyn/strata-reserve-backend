@@ -73,6 +73,8 @@ export const markDocumentUploaded = asyncHandler(async (c) => {
     await documentService.handleDuplicateUpload(fileId, reqId);
   }
 
+  await documentService.createAdminDocResubmittedNotification(fileId);
+
   const allAnswered = await fnDocRequirementService.checkAllRequirementsAnswered(fileId);
   if (allAnswered) {
     await documentService.createAdminReadyForReviewNotification(fileId);

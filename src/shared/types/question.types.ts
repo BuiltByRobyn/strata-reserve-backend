@@ -45,6 +45,7 @@ export interface SaveResponseInput {
   answeredByProfileId: string;
   questionId: number;
   propertyTypeId: number;
+  parentQuestionId?: number | null;
   responseText?: string | null;
   responseDate?: string | null;
   responseNumber?: number | null;
