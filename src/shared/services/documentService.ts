@@ -381,6 +381,61 @@ export const createAdminReadyForReviewNotification = async (fileId: number) => {
   }
 };
 
+export const createAdminDocResubmittedNotification = async (fileId: number) => {
+  const latestReview = await prisma.fileNumberDocumentReview.findFirst({
+    where: { fileId },
+    orderBy: { reviewedAt: 'desc' },
+    include: {
+      items: {
+        include: {
+          reviewStatus: { select: { statusName: true } },
+        },
+      },
+    },
+  });
+
+  const hasRejection = latestReview?.items.some((item) =>
+    /deny|reject/i.test(item.reviewStatus.statusName)
+  );
+  if (!hasRejection) return;
+
+  const existingUnread = await prisma.inAppNotification.findFirst({
+    where: { fileId, type: 'doc_resubmitted_after_rejection', isRead: false },
+  });
+  if (existingUnread) return;
+
+  const fileNumberRecord = await prisma.fileNumber.findUnique({
+    where: { fileId },
+    select: {
+      fileNumber: true,
+      strataId: true,
+      strata: { select: { strataPlan: true, complexName: true } },
+    },
+  });
+  if (!fileNumberRecord) return;
+
+  const strataName = fileNumberRecord.strata.complexName || fileNumberRecord.strata.strataPlan || '';
+  const fnLabel = fileNumberRecord.fileNumber || String(fileId);
+  const strataId = fileNumberRecord.strataId;
+
+  const adminProfiles = await prisma.profile.findMany({
+    where: { userTypeId: 1 },
+    select: { id: true },
+  });
+
+  if (adminProfiles.length > 0) {
+    await prisma.inAppNotification.createMany({
+      data: adminProfiles.map((p) => ({
+        profileId: p.id,
+        fileId,
+        type: 'doc_resubmitted_after_rejection',
+        message: `New documents have been uploaded for ${strataName} (${fnLabel}) following a rejection. Please review.`,
+        referenceId: strataId,
+      })),
+    });
+  }
+};
+
 export const createClientReviewCompleteNotification = async (
   fileId: number,
   reviewId: number,
