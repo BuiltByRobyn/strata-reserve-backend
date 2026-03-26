@@ -115,6 +115,8 @@ export const offerAppointment = asyncHandler(async (c) => {
     if (err instanceof Error) {
       if (err.message.includes('not found')) return error(c, err.message, 404);
       if (err.message.includes('already been')) return error(c, err.message, 400);
+      if (err.message.includes("can't send a new appointment offer")) return error(c, err.message, 400);
+      if (err.message.includes('must complete an inspection first')) return error(c, err.message, 400);
     }
     throw err;
   }

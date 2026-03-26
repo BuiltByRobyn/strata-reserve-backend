@@ -1,6 +1,100 @@
 import prisma from '../lib/prismaClient';
 import { sendMeetingStatusUpdateEmail, sendFileCompletionEmail } from '../lib/emailService';
 
+const FULL_DAY_INSPECTION_TYPE_NAME = 'Full Day Inspection';
+const FULL_DAY_INSPECTION_REQUIRED_SLOT_TIME = '10:00';
+const DRAFT_MEETING_REQUIRED_SLOT_TIME = '19:00';
+
+const fullDayInspectionSlotError = () =>
+  new Error(
+    'Full Day Inspection appointments are only available for the Morning (10:00 AM) time slot.'
+  );
+
+const draftMeetingSlotError = () =>
+  new Error('Draft Meeting appointments are only available for the 7:00 PM time slot.');
+
+const draftFullDaySameDateConflictError = () =>
+  new Error(
+    'Draft Meeting and Full Day Inspection cannot be booked on the same date. Please choose a different date.'
+  );
+
+async function assertAppointmentTypeTimeSlot(appointmentTypeId: number, timeSlotId: number) {
+  const [appointmentType, timeSlot] = await Promise.all([
+    prisma.appointmentType.findUnique({
+      where: { appointmentTypeId },
+      select: { typeName: true, isDraftMeeting: true },
+    }),
+    prisma.appointmentTimeSlot.findUnique({
+      where: { timeSlotId },
+      select: { slotTime: true },
+    }),
+  ]);
+  if (!appointmentType || !timeSlot) return;
+  if (appointmentType.isDraftMeeting && timeSlot.slotTime !== DRAFT_MEETING_REQUIRED_SLOT_TIME) {
+    throw draftMeetingSlotError();
+  }
+  if (
+    appointmentType.typeName === FULL_DAY_INSPECTION_TYPE_NAME &&
+    timeSlot.slotTime !== FULL_DAY_INSPECTION_REQUIRED_SLOT_TIME
+  ) {
+    throw fullDayInspectionSlotError();
+  }
+}
+
+async function assertNoDraftFullDaySameDateConflict(
+  db: any,
+  params: {
+    appointmentTypeId: number;
+    appointmentDate: Date;
+    excludeAppointmentId?: number;
+  }
+) {
+  const { appointmentTypeId, appointmentDate, excludeAppointmentId } = params;
+  const appointmentType = await db.appointmentType.findUnique({
+    where: { appointmentTypeId },
+    select: { isDraftMeeting: true, typeName: true, durationType: true },
+  });
+  if (!appointmentType) return;
+
+  const normalize = (v?: string | null) => (v || '').trim().toLowerCase();
+  const isDraftMeeting = appointmentType.isDraftMeeting === true;
+  const isFullDayInspection =
+    normalize(appointmentType.durationType) === 'full day' ||
+    normalize(appointmentType.typeName) === normalize(FULL_DAY_INSPECTION_TYPE_NAME);
+  if (!isDraftMeeting && !isFullDayInspection) return;
+
+  const day = new Date(appointmentDate);
+  day.setUTCHours(0, 0, 0, 0);
+  const nextDay = new Date(day);
+  nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+
+  const sameDayAppointments = await db.appointment.findMany({
+    where: {
+      appointmentDate: { gte: day, lt: nextDay },
+      status: { not: 'Cancelled' },
+      ...(excludeAppointmentId ? { appointmentId: { not: excludeAppointmentId } } : {}),
+    },
+    select: {
+      appointmentId: true,
+      appointmentType: {
+        select: { isDraftMeeting: true, typeName: true, durationType: true },
+      },
+    },
+  });
+
+  const hasConflictingType = sameDayAppointments.some((a: any) => {
+    const otherIsDraft = a.appointmentType?.isDraftMeeting === true;
+    const otherIsFullDay =
+      normalize(a.appointmentType?.durationType) === 'full day' ||
+      normalize(a.appointmentType?.typeName) === normalize(FULL_DAY_INSPECTION_TYPE_NAME);
+    return isDraftMeeting ? otherIsFullDay : otherIsDraft;
+  });
+
+  if (hasConflictingType) {
+    throw draftFullDaySameDateConflictError();
+  }
+}
+
 export const getAppointments = async () => {
   return prisma.appointment.findMany({
     orderBy: { appointmentDate: 'desc' },
@@ -143,6 +237,8 @@ export const rescheduleAppointment = async (
       where: { appointmentId: id },
       select: {
         fileId: true,
+        appointmentId: true,
+        appointmentTypeId: true,
         appointmentType: { select: { typeName: true, isDraftMeeting: true } },
         fileNumber: {
           select: {
@@ -157,6 +253,23 @@ export const rescheduleAppointment = async (
       select: { slotName: true, slotTime: true },
     }),
   ]);
+
+  if (aptInfo?.appointmentType?.isDraftMeeting && newTimeSlot?.slotTime !== DRAFT_MEETING_REQUIRED_SLOT_TIME) {
+    throw draftMeetingSlotError();
+  }
+  if (
+    aptInfo?.appointmentType?.typeName === FULL_DAY_INSPECTION_TYPE_NAME &&
+    newTimeSlot?.slotTime !== FULL_DAY_INSPECTION_REQUIRED_SLOT_TIME
+  ) {
+    throw fullDayInspectionSlotError();
+  }
+  if (aptInfo?.fileId && aptInfo?.appointmentId && aptInfo?.appointmentTypeId) {
+    await assertNoDraftFullDaySameDateConflict(prisma, {
+      appointmentTypeId: aptInfo.appointmentTypeId,
+      appointmentDate,
+      excludeAppointmentId: aptInfo.appointmentId,
+    });
+  }
 
   if (aptInfo?.fileId && options?.secondInspectorProfileId !== undefined) {
     await prisma.fileNumber.update({
@@ -335,6 +448,11 @@ export const reviewAppointmentRequest = async (data: {
       const appointmentDate = choiceNum === 1 ? request.firstChoiceDate : request.secondChoiceDate!;
       const timeSlotId = choiceNum === 1 ? request.firstChoiceTimeSlotId : request.secondChoiceTimeSlotId!;
 
+      await assertNoDraftFullDaySameDateConflict(tx, {
+        appointmentTypeId: request.appointmentTypeId,
+        appointmentDate,
+      });
+
       await tx.appointmentRequest.update({
         where: { appointmentRequestId: data.appointmentRequestId },
         data: { status: 'Approved' }
@@ -407,6 +525,12 @@ export const createAppointment = async (data: {
   if (data.appointmentDate < today) {
     throw new Error('Cannot create an appointment in the past. Please choose a future date.');
   }
+
+  await assertAppointmentTypeTimeSlot(data.appointmentTypeId, data.timeSlotId);
+  await assertNoDraftFullDaySameDateConflict(prisma, {
+    appointmentTypeId: data.appointmentTypeId,
+    appointmentDate: data.appointmentDate,
+  });
 
   // Check for conflicting appointment on same date + slot
   const existing = await prisma.appointment.findFirst({

@@ -241,6 +241,40 @@ export const offerAppointment = async (
     notes?: string;
   }
 ) => {
+  const offeredType = offerData?.appointmentTypeId
+    ? await prisma.appointmentType.findUnique({
+      where: { appointmentTypeId: offerData.appointmentTypeId },
+      select: { typeName: true, isDraftMeeting: true },
+    })
+    : null;
+
+  const confirmedAppointment = await prisma.appointment.findFirst({
+    where: {
+      fileId,
+      status: { in: ['Scheduled', 'Rescheduled'] },
+    },
+    select: { appointmentId: true },
+  });
+
+  if (confirmedAppointment && !offeredType?.isDraftMeeting) {
+    throw new Error(
+      "You can't send a new appointment offer because this file already has a confirmed appointment. Please cancel/reschedule the existing appointment first, or send a Draft Meeting offer when eligible."
+    );
+  }
+  if (offeredType?.isDraftMeeting) {
+    const completedInspection = await prisma.appointment.findFirst({
+      where: {
+        fileId,
+        status: 'Completed',
+        appointmentType: { isDraftMeeting: false },
+      },
+      select: { appointmentId: true },
+    });
+    if (!completedInspection) {
+      throw new Error('To offer a Draft Meeting, the strata must complete an inspection first.');
+    }
+  }
+
   const sr = await prisma.fileNumber.findUnique({
     where: { fileId },
     select: {
@@ -270,12 +304,8 @@ export const offerAppointment = async (
 
   if (sr.requestedBy?.email) {
     let meetingType = 'Inspection';
-    if (offerData?.appointmentTypeId) {
-      const apptType = await prisma.appointmentType.findUnique({
-        where: { appointmentTypeId: offerData.appointmentTypeId },
-        select: { typeName: true, isDraftMeeting: true },
-      });
-      meetingType = apptType?.isDraftMeeting ? 'Draft Meeting' : (apptType?.typeName || 'Inspection');
+    if (offeredType) {
+      meetingType = offeredType.isDraftMeeting ? 'Draft Meeting' : (offeredType.typeName || 'Inspection');
     }
 
     sendAppointmentBookingOpenEmail({
