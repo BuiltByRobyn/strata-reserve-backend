@@ -1,5 +1,5 @@
 import PDFDocument from 'pdfkit';
-import type { SurveyPdfMeta, FlatSurveyQuestion, ActiveSurveyResponse } from '../types/surveyPdf.types';
+import type { SurveyPdfMeta, FlatSurveyQuestion, ActiveSurveyResponse } from '../types/survey-pdf.types';
 import { formatDateLong } from '../helpers/dateUtils';
 
 export type { SurveyPdfMeta, FlatSurveyQuestion, ActiveSurveyResponse };

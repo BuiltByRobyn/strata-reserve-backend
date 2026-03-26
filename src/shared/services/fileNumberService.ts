@@ -1,5 +1,5 @@
 import prisma from '../lib/prismaClient';
-import type { CreateFileNumberInput } from '../types/fileNumber.types';
+import type { CreateFileNumberInput } from '../types/file-number.types';
 import { fileNumberIncludeList, profileSelectBrief, profileSelectWithEmail, documentIncludeCompact } from '../constants/prismaIncludes';
 import { validateFileNumber } from '../helpers/fileNumberUtils';
 import { mostRecentAnniversary } from '../helpers/dateUtils';
