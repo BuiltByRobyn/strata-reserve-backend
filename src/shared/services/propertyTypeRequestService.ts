@@ -1,5 +1,5 @@
 import prisma from '../lib/prismaClient';
-import { sendPropertyTypeUpdatedEmail } from '../lib/emailService';
+import { sendPropertyTypeUpdatedEmail, sendAdminPropertyTypeChangeRequestEmail } from '../lib/emailService';
 
 const requestInclude = {
   strataProfile: {
@@ -27,7 +27,7 @@ export const create = async (strataProfileId: number, propertyTypeIds: number[])
     throw Object.assign(new Error('You already have a pending property type request'), { code: 'DUPLICATE' });
   }
 
-  return prisma.propertyTypeRequest.create({
+  const result = await prisma.propertyTypeRequest.create({
     data: {
       strataProfileId,
       requestedPropertyTypeIds: propertyTypeIds,
@@ -35,6 +35,38 @@ export const create = async (strataProfileId: number, propertyTypeIds: number[])
     },
     include: requestInclude
   });
+
+  const profile = result.strataProfile?.profile;
+  const strata = result.strataProfile?.strata;
+
+  if (strata) {
+    const [currentTypes, requestedTypes, activeFile] = await Promise.all([
+      prisma.strataProfilePropertyType.findMany({
+        where: { strataProfileId },
+        select: { propertyType: { select: { propertyTypeName: true } } },
+      }),
+      prisma.propertyType.findMany({
+        where: { propertyTypeId: { in: propertyTypeIds } },
+        select: { propertyTypeName: true },
+      }),
+      prisma.fileNumber.findFirst({
+        where: { strataId: strata.strataId, archived: false },
+        select: { fileNumber: true },
+      }),
+    ]);
+
+    sendAdminPropertyTypeChangeRequestEmail({
+      fileNumber: activeFile?.fileNumber || '',
+      propertyAddress: strata.complexName || strata.strataPlan || '',
+      clientName: profile?.displayName || [profile?.firstName, profile?.lastName].filter(Boolean).join(' ') || 'Unknown',
+      currentPropertyType: currentTypes.map(t => t.propertyType.propertyTypeName).join(', ') || 'None',
+      requestedPropertyType: requestedTypes.map(t => t.propertyTypeName).join(', ') || 'None',
+      requestedAt: new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' }),
+      clientNote: 'N/A',
+    }).catch((err) => console.error('Failed to send admin property type change request email:', err));
+  }
+
+  return result;
 };
 
 export const getPending = async () => {

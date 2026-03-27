@@ -1,5 +1,5 @@
 import prisma from '../lib/prismaClient';
-import { sendMeetingStatusUpdateEmail, sendFileCompletionEmail } from '../lib/emailService';
+import { sendMeetingStatusUpdateEmail, sendFileCompletionEmail, sendAdminAppointmentCancelledEmail } from '../lib/emailService';
 
 const FULL_DAY_INSPECTION_TYPE_NAME = 'Full Day Inspection';
 const FULL_DAY_INSPECTION_REQUIRED_SLOT_TIME = '10:00';
@@ -210,13 +210,47 @@ export const updateAppointmentStatus = async (id: number, status: string, comple
 };
 
 export const cancelAppointment = async (id: number, reason?: string) => {
-  return prisma.appointment.update({
+  const appointment = await prisma.appointment.findUnique({
+    where: { appointmentId: id },
+    select: {
+      appointmentDate: true,
+      timeSlot: { select: { slotName: true } },
+      appointmentType: { select: { typeName: true } },
+      fileNumber: {
+        select: {
+          fileNumber: true,
+          strata: { select: { strataPlan: true, complexName: true } },
+          requestedBy: { select: { firstName: true, lastName: true, displayName: true, email: true } },
+        },
+      },
+    },
+  });
+
+  const updated = await prisma.appointment.update({
     where: { appointmentId: id },
     data: {
       status: 'Cancelled',
       cancellationReason: reason ?? null,
     }
   });
+
+  if (appointment) {
+    const { fileNumber, appointmentType, appointmentDate, timeSlot } = appointment;
+    const client = fileNumber?.requestedBy;
+    sendAdminAppointmentCancelledEmail({
+      fileNumber: fileNumber?.fileNumber || '',
+      propertyAddress: fileNumber?.strata?.complexName || fileNumber?.strata?.strataPlan || '',
+      clientName: client?.displayName || [client?.firstName, client?.lastName].filter(Boolean).join(' ') || 'Unknown',
+      clientEmail: client?.email || '',
+      appointmentType: appointmentType?.typeName || '',
+      appointmentDate: appointmentDate.toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }),
+      appointmentTime: timeSlot?.slotName || '',
+      cancelledAt: new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' }),
+      cancellationReason: reason || 'No reason provided',
+    }).catch((err) => console.error('Failed to send admin appointment cancelled email:', err));
+  }
+
+  return updated;
 };
 
 export const assignInspector = async (id: number, inspectorProfileId: string) => {

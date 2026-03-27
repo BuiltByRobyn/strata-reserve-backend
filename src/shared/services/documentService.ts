@@ -296,21 +296,45 @@ export const submitBatchDocumentReview = async (
 
   const allApproved = review.items.every((item) => item.reviewStatus.statusName === 'Approved');
   if (allApproved) {
-    const fn = await prisma.fileNumber.findUnique({
-      where: { fileId },
-      select: {
-        fileNumber: true,
-        requestedBy: { select: { email: true } },
-      },
-    });
+    const [fn, reviewer] = await Promise.all([
+      prisma.fileNumber.findUnique({
+        where: { fileId },
+        select: {
+          fileNumber: true,
+          requestedBy: { select: { email: true, firstName: true, lastName: true, displayName: true } },
+          strata: { select: { strataPlan: true, complexName: true } },
+        },
+      }),
+      prisma.profile.findUnique({
+        where: { id: reviewedByProfileId },
+        select: { firstName: true, lastName: true, displayName: true },
+      }),
+    ]);
+
+    const finalizedDate = new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
+    const propertyAddress = fn?.strata?.complexName || fn?.strata?.strataPlan || '';
+    const clientName = fn?.requestedBy?.displayName
+      || [fn?.requestedBy?.firstName, fn?.requestedBy?.lastName].filter(Boolean).join(' ')
+      || 'Unknown';
+    const finalizedBy = reviewer?.displayName
+      || [reviewer?.firstName, reviewer?.lastName].filter(Boolean).join(' ')
+      || 'Admin';
 
     if (fn?.requestedBy?.email) {
       emailService.sendDocumentsFinalizedEmail({
         to: fn.requestedBy.email,
         fileNumber: fn.fileNumber || '',
-        finalizedDate: new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' }),
+        finalizedDate,
       }).catch((err) => console.error('Failed to send documents finalized email:', err));
     }
+
+    emailService.sendAdminDocumentsFinalizedEmail({
+      fileNumber: fn?.fileNumber || '',
+      propertyAddress,
+      clientName,
+      documentCount: review.items.length,
+      finalizedBy,
+    }).catch((err) => console.error('Failed to send admin documents finalized email:', err));
   }
 
   return review;

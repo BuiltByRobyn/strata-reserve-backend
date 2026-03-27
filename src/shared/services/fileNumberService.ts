@@ -3,7 +3,7 @@ import type { CreateFileNumberInput } from '../types/file-number.types';
 import { fileNumberIncludeList, profileSelectBrief, profileSelectWithEmail, documentIncludeCompact } from '../constants/prismaIncludes';
 import { validateFileNumber } from '../helpers/fileNumberUtils';
 import { mostRecentAnniversary } from '../helpers/dateUtils';
-import { sendFileCreatedEmail, sendAppointmentBookingOpenEmail, sendSurveyFinalizedEmail } from '../lib/emailService';
+import { sendFileCreatedEmail, sendAppointmentBookingOpenEmail, sendSurveyFinalizedEmail, sendAdminSurveyFinalizedEmail } from '../lib/emailService';
 
 export const getFileNumbers = async (filters?: { strataId?: number; archived?: boolean }) => {
   const results = await prisma.fileNumber.findMany({
@@ -219,13 +219,27 @@ export const submitForReview = async (id: number, profileId: string) => {
     select: { email: true },
   });
 
+  const surveyDate = new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
+
   if (profile?.email) {
     sendSurveyFinalizedEmail({
       to: profile.email,
       fileNumber: updated.fileNumber || '',
-      finalizedDate: new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' }),
+      finalizedDate: surveyDate,
     }).catch((err) => console.error('Failed to send survey finalized email:', err));
   }
+
+  const clientName = updated.requestedBy?.displayName
+    || [updated.requestedBy?.firstName, updated.requestedBy?.lastName].filter(Boolean).join(' ')
+    || 'Unknown';
+  const propertyAddress = updated.strata?.complexName || updated.strata?.strataPlan || '';
+
+  sendAdminSurveyFinalizedEmail({
+    fileNumber: updated.fileNumber || '',
+    propertyAddress,
+    clientName,
+    surveyDate,
+  }).catch((err) => console.error('Failed to send admin survey finalized email:', err));
 
   return updated;
 };

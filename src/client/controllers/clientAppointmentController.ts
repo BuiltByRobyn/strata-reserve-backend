@@ -4,7 +4,7 @@ import { isWithin48Hours } from '../../shared/helpers/dateUtils';
 import { getAvailableSlots, checkDraftMeetingEligibility } from '../../shared/services/availabilityCalculationService';
 import prisma from '../../shared/lib/prismaClient';
 import type { AppointmentNotification } from '../../shared/types/appointment.types';
-import { sendFileCompletionEmail } from '../../shared/lib/emailService';
+import { sendFileCompletionEmail, sendAdminAppointmentBookingRequestEmail, sendAdminAppointmentCancelledEmail } from '../../shared/lib/emailService';
 
 export const getAvailability = asyncHandler(async (c) => {
   const startDate = c.req.query('startDate');
@@ -123,6 +123,31 @@ export const createAppointmentRequest = asyncHandler(async (c) => {
     }
     throw err;
   }
+
+  const [profile, fn] = await Promise.all([
+    prisma.profile.findUnique({
+      where: { id: user.id },
+      select: { firstName: true, lastName: true, displayName: true, email: true, phoneNumber: true },
+    }),
+    prisma.fileNumber.findUnique({
+      where: { fileId: parseInt(fileId) },
+      select: {
+        fileNumber: true,
+        strata: { select: { strataPlan: true, complexName: true } },
+      },
+    }),
+  ]);
+
+  sendAdminAppointmentBookingRequestEmail({
+    fileNumber: fn?.fileNumber || '',
+    propertyAddress: fn?.strata?.complexName || fn?.strata?.strataPlan || '',
+    clientName: profile?.displayName || [profile?.firstName, profile?.lastName].filter(Boolean).join(' ') || 'Unknown',
+    clientEmail: profile?.email || '',
+    clientPhone: profile?.phoneNumber || 'N/A',
+    appointmentType: result.appointmentType.typeName,
+    requestedDate: result.firstChoiceDate.toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }),
+    requestedTime: result.firstChoiceTimeSlot.slotName,
+  }).catch((err) => console.error('Failed to send admin appointment booking request email:', err));
 
   return success(c, result, 201);
 }, 'Failed to create appointment request');
@@ -259,10 +284,18 @@ export const cancelAppointment = asyncHandler(async (c) => {
     where: { appointmentId: id },
     include: {
       timeSlot: true,
+      appointmentType: { select: { typeName: true } },
       fileNumber: {
         select: {
-          strata: { select: { strataProfiles: { where: { profileId: user.id } } } },
-          requestedByProfileId: true
+          fileNumber: true,
+          strata: {
+            select: {
+              strataPlan: true,
+              complexName: true,
+              strataProfiles: { where: { profileId: user.id } },
+            },
+          },
+          requestedByProfileId: true,
         }
       }
     }
@@ -283,6 +316,23 @@ export const cancelAppointment = asyncHandler(async (c) => {
     where: { appointmentId: id },
     data: { status: 'Cancelled' }
   });
+
+  prisma.profile.findUnique({
+    where: { id: user.id },
+    select: { firstName: true, lastName: true, displayName: true, email: true },
+  }).then((profile) => {
+    sendAdminAppointmentCancelledEmail({
+      fileNumber: appointment.fileNumber.fileNumber || '',
+      propertyAddress: appointment.fileNumber.strata.complexName || appointment.fileNumber.strata.strataPlan || '',
+      clientName: profile?.displayName || [profile?.firstName, profile?.lastName].filter(Boolean).join(' ') || 'Unknown',
+      clientEmail: profile?.email || '',
+      appointmentType: appointment.appointmentType.typeName,
+      appointmentDate: appointment.appointmentDate.toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }),
+      appointmentTime: appointment.timeSlot.slotName,
+      cancelledAt: new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' }),
+      cancellationReason: 'No reason provided',
+    }).catch((err) => console.error('Failed to send admin appointment cancelled email:', err));
+  }).catch((err) => console.error('Failed to fetch profile for admin appointment cancelled email:', err));
 
   return success(c, updated);
 }, 'Failed to cancel appointment');

@@ -2,6 +2,7 @@ import { success, error, asyncHandler } from '../../shared/helpers/responseHelpe
 import prisma from '../../shared/lib/prismaClient';
 import * as propertyTypeRequestService from '../../shared/services/propertyTypeRequestService';
 import { logProfileChange } from '../../shared/services/clientActivityService';
+import { sendPhoneNumberUpdatedEmail, sendAdminPhoneNumberUpdatedEmail } from '../../shared/lib/emailService';
 
 export const getClientProfile = asyncHandler(async (c) => {
   const user = c.get('user');
@@ -95,8 +96,31 @@ export const updateClientProfile = asyncHandler(async (c) => {
       changed.firstName = { from: currentProfile.firstName, to: body.firstName };
     if (body.lastName !== undefined && body.lastName !== currentProfile.lastName)
       changed.lastName = { from: currentProfile.lastName, to: body.lastName };
-    if (body.phoneNumber !== undefined && body.phoneNumber !== currentProfile.phoneNumber)
+    if (body.phoneNumber !== undefined && body.phoneNumber !== currentProfile.phoneNumber) {
       changed.phoneNumber = { from: currentProfile.phoneNumber, to: body.phoneNumber };
+      if (body.phoneNumber) {
+        const changedAt = new Date().toLocaleString('en-CA', {
+          year: 'numeric', month: 'long', day: 'numeric',
+          hour: '2-digit', minute: '2-digit', timeZoneName: 'short',
+        });
+        const clientName = [updatedProfile.firstName, updatedProfile.lastName].filter(Boolean).join(' ') || 'Unknown';
+
+        if (updatedProfile.email) {
+          sendPhoneNumberUpdatedEmail({
+            to: updatedProfile.email,
+            newPhone: body.phoneNumber,
+          }).catch((err) => console.error('Failed to send phone number updated email:', err));
+        }
+
+        sendAdminPhoneNumberUpdatedEmail({
+          clientName,
+          clientEmail: updatedProfile.email || '',
+          oldPhone: currentProfile.phoneNumber || 'N/A',
+          newPhone: body.phoneNumber,
+          changedAt,
+        }).catch((err) => console.error('Failed to send admin phone number updated email:', err));
+      }
+    }
     if (body.companyName !== undefined && (body.companyName || null) !== currentProfile.companyName)
       changed.companyName = { from: currentProfile.companyName, to: body.companyName || null };
     if (Object.keys(changed).length > 0) {
