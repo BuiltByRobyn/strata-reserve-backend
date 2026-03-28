@@ -140,13 +140,18 @@ export const createAppointmentRequest = asyncHandler(async (c) => {
 
   sendAdminAppointmentBookingRequestEmail({
     fileNumber: fn?.fileNumber || '',
+    strataNumber: fn?.strata?.strataPlan || '',
     propertyAddress: fn?.strata?.complexName || fn?.strata?.strataPlan || '',
     clientName: profile?.displayName || [profile?.firstName, profile?.lastName].filter(Boolean).join(' ') || 'Unknown',
     clientEmail: profile?.email || '',
     clientPhone: profile?.phoneNumber || 'N/A',
     appointmentType: result.appointmentType.typeName,
-    requestedDate: result.firstChoiceDate.toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }),
-    requestedTime: result.firstChoiceTimeSlot.slotName,
+    requestedDate1: result.firstChoiceDate.toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }),
+    requestedTime1: result.firstChoiceTimeSlot.slotName,
+    requestedDate2: result.secondChoiceDate
+      ? result.secondChoiceDate.toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })
+      : 'N/A',
+    requestedTime2: result.secondChoiceTimeSlot?.slotName || 'N/A',
   }).catch((err) => console.error('Failed to send admin appointment booking request email:', err));
 
   return success(c, result, 201);
@@ -227,12 +232,12 @@ export const getActiveAppointment = asyncHandler(async (c) => {
       if (isDraft) {
         const fn = await prisma.fileNumber.findUnique({
           where: { fileId: appointment.fileId },
-          select: { fileNumber: true, requestedBy: { select: { email: true } } },
+          select: { strata: { select: { strataPlan: true } }, requestedBy: { select: { email: true } } },
         });
         if (fn?.requestedBy?.email) {
           sendFileCompletionEmail({
             to: fn.requestedBy.email,
-            fileNumber: fn.fileNumber || '',
+            strataNumber: fn.strata?.strataPlan || '',
             completedDate: new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' }),
           }).catch((err) => console.error('Failed to send file completion email:', err));
         }
@@ -323,6 +328,7 @@ export const cancelAppointment = asyncHandler(async (c) => {
   }).then((profile) => {
     sendAdminAppointmentCancelledEmail({
       fileNumber: appointment.fileNumber.fileNumber || '',
+      strataNumber: appointment.fileNumber.strata.strataPlan || '',
       propertyAddress: appointment.fileNumber.strata.complexName || appointment.fileNumber.strata.strataPlan || '',
       clientName: profile?.displayName || [profile?.firstName, profile?.lastName].filter(Boolean).join(' ') || 'Unknown',
       clientEmail: profile?.email || '',

@@ -17,6 +17,8 @@ import type {
   AdminAppointmentCancelledEmailParams,
   PhoneNumberUpdatedEmailParams,
   AdminPhoneNumberUpdatedEmailParams,
+  PasswordUpdatedEmailParams,
+  AdminAppointmentBookingOpenEmailParams,
 } from '../types/email.types';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
@@ -32,13 +34,12 @@ export async function sendPropertyTypeUpdatedEmail(params: PropertyTypeUpdatedEm
   await resend.emails.send({
     from: FROM_EMAIL,
     to: params.to,
-    subject: 'Your property type has been updated – Strata Reserve Planning',
-    template_alias: 'property-type-updated',
+    subject: 'Your property type change request has been reviewed – Strata Reserve Planning',
+    template_alias: 'property-type-updated-client-1',
     variables: {
-      FileNumber: params.fileNumber,
-      OldPropertyType: params.oldPropertyType,
-      NewPropertyType: params.newPropertyType,
-      ChangedDate: params.changedDate,
+      StrataNumber: params.strataNumber,
+      Status: params.status,
+      DecisionDate: params.decisionDate,
       SiteURL: FRONTEND_URL,
     },
   } as any);
@@ -51,9 +52,9 @@ export async function sendFileCompletionEmail(params: FileCompletionEmailParams)
     from: FROM_EMAIL,
     to: params.to,
     subject: 'Your file has been completed – Strata Reserve Planning',
-    template_alias: 'file-completion-notification',
+    template_alias: 'file-completion-notification-client-1',
     variables: {
-      FileNumber: params.fileNumber,
+      StrataNumber: params.strataNumber,
       CompletedDate: params.completedDate,
       ReportURL: `${FRONTEND_URL}/documents`,
       SiteURL: FRONTEND_URL,
@@ -68,7 +69,7 @@ export async function sendAdminPhoneNumberUpdatedEmail(params: AdminPhoneNumberU
     from: FROM_EMAIL,
     to: ADMIN_EMAIL,
     subject: '[Admin Alert] A client has updated their phone number – Strata Reserve Planning',
-    template_alias: 'client-phone-number-alert-admin',
+    template_alias: 'client-phone-number-alert-admin-2',
     variables: {
       ClientName: params.clientName,
       ClientEmail: params.clientEmail,
@@ -88,7 +89,7 @@ export async function sendPhoneNumberUpdatedEmail(params: PhoneNumberUpdatedEmai
     from: FROM_EMAIL,
     to: params.to,
     subject: 'Your phone number has been updated – Strata Reserve Planning',
-    template_alias: 'phone-number-updated',
+    template_alias: 'phone-number-updated-client-1',
     variables: {
       NewPhone: params.newPhone,
       SiteURL: FRONTEND_URL,
@@ -103,9 +104,10 @@ export async function sendAdminAppointmentCancelledEmail(params: AdminAppointmen
     from: FROM_EMAIL,
     to: ADMIN_EMAIL,
     subject: `Appointment Cancelled: ${params.fileNumber} — Strata Reserve Planning`,
-    template_alias: 'appointment-cancellation-alert-admin',
+    template_alias: 'appointment-cancellation-alert-admin-2',
     variables: {
       FileNumber: params.fileNumber,
+      StrataNumber: params.strataNumber,
       PropertyAddress: params.propertyAddress,
       ClientName: params.clientName,
       ClientEmail: params.clientEmail,
@@ -127,16 +129,19 @@ export async function sendAdminAppointmentBookingRequestEmail(params: AdminAppoi
     from: FROM_EMAIL,
     to: ADMIN_EMAIL,
     subject: `New Appointment Booking Request: ${params.fileNumber} — Strata Reserve Planning`,
-    template_alias: 'appointment-booking-alert-admin',
+    template_alias: 'appointment-booking-alert-admin-2',
     variables: {
       FileNumber: params.fileNumber,
+      StrataNumber: params.strataNumber,
       PropertyAddress: params.propertyAddress,
       ClientName: params.clientName,
       ClientEmail: params.clientEmail,
       ClientPhone: params.clientPhone,
       AppointmentType: params.appointmentType,
-      RequestedDate: params.requestedDate,
-      RequestedTime: params.requestedTime,
+      RequestedDate1: params.requestedDate1,
+      RequestedTime1: params.requestedTime1,
+      RequestedDate2: params.requestedDate2,
+      RequestedTime2: params.requestedTime2,
       AdminDashboardURL: `${FRONTEND_URL}/admin`,
       SiteURL: FRONTEND_URL,
     },
@@ -150,9 +155,10 @@ export async function sendAdminPropertyTypeChangeRequestEmail(params: AdminPrope
     from: FROM_EMAIL,
     to: ADMIN_EMAIL,
     subject: `Property Type Change Request: ${params.fileNumber} — Strata Reserve Planning`,
-    template_alias: 'property-type-change-request-admin',
+    template_alias: 'property-type-change-request-admin-2',
     variables: {
       FileNumber: params.fileNumber,
+      StrataNumber: params.strataNumber,
       PropertyAddress: params.propertyAddress,
       ClientName: params.clientName,
       CurrentPropertyType: params.currentPropertyType,
@@ -172,13 +178,15 @@ export async function sendAdminDocumentsFinalizedEmail(params: AdminDocumentsFin
     from: FROM_EMAIL,
     to: ADMIN_EMAIL,
     subject: `Documents Finalized: ${params.fileNumber} — Strata Reserve Planning`,
-    template_alias: 'documents-finalized-alert-admin',
+    template_alias: 'documents-finalized-alert-admin-2',
     variables: {
       FileNumber: params.fileNumber,
+      StrataNumber: params.strataNumber,
       PropertyAddress: params.propertyAddress,
       ClientName: params.clientName,
       DocumentCount: params.documentCount,
       FinalizedBy: params.finalizedBy,
+      SurveyCompleted: params.surveyCompleted,
       AdminDashboardURL: `${FRONTEND_URL}/admin`,
       SiteURL: FRONTEND_URL,
     },
@@ -192,12 +200,14 @@ export async function sendAdminSurveyFinalizedEmail(params: AdminSurveyFinalized
     from: FROM_EMAIL,
     to: ADMIN_EMAIL,
     subject: `Survey Finalized: ${params.fileNumber} — Strata Reserve Planning`,
-    template_alias: 'survey-finalized-notification-admin',
+    template_alias: 'survey-finalized-notification-admin-2',
     variables: {
       FileNumber: params.fileNumber,
+      StrataNumber: params.strataNumber,
       PropertyAddress: params.propertyAddress,
       ClientName: params.clientName,
       SurveyDate: params.surveyDate,
+      SurveyCompleted: params.surveyCompleted,
       AdminDashboardURL: `${FRONTEND_URL}/admin`,
       SiteURL: FRONTEND_URL,
     },
@@ -211,11 +221,10 @@ export async function sendSurveyFinalizedEmail(params: SurveyFinalizedEmailParam
     from: FROM_EMAIL,
     to: params.to,
     subject: 'Your survey has been finalized – Strata Reserve Planning',
-    template_alias: 'survey-finalized-notification',
+    template_alias: 'survey-finalized-client-1',
     variables: {
-      FileNumber: params.fileNumber,
+      StrataNumber: params.strataNumber,
       FinalizedDate: params.finalizedDate,
-      SurveyURL: `${FRONTEND_URL}/survey`,
       SiteURL: FRONTEND_URL,
     },
   } as any);
@@ -228,11 +237,10 @@ export async function sendDocumentsFinalizedEmail(params: DocumentsFinalizedEmai
     from: FROM_EMAIL,
     to: params.to,
     subject: 'Your documents have been finalized – Strata Reserve Planning',
-    template_alias: 'documents-finalized-notification',
+    template_alias: 'documents-finalized-notification-client-1',
     variables: {
-      FileNumber: params.fileNumber,
+      StrataNumber: params.strataNumber,
       FinalizedDate: params.finalizedDate,
-      DocumentsURL: `${FRONTEND_URL}/documents`,
       SiteURL: FRONTEND_URL,
     },
   } as any);
@@ -245,12 +253,31 @@ export async function sendAppointmentBookingOpenEmail(params: AppointmentBooking
     from: FROM_EMAIL,
     to: params.to,
     subject: `Book your ${params.meetingType} appointment – Strata Reserve Planning`,
-    template_alias: 'appointment-booking-open',
+    template_alias: 'appointment-booking-open-client-2',
     variables: {
-      FileNumber: params.fileNumber,
+      StrataNumber: params.strataNumber,
       MeetingType: params.meetingType,
       BookingURL: `${FRONTEND_URL}/appointments`,
       BookingDeadline: params.bookingDeadline || '',
+      SiteURL: FRONTEND_URL,
+    },
+  } as any);
+}
+
+export async function sendAdminAppointmentBookingOpenEmail(params: AdminAppointmentBookingOpenEmailParams): Promise<void> {
+  if (!resend || !ADMIN_EMAIL) return;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: ADMIN_EMAIL,
+    subject: `Booking Now Open: ${params.strataNumber} — ${params.meetingType} — Strata Reserve Planning`,
+    template_alias: 'appointment-booking-open-admin-1',
+    variables: {
+      FileNumber: params.fileNumber,
+      StrataNumber: params.strataNumber,
+      MeetingType: params.meetingType,
+      BookingDeadline: params.bookingDeadline,
+      BookingURL: `${FRONTEND_URL}/admin`,
       SiteURL: FRONTEND_URL,
     },
   } as any);
@@ -263,14 +290,28 @@ export async function sendMeetingStatusUpdateEmail(params: MeetingStatusUpdateEm
     from: FROM_EMAIL,
     to: params.to,
     subject: `Your meeting request has been ${params.status} – Strata Reserve Planning`,
-    template_alias: 'meeting-status-update',
+    template_alias: 'meeting-status-update-client-1',
     variables: {
-      FileNumber: params.fileNumber,
+      StrataNumber: params.strataNumber,
       MeetingType: params.meetingType,
       MeetingStatus: params.status,
+      MeetingStatusClass: params.status === 'Approved' ? 'approved' : params.status === 'Rejected' ? 'denied' : 'rescheduled',
       MeetingDate: params.meetingDate || '',
       MeetingTime: params.meetingTime || '',
-      DenialReason: params.denialReason || '',
+      SiteURL: FRONTEND_URL,
+    },
+  } as any);
+}
+
+export async function sendPasswordUpdatedEmail(params: PasswordUpdatedEmailParams): Promise<void> {
+  if (!resend || !params.to) return;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: params.to,
+    subject: 'Your password has been updated – Strata Reserve Planning',
+    template_alias: 'password-update-confirmation-admin-client',
+    variables: {
       SiteURL: FRONTEND_URL,
     },
   } as any);
@@ -283,9 +324,9 @@ export async function sendFileCreatedEmail(params: FileCreatedEmailParams): Prom
     from: FROM_EMAIL,
     to: params.to,
     subject: 'Your file has been created – Strata Reserve Planning',
-    template_alias: 'file-creation-notification',
+    template_alias: 'file-creation-notification-client-1',
     variables: {
-      FileNumber: params.fileNumber,
+      StrataNumber: params.strataNumber,
       SiteURL: FRONTEND_URL,
     },
   } as any);

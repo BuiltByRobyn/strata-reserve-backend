@@ -385,6 +385,7 @@ export const submitBatchDocumentReview = async (
         where: { fileId },
         select: {
           fileNumber: true,
+          submittedForReviewDate: true,
           requestedBy: { select: { email: true, firstName: true, lastName: true, displayName: true } },
           strata: { select: { strataPlan: true, complexName: true } },
         },
@@ -407,17 +408,19 @@ export const submitBatchDocumentReview = async (
     if (fn?.requestedBy?.email) {
       emailService.sendDocumentsFinalizedEmail({
         to: fn.requestedBy.email,
-        fileNumber: fn.fileNumber || '',
+        strataNumber: fn?.strata?.strataPlan || '',
         finalizedDate,
       }).catch((err) => console.error('Failed to send documents finalized email:', err));
     }
 
     emailService.sendAdminDocumentsFinalizedEmail({
       fileNumber: fn?.fileNumber || '',
+      strataNumber: fn?.strata?.strataPlan || '',
       propertyAddress,
       clientName,
       documentCount: review.items.length,
       finalizedBy,
+      surveyCompleted: fn?.submittedForReviewDate ? 'Yes' : 'No',
     }).catch((err) => console.error('Failed to send admin documents finalized email:', err));
   }
 
