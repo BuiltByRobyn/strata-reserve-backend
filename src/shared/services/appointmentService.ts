@@ -1,5 +1,6 @@
 import prisma from '../lib/prismaClient';
 import { sendMeetingStatusUpdateEmail, sendFileCompletionEmail, sendAdminAppointmentCancelledEmail } from '../lib/emailService';
+import { assertNoInspectorSameDayCrossRegionConflict } from './inspectorRegionConflictService';
 
 const FULL_DAY_INSPECTION_TYPE_NAME = 'Full Day Inspection';
 const FULL_DAY_INSPECTION_REQUIRED_SLOT_TIME = '10:00';
@@ -273,10 +274,12 @@ export const rescheduleAppointment = async (
         fileId: true,
         appointmentId: true,
         appointmentTypeId: true,
+        inspectorProfileId: true,
         appointmentType: { select: { typeName: true, isDraftMeeting: true } },
         fileNumber: {
           select: {
             fileNumber: true,
+            appointmentOfferSecondInspectorId: true,
             requestedBy: { select: { email: true } },
           },
         },
@@ -303,6 +306,26 @@ export const rescheduleAppointment = async (
       appointmentDate,
       excludeAppointmentId: aptInfo.appointmentId,
     });
+  }
+
+  if (aptInfo?.fileId && aptInfo?.appointmentTypeId && aptInfo?.appointmentId) {
+    const primaryInspector =
+      options?.inspectorProfileId !== undefined ? options.inspectorProfileId : aptInfo.inspectorProfileId;
+    const secondInspector =
+      options?.secondInspectorProfileId !== undefined
+        ? options.secondInspectorProfileId
+        : aptInfo.fileNumber?.appointmentOfferSecondInspectorId;
+    const regionInspectorIds = [primaryInspector, secondInspector].filter((id): id is string => !!id);
+    if (regionInspectorIds.length > 0) {
+      await assertNoInspectorSameDayCrossRegionConflict(prisma, {
+        appointmentDate,
+        timeSlotId,
+        appointmentTypeId: aptInfo.appointmentTypeId,
+        fileId: aptInfo.fileId,
+        inspectorProfileIds: [...new Set(regionInspectorIds)],
+        excludeAppointmentId: aptInfo.appointmentId,
+      });
+    }
   }
 
   if (aptInfo?.fileId && options?.secondInspectorProfileId !== undefined) {
@@ -565,6 +588,19 @@ export const createAppointment = async (data: {
     appointmentTypeId: data.appointmentTypeId,
     appointmentDate: data.appointmentDate,
   });
+
+  const regionInspectorIds = [data.inspectorProfileId, data.secondInspectorProfileId].filter(
+    (id): id is string => !!id
+  );
+  if (regionInspectorIds.length > 0) {
+    await assertNoInspectorSameDayCrossRegionConflict(prisma, {
+      appointmentDate: data.appointmentDate,
+      timeSlotId: data.timeSlotId,
+      appointmentTypeId: data.appointmentTypeId,
+      fileId: data.fileId,
+      inspectorProfileIds: [...new Set(regionInspectorIds)],
+    });
+  }
 
   // Check for conflicting appointment on same date + slot
   const existing = await prisma.appointment.findFirst({

@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import prisma from '../lib/prismaClient';
 import { documentInclude, documentIncludeCompact, requirementInclude } from '../constants/prismaIncludes';
 import { filterClientDocumentNotes } from '../helpers/noteFilterHelper';
@@ -18,11 +19,79 @@ const sectionVisibilityWhere = (sectionIds: number[]) => {
     : {};
 };
 
+type DocumentListRow = Prisma.FileNumberDocumentGetPayload<{ include: typeof documentInclude }>;
+
+/*
+  Overlay status from the latest FileNumberDocumentReview per file — same source as Strata Detail checklist.
+  Resolves fnDocRequirementId when missing on the row (some uploads only link via requirement.fileNumberDocuments).
+  When a matching review item exists, it wins over file_number_document.review_status_id so the list matches Strata.
+*/
+const enrichDocumentsWithLatestReviewStatus = async (
+  docs: DocumentListRow[]
+): Promise<DocumentListRow[]> => {
+  if (docs.length === 0) return docs;
+
+  const fileIds = [...new Set(docs.map((d) => d.fileId))];
+  const reviews = await prisma.fileNumberDocumentReview.findMany({
+    where: { fileId: { in: fileIds } },
+    orderBy: { reviewedAt: 'desc' },
+    include: {
+      items: {
+        include: {
+          reviewStatus: { select: { reviewStatusId: true, statusName: true } },
+        },
+      },
+    },
+  });
+
+  const latestByFileId = new Map<number, (typeof reviews)[0]>();
+  for (const r of reviews) {
+    if (!latestByFileId.has(r.fileId)) {
+      latestByFileId.set(r.fileId, r);
+    }
+  }
+
+  const docIdsMissingReq = docs
+    .filter((d) => d.fnDocRequirementId == null)
+    .map((d) => d.fileNumberDocumentId);
+  const docIdToReqId = new Map<number, number>();
+  if (docIdsMissingReq.length > 0) {
+    const reqsWithDoc = await prisma.fileNumberDocumentRequirement.findMany({
+      where: {
+        fileNumberDocuments: { some: { fileNumberDocumentId: { in: docIdsMissingReq } } },
+      },
+      select: {
+        fnDocRequirementId: true,
+        fileNumberDocuments: {
+          where: { fileNumberDocumentId: { in: docIdsMissingReq } },
+          select: { fileNumberDocumentId: true },
+        },
+      },
+    });
+    for (const rq of reqsWithDoc) {
+      for (const fd of rq.fileNumberDocuments) {
+        docIdToReqId.set(fd.fileNumberDocumentId, rq.fnDocRequirementId);
+      }
+    }
+  }
+
+  return docs.map((doc) => {
+    const latest = latestByFileId.get(doc.fileId);
+    if (!latest?.items?.length) return doc;
+    const reqId = doc.fnDocRequirementId ?? docIdToReqId.get(doc.fileNumberDocumentId);
+    if (reqId == null) return doc;
+    const item = latest.items.find((i) => i.fnDocRequirementId === reqId);
+    if (!item?.reviewStatus) return doc;
+    return { ...doc, reviewStatus: item.reviewStatus };
+  });
+};
+
 export const getDocuments = async () => {
-  return prisma.fileNumberDocument.findMany({
+  const docs = await prisma.fileNumberDocument.findMany({
     orderBy: { uploadedAt: 'desc' },
     include: documentInclude
   });
+  return enrichDocumentsWithLatestReviewStatus(docs);
 };
 
 export const getDocumentById = async (id: number) => {
@@ -67,7 +136,7 @@ export const deleteDocument = async (id: number) => {
 };
 
 export const searchDocuments = async (query: string) => {
-  return prisma.fileNumberDocument.findMany({
+  const docs = await prisma.fileNumberDocument.findMany({
     where: {
       OR: [
         { fileName: { contains: query, mode: 'insensitive' } },
@@ -79,6 +148,7 @@ export const searchDocuments = async (query: string) => {
     orderBy: { uploadedAt: 'desc' },
     include: documentInclude
   });
+  return enrichDocumentsWithLatestReviewStatus(docs);
 };
 
 export const getDocumentsByProfile = async (profileId: string) => {
@@ -285,6 +355,20 @@ export const submitBatchDocumentReview = async (
         },
       },
     });
+
+    for (const item of items) {
+      const latestDoc = await tx.fileNumberDocument.findFirst({
+        where: { fileId, fnDocRequirementId: item.fnDocRequirementId },
+        orderBy: { uploadedAt: 'desc' },
+        select: { fileNumberDocumentId: true },
+      });
+      if (latestDoc) {
+        await tx.fileNumberDocument.update({
+          where: { fileNumberDocumentId: latestDoc.fileNumberDocumentId },
+          data: { reviewStatusId: item.reviewStatusId },
+        });
+      }
+    }
 
     await tx.fileNumber.update({
       where: { fileId },
