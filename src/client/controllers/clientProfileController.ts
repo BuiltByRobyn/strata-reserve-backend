@@ -2,7 +2,7 @@ import { success, error, asyncHandler } from '../../shared/helpers/responseHelpe
 import prisma from '../../shared/lib/prismaClient';
 import * as propertyTypeRequestService from '../../shared/services/propertyTypeRequestService';
 import { logProfileChange } from '../../shared/services/clientActivityService';
-import { sendPhoneNumberUpdatedEmail, sendAdminPhoneNumberUpdatedEmail } from '../../shared/lib/emailService';
+import { sendPhoneNumberUpdatedEmail, sendAdminPhoneNumberUpdatedEmail, sendPasswordUpdatedEmail } from '../../shared/lib/emailService';
 
 export const getClientProfile = asyncHandler(async (c) => {
   const user = c.get('user');
@@ -173,3 +173,19 @@ export const requestSectionChange = asyncHandler(async (c) => {
     throw err;
   }
 }, 'Failed to submit section change request');
+
+export const notifyPasswordUpdated = asyncHandler(async (c) => {
+  const user = c.get('user');
+
+  const profile = await prisma.profile.findUnique({
+    where: { id: user.id },
+    select: { email: true },
+  });
+
+  if (profile?.email) {
+    sendPasswordUpdatedEmail({ to: profile.email })
+      .catch((err) => console.error('Failed to send password updated email:', err));
+  }
+
+  return success(c, { message: 'Notification sent' });
+}, 'Failed to send password notification');

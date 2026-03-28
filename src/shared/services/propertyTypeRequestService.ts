@@ -57,6 +57,7 @@ export const create = async (strataProfileId: number, propertyTypeIds: number[])
 
     sendAdminPropertyTypeChangeRequestEmail({
       fileNumber: activeFile?.fileNumber || '',
+      strataNumber: strata.strataPlan || '',
       propertyAddress: strata.complexName || strata.strataPlan || '',
       clientName: profile?.displayName || [profile?.firstName, profile?.lastName].filter(Boolean).join(' ') || 'Unknown',
       currentPropertyType: currentTypes.map(t => t.propertyType.propertyTypeName).join(', ') || 'None',
@@ -131,10 +132,9 @@ export const approve = async (requestId: number, reviewerProfileId: string) => {
 
     sendPropertyTypeUpdatedEmail({
       to: profile.email,
-      fileNumber: activeFile?.fileNumber || '',
-      oldPropertyType: oldTypes.map(t => t.propertyType.propertyTypeName).join(', ') || 'None',
-      newPropertyType: newTypes.map(t => t.propertyTypeName).join(', ') || 'None',
-      changedDate: new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' }),
+      strataNumber: strata.strataPlan || '',
+      status: 'Approved',
+      decisionDate: new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' }),
     }).catch((err) => console.error('Failed to send property type updated email:', err));
   }
 
@@ -149,7 +149,7 @@ export const reject = async (requestId: number, reviewerProfileId: string, rejec
     throw new Error('Request not found or already reviewed');
   }
 
-  return prisma.propertyTypeRequest.update({
+  const result = await prisma.propertyTypeRequest.update({
     where: { propertyTypeRequestId: requestId },
     data: {
       status: 'Rejected',
@@ -159,4 +159,17 @@ export const reject = async (requestId: number, reviewerProfileId: string, rejec
     },
     include: requestInclude
   });
+
+  const profile = result.strataProfile?.profile;
+  const strata = result.strataProfile?.strata;
+  if (profile?.email && strata) {
+    sendPropertyTypeUpdatedEmail({
+      to: profile.email,
+      strataNumber: strata.strataPlan || '',
+      status: 'Rejected',
+      decisionDate: new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' }),
+    }).catch((err) => console.error('Failed to send property type rejected email:', err));
+  }
+
+  return result;
 };

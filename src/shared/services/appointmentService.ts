@@ -201,7 +201,7 @@ export const updateAppointmentStatus = async (id: number, status: string, comple
     if (appointment.appointmentType.isDraftMeeting && appointment.fileNumber?.requestedBy?.email) {
       sendFileCompletionEmail({
         to: appointment.fileNumber.requestedBy.email,
-        fileNumber: appointment.fileNumber.fileNumber || '',
+        strataNumber: appointment.fileNumber.strata?.strataPlan || '',
         completedDate: new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' }),
       }).catch((err) => console.error('Failed to send file completion email:', err));
     }
@@ -240,6 +240,7 @@ export const cancelAppointment = async (id: number, reason?: string) => {
     const client = fileNumber?.requestedBy;
     sendAdminAppointmentCancelledEmail({
       fileNumber: fileNumber?.fileNumber || '',
+      strataNumber: fileNumber?.strata?.strataPlan || '',
       propertyAddress: fileNumber?.strata?.complexName || fileNumber?.strata?.strataPlan || '',
       clientName: client?.displayName || [client?.firstName, client?.lastName].filter(Boolean).join(' ') || 'Unknown',
       clientEmail: client?.email || '',
@@ -281,6 +282,7 @@ export const rescheduleAppointment = async (
             fileNumber: true,
             appointmentOfferSecondInspectorId: true,
             requestedBy: { select: { email: true } },
+            strata: { select: { strataPlan: true } },
           },
         },
       },
@@ -351,7 +353,7 @@ export const rescheduleAppointment = async (
     const meetingType = aptInfo?.appointmentType?.isDraftMeeting ? 'Draft Meeting' : 'Inspection';
     sendMeetingStatusUpdateEmail({
       to: email,
-      fileNumber: aptInfo?.fileNumber?.fileNumber || '',
+      strataNumber: aptInfo?.fileNumber?.strata?.strataPlan || '',
       meetingType,
       status: 'Rescheduled',
       meetingDate: appointmentDate.toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' }),
@@ -468,7 +470,7 @@ export const reviewAppointmentRequest = async (data: {
       appointmentType: { select: { typeName: true, isDraftMeeting: true } },
       requestedBy: { select: { email: true } },
       fileNumber: {
-        select: { fileNumber: true },
+        select: { fileNumber: true, strata: { select: { strataPlan: true } } },
       },
     },
   });
@@ -556,12 +558,11 @@ export const reviewAppointmentRequest = async (data: {
 
     sendMeetingStatusUpdateEmail({
       to: requestInfo.requestedBy.email,
-      fileNumber: requestInfo.fileNumber?.fileNumber || '',
+      strataNumber: requestInfo.fileNumber?.strata?.strataPlan || '',
       meetingType,
       status: data.approved ? 'Approved' : 'Rejected',
       meetingDate: chosenDate ? chosenDate.toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' }) : undefined,
       meetingTime: chosenSlot?.slotName || chosenSlot?.slotTime || undefined,
-      denialReason: !data.approved ? data.rejectionReason : undefined,
     }).catch((err) => console.error('Failed to send meeting status email:', err));
   }
 

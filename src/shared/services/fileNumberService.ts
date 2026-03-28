@@ -3,7 +3,7 @@ import type { CreateFileNumberInput } from '../types/file-number.types';
 import { fileNumberIncludeList, profileSelectBrief, profileSelectWithEmail, documentIncludeCompact } from '../constants/prismaIncludes';
 import { validateFileNumber } from '../helpers/fileNumberUtils';
 import { mostRecentAnniversary } from '../helpers/dateUtils';
-import { sendFileCreatedEmail, sendAppointmentBookingOpenEmail, sendSurveyFinalizedEmail, sendAdminSurveyFinalizedEmail } from '../lib/emailService';
+import { sendFileCreatedEmail, sendAppointmentBookingOpenEmail, sendAdminAppointmentBookingOpenEmail, sendSurveyFinalizedEmail, sendAdminSurveyFinalizedEmail } from '../lib/emailService';
 
 export const getFileNumbers = async (filters?: { strataId?: number; archived?: boolean }) => {
   const results = await prisma.fileNumber.findMany({
@@ -142,7 +142,7 @@ export const createFileNumber = async (data: CreateFileNumberInput) => {
   if (created.requestedBy?.email) {
     sendFileCreatedEmail({
       to: created.requestedBy.email,
-      fileNumber: created.fileNumber || '',
+      strataNumber: created.strata?.strataPlan || '',
     }).catch((err) => console.error('Failed to send file created email:', err));
   }
 
@@ -224,7 +224,7 @@ export const submitForReview = async (id: number, profileId: string) => {
   if (profile?.email) {
     sendSurveyFinalizedEmail({
       to: profile.email,
-      fileNumber: updated.fileNumber || '',
+      strataNumber: updated.strata?.strataPlan || '',
       finalizedDate: surveyDate,
     }).catch((err) => console.error('Failed to send survey finalized email:', err));
   }
@@ -236,9 +236,11 @@ export const submitForReview = async (id: number, profileId: string) => {
 
   sendAdminSurveyFinalizedEmail({
     fileNumber: updated.fileNumber || '',
+    strataNumber: updated.strata?.strataPlan || '',
     propertyAddress,
     clientName,
     surveyDate,
+    surveyCompleted: updated.submittedForReviewDate ? 'Yes' : 'No',
   }).catch((err) => console.error('Failed to send admin survey finalized email:', err));
 
   return updated;
@@ -322,14 +324,23 @@ export const offerAppointment = async (
       meetingType = offeredType.isDraftMeeting ? 'Draft Meeting' : (offeredType.typeName || 'Inspection');
     }
 
+    const bookingDeadline = offerData?.dueDate
+      ? new Date(offerData.dueDate).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' })
+      : '';
+
     sendAppointmentBookingOpenEmail({
       to: sr.requestedBy.email,
-      fileNumber: sr.fileNumber || '',
+      strataNumber: updated.strata?.strataPlan || '',
       meetingType,
-      bookingDeadline: offerData?.dueDate
-        ? new Date(offerData.dueDate).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' })
-        : undefined,
+      bookingDeadline: bookingDeadline || undefined,
     }).catch((err) => console.error('Failed to send booking open email:', err));
+
+    sendAdminAppointmentBookingOpenEmail({
+      fileNumber: updated.fileNumber || '',
+      strataNumber: updated.strata?.strataPlan || '',
+      meetingType,
+      bookingDeadline: bookingDeadline || 'N/A',
+    }).catch((err) => console.error('Failed to send admin booking open email:', err));
   }
 
   return updated;
