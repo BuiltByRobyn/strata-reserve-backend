@@ -10,6 +10,13 @@ import type {
   SurveyFinalizedEmailParams,
   FileCompletionEmailParams,
   PropertyTypeUpdatedEmailParams,
+  AdminSurveyFinalizedEmailParams,
+  AdminDocumentsFinalizedEmailParams,
+  AdminPropertyTypeChangeRequestEmailParams,
+  AdminAppointmentBookingRequestEmailParams,
+  AdminAppointmentCancelledEmailParams,
+  PhoneNumberUpdatedEmailParams,
+  AdminPhoneNumberUpdatedEmailParams,
 } from '../types/email.types';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
@@ -49,6 +56,149 @@ export async function sendFileCompletionEmail(params: FileCompletionEmailParams)
       FileNumber: params.fileNumber,
       CompletedDate: params.completedDate,
       ReportURL: `${FRONTEND_URL}/documents`,
+      SiteURL: FRONTEND_URL,
+    },
+  } as any);
+}
+
+export async function sendAdminPhoneNumberUpdatedEmail(params: AdminPhoneNumberUpdatedEmailParams): Promise<void> {
+  if (!resend || !ADMIN_EMAIL) return;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: ADMIN_EMAIL,
+    subject: '[Admin Alert] A client has updated their phone number – Strata Reserve Planning',
+    template_alias: 'client-phone-number-alert-admin',
+    variables: {
+      ClientName: params.clientName,
+      ClientEmail: params.clientEmail,
+      OldPhone: params.oldPhone,
+      NewPhone: params.newPhone,
+      ChangedAt: params.changedAt,
+      AdminURL: `${FRONTEND_URL}/admin`,
+      SiteURL: FRONTEND_URL,
+    },
+  } as any);
+}
+
+export async function sendPhoneNumberUpdatedEmail(params: PhoneNumberUpdatedEmailParams): Promise<void> {
+  if (!resend || !params.to) return;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: params.to,
+    subject: 'Your phone number has been updated – Strata Reserve Planning',
+    template_alias: 'phone-number-updated',
+    variables: {
+      NewPhone: params.newPhone,
+      SiteURL: FRONTEND_URL,
+    },
+  } as any);
+}
+
+export async function sendAdminAppointmentCancelledEmail(params: AdminAppointmentCancelledEmailParams): Promise<void> {
+  if (!resend || !ADMIN_EMAIL) return;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: ADMIN_EMAIL,
+    subject: `Appointment Cancelled: ${params.fileNumber} — Strata Reserve Planning`,
+    template_alias: 'appointment-cancellation-alert-admin',
+    variables: {
+      FileNumber: params.fileNumber,
+      PropertyAddress: params.propertyAddress,
+      ClientName: params.clientName,
+      ClientEmail: params.clientEmail,
+      AppointmentType: params.appointmentType,
+      AppointmentDate: params.appointmentDate,
+      AppointmentTime: params.appointmentTime,
+      CancelledAt: params.cancelledAt,
+      CancellationReason: params.cancellationReason,
+      AdminDashboardURL: `${FRONTEND_URL}/admin`,
+      SiteURL: FRONTEND_URL,
+    },
+  } as any);
+}
+
+export async function sendAdminAppointmentBookingRequestEmail(params: AdminAppointmentBookingRequestEmailParams): Promise<void> {
+  if (!resend || !ADMIN_EMAIL) return;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: ADMIN_EMAIL,
+    subject: `New Appointment Booking Request: ${params.fileNumber} — Strata Reserve Planning`,
+    template_alias: 'appointment-booking-alert-admin',
+    variables: {
+      FileNumber: params.fileNumber,
+      PropertyAddress: params.propertyAddress,
+      ClientName: params.clientName,
+      ClientEmail: params.clientEmail,
+      ClientPhone: params.clientPhone,
+      AppointmentType: params.appointmentType,
+      RequestedDate: params.requestedDate,
+      RequestedTime: params.requestedTime,
+      AdminDashboardURL: `${FRONTEND_URL}/admin`,
+      SiteURL: FRONTEND_URL,
+    },
+  } as any);
+}
+
+export async function sendAdminPropertyTypeChangeRequestEmail(params: AdminPropertyTypeChangeRequestEmailParams): Promise<void> {
+  if (!resend || !ADMIN_EMAIL) return;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: ADMIN_EMAIL,
+    subject: `Property Type Change Request: ${params.fileNumber} — Strata Reserve Planning`,
+    template_alias: 'property-type-change-request-admin',
+    variables: {
+      FileNumber: params.fileNumber,
+      PropertyAddress: params.propertyAddress,
+      ClientName: params.clientName,
+      CurrentPropertyType: params.currentPropertyType,
+      RequestedPropertyType: params.requestedPropertyType,
+      RequestedAt: params.requestedAt,
+      ClientNote: params.clientNote,
+      AdminDashboardURL: `${FRONTEND_URL}/admin`,
+      SiteURL: FRONTEND_URL,
+    },
+  } as any);
+}
+
+export async function sendAdminDocumentsFinalizedEmail(params: AdminDocumentsFinalizedEmailParams): Promise<void> {
+  if (!resend || !ADMIN_EMAIL) return;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: ADMIN_EMAIL,
+    subject: `Documents Finalized: ${params.fileNumber} — Strata Reserve Planning`,
+    template_alias: 'documents-finalized-alert-admin',
+    variables: {
+      FileNumber: params.fileNumber,
+      PropertyAddress: params.propertyAddress,
+      ClientName: params.clientName,
+      DocumentCount: params.documentCount,
+      FinalizedBy: params.finalizedBy,
+      AdminDashboardURL: `${FRONTEND_URL}/admin`,
+      SiteURL: FRONTEND_URL,
+    },
+  } as any);
+}
+
+export async function sendAdminSurveyFinalizedEmail(params: AdminSurveyFinalizedEmailParams): Promise<void> {
+  if (!resend || !ADMIN_EMAIL) return;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: ADMIN_EMAIL,
+    subject: `Survey Finalized: ${params.fileNumber} — Strata Reserve Planning`,
+    template_alias: 'survey-finalized-notification-admin',
+    variables: {
+      FileNumber: params.fileNumber,
+      PropertyAddress: params.propertyAddress,
+      ClientName: params.clientName,
+      SurveyDate: params.surveyDate,
+      AdminDashboardURL: `${FRONTEND_URL}/admin`,
       SiteURL: FRONTEND_URL,
     },
   } as any);
