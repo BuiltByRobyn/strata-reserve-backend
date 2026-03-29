@@ -8,6 +8,7 @@ export const getSurveyQuestionsForSR = async (fileId: number) => {
     include: {
       question: {
         include: {
+          questionCategory: true,
           questionType: true,
           multipleChoiceOptions: { orderBy: { sortOrder: 'asc' } },
           parentRelations: {
@@ -48,7 +49,7 @@ export const getSurveyQuestionsForSR = async (fileId: number) => {
       allowNa: srq.question.allowNa,
       allowUnavailable: srq.question.allowUnavailable,
       informationText: srq.question.informationText,
-      questionCategory: srq.question.questionCategory,
+      questionCategory: srq.question.questionCategory.label,
       questionType: srq.question.questionType.questionTypeName,
       sortOrder: srq.sortOrder,
       multipleChoiceOptions: srq.question.multipleChoiceOptions.map((o: any) => ({
@@ -72,7 +73,7 @@ export const getSurveyQuestionsForSR = async (fileId: number) => {
           questionText: sq.questionText,
           isRequired: sq.isRequired,
           informationText: sq.informationText,
-          questionCategory: srq.question.questionCategory,
+          questionCategory: srq.question.questionCategory.label,
           questionType: sq.questionType.questionTypeName,
           sortOrder: sq.questionId,
           multipleChoiceOptions: sq.multipleChoiceOptions.map((o: any) => ({
@@ -110,7 +111,7 @@ export const getArchivedResponsesByFileNumber = async (fileId: number) => {
           questionText: true,
           isRequired: true,
           informationText: true,
-          questionCategory: true,
+          questionCategory: { select: { key: true, label: true } },
           questionType: { select: { questionTypeName: true } },
           multipleChoiceOptions: {
             orderBy: { sortOrder: 'asc' },
@@ -182,15 +183,9 @@ export const saveResponses = async (responses: SaveResponseInput[]) => {
   });
 };
 
-export const getSurveySections = async (serviceId: number) => {
-  const sections = [
-    { key: 'exterior', label: 'Exterior', description: 'Information relating to the public facing areas of your property' },
-    { key: 'interior', label: 'Interior', description: 'Information relating to the private areas of your property' },
-    { key: 'services', label: 'Services', description: 'Information relating to the services available within your property' },
-    { key: 'clubhouse', label: 'Clubhouse', description: 'Information relating to the public facing areas of your property' },
-    { key: 'amenity', label: 'Amenity Room', description: 'Information relating to additional amenities within your property' },
-    { key: 'legal', label: 'Legal', description: 'Information relating to the legal standing of your property' },
-    { key: 'council', label: 'Council Concerns', description: 'Information relating to specific concerns regarding your property' },
-  ];
-  return sections;
+export const getSurveySections = async (_serviceId: number) => {
+  return prisma.questionCategory.findMany({
+    orderBy: { sortOrder: 'asc' },
+    select: { key: true, label: true, description: true },
+  });
 };

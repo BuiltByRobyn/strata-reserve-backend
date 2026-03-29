@@ -43,7 +43,7 @@ export async function getAvailableSlots(
       }
     }
   });
-  if (!sr) throw new Error('Service request not found');
+  if (!sr) throw new Error('Appointment booking unavailable for this strata ID');
 
   const locationCode = isDraftMeeting ? 'Virtual' : sr.strata.location?.locationCode;
 

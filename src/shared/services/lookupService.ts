@@ -57,3 +57,7 @@ export const getLocations = async () => {
 export const getAppointmentTypes = async () => {
   return prisma.appointmentType.findMany({ orderBy: { appointmentTypeId: 'asc' } });
 };
+
+export const getQuestionCategories = async () => {
+  return prisma.questionCategory.findMany({ orderBy: { sortOrder: 'asc' } });
+};

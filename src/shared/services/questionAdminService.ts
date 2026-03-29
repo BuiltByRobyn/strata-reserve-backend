@@ -2,6 +2,7 @@ import prisma from '../lib/prismaClient';
 import type { CreateQuestionInput, UpdateQuestionInput } from '../types/question.types';
 
 const questionInclude = {
+  questionCategory: true,
   questionType: true,
   questionServices: { include: { service: true }, orderBy: { sortOrder: 'asc' as const } },
   questionPropertyTypes: { include: { propertyType: true } },
@@ -10,7 +11,7 @@ const questionInclude = {
     orderBy: { sortOrder: 'asc' as const },
     include: {
       subQuestion: {
-        select: { questionId: true, subLabel: true, questionText: true, isRequired: true, questionTypeId: true, questionCategory: true, informationText: true },
+        select: { questionId: true, subLabel: true, questionText: true, isRequired: true, questionTypeId: true, questionCategory: { select: { key: true, label: true } }, informationText: true },
       }
     }
   },
@@ -19,8 +20,13 @@ const questionInclude = {
 
 const mapQuestion = (q: any) => ({
   ...q,
+  questionCategoryId: q.questionCategory.questionCategoryId,
+  questionCategory: q.questionCategory.label,
   isSubQuestion: q.subRelations.length > 0,
-  subQuestions: q.parentRelations.map((r: any) => r.subQuestion),
+  subQuestions: q.parentRelations.map((r: any) => ({
+    ...r.subQuestion,
+    questionCategory: r.subQuestion.questionCategory?.label ?? r.subQuestion.questionCategory,
+  })),
   subRelations: undefined,
   parentRelations: undefined,
 });
@@ -42,7 +48,7 @@ export const getQuestionById = async (id: number) => {
 };
 
 export const createQuestion = async (data: CreateQuestionInput) => {
-  const { serviceIds, propertyTypeIds, multipleChoiceOptions, questionText, isRequired, allowNa, allowUnavailable, informationText, questionCategory, questionTypeId, subLabel } = data;
+  const { serviceIds, propertyTypeIds, multipleChoiceOptions, questionText, isRequired, allowNa, allowUnavailable, informationText, questionCategoryId, questionTypeId, subLabel } = data;
 
   const dataPayload = {
     questionText,
@@ -50,7 +56,7 @@ export const createQuestion = async (data: CreateQuestionInput) => {
     allowNa: allowNa ?? false,
     allowUnavailable: allowUnavailable ?? false,
     informationText: informationText ?? null,
-    questionCategory,
+    questionCategoryId,
     questionTypeId,
     subLabel: subLabel ?? null,
     ...(serviceIds.length > 0
@@ -115,7 +121,7 @@ export const updateQuestion = async (id: number, data: UpdateQuestionInput) => {
     if (questionData.questionText !== undefined) updateData.questionText = questionData.questionText;
     if (questionData.isRequired !== undefined) updateData.isRequired = questionData.isRequired;
     if (questionData.informationText !== undefined) updateData.informationText = questionData.informationText;
-    if (questionData.questionCategory !== undefined) updateData.questionCategory = questionData.questionCategory;
+    if (questionData.questionCategoryId !== undefined) updateData.questionCategoryId = questionData.questionCategoryId;
     if (questionData.questionTypeId !== undefined) updateData.questionTypeId = questionData.questionTypeId;
     if (questionData.subLabel !== undefined) updateData.subLabel = questionData.subLabel;
     if (questionData.allowNa !== undefined) updateData.allowNa = questionData.allowNa;

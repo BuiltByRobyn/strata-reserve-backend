@@ -20,6 +20,9 @@ appointmentRoutes.get('/appointments/time-slots', appointmentController.getTimeS
 // GET /admin/appointments/types - Get appointment types for dropdowns
 appointmentRoutes.get('/appointments/types', appointmentController.getAppointmentTypes);
 
+// GET /admin/appointments/recent-cancellations - Get recently cancelled appointments for dashboard
+appointmentRoutes.get('/appointments/recent-cancellations', appointmentController.getRecentCancellations);
+
 // Appointment Requests
 appointmentRoutes.get('/appointments/requests', appointmentController.getAppointmentRequests);
 appointmentRoutes.get('/appointments/requests/:id', appointmentController.getAppointmentRequestById);

@@ -21,5 +21,6 @@ lookupRoutes.get('/review-statuses', lookupController.getReviewStatuses);
 
 lookupRoutes.get('/sections', lookupController.getSections);
 lookupRoutes.get('/question-types', lookupController.getQuestionTypes);
+lookupRoutes.get('/question-categories', lookupController.getQuestionCategories);
 lookupRoutes.get('/locations', lookupController.getLocations);
 lookupRoutes.get('/appointment-types', lookupController.getAppointmentTypes);

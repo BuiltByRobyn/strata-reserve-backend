@@ -33,7 +33,7 @@ export interface CreateQuestionInput {
   allowNa?: boolean;
   allowUnavailable?: boolean;
   informationText?: string | null;
-  questionCategory: string;
+  questionCategoryId: number;
   questionTypeId: number;
   serviceIds: QuestionServiceInput[];
   propertyTypeIds: number[];
@@ -60,7 +60,7 @@ export interface UpdateQuestionInput {
   allowNa?: boolean;
   allowUnavailable?: boolean;
   informationText?: string | null;
-  questionCategory?: string;
+  questionCategoryId?: number;
   questionTypeId?: number;
   serviceIds?: QuestionServiceInput[];
   propertyTypeIds?: number[];

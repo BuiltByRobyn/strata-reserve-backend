@@ -51,3 +51,8 @@ export const getAppointmentTypes = asyncHandler(async (c) => {
   const appointmentTypes = await lookupService.getAppointmentTypes();
   return success(c, appointmentTypes);
 }, 'Failed to fetch appointment types');
+
+export const getQuestionCategories = asyncHandler(async (c) => {
+  const questionCategories = await lookupService.getQuestionCategories();
+  return success(c, questionCategories);
+}, 'Failed to fetch question categories');

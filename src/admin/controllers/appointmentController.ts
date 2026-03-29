@@ -91,7 +91,7 @@ export const reviewAppointmentRequest = asyncHandler(async (c) => {
   const { approved, approvedDateChoice, rejectionReason, inspectorProfileId, secondInspectorProfileId, comments } = body;
 
   if (typeof approved !== 'boolean') {
-    return error(c, 'approved field is required (true/false)', 400);
+    return error(c, 'Approve or decline request to continue', 400);
   }
 
   if (approved && !inspectorProfileId) {
@@ -99,7 +99,7 @@ export const reviewAppointmentRequest = asyncHandler(async (c) => {
   }
 
   if (!approved && !rejectionReason) {
-    return error(c, 'Rejection reason is required when rejecting', 400);
+    return error(c, 'Please enter a rejection reason', 400);
   }
 
   try {
@@ -153,6 +153,12 @@ export const getAppointmentTypes = asyncHandler(async (c) => {
   const appointmentTypes = await appointmentService.getAppointmentTypes();
   return success(c, appointmentTypes);
 }, 'Failed to fetch appointment types');
+
+export const getRecentCancellations = asyncHandler(async (c) => {
+  const hours = parseInt(c.req.query('hours') || '168');
+  const cancellations = await appointmentService.getRecentCancellations(hours);
+  return success(c, cancellations);
+}, 'Failed to fetch recent cancellations');
 
 export const requestRebooking = asyncHandler(async (c) => {
   const id = parseIntParam(c, 'id');
