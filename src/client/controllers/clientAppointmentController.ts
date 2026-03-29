@@ -4,19 +4,33 @@ import { isWithin48Hours } from '../../shared/helpers/dateUtils';
 import { getAvailableSlots, checkDraftMeetingEligibility } from '../../shared/services/availabilityCalculationService';
 import prisma from '../../shared/lib/prismaClient';
 import type { AppointmentNotification } from '../../shared/types/appointment.types';
-import { sendFileCompletionEmail, sendAdminAppointmentBookingRequestEmail, sendAdminAppointmentCancelledEmail } from '../../shared/lib/emailService';
+import { sendFileCompletionEmail, sendAdminAppointmentBookingRequestEmail } from '../../shared/lib/emailService';
+import { cancelAppointment as cancelAppointmentService } from '../../shared/services/appointmentService';
 
 export const getAvailability = asyncHandler(async (c) => {
+  const user = c.get('user');
   const startDate = c.req.query('startDate');
   const endDate = c.req.query('endDate');
-  const fileId = c.req.query('fileId');
   const isDraftMeeting = c.req.query('isDraftMeeting') === 'true';
 
-  if (!startDate || !endDate || !fileId) {
-    return error(c, 'startDate, endDate, and fileId are required', 400);
+  if (!startDate || !endDate) {
+    return error(c, 'startDate and endDate are required', 400);
   }
 
-  const slots = await getAvailableSlots(startDate, endDate, parseInt(fileId), isDraftMeeting);
+  const sr = await prisma.fileNumber.findFirst({
+    where: {
+      archived: false,
+      OR: [
+        { strata: { strataProfiles: { some: { profileId: user.id } } } },
+        { requestedByProfileId: user.id }
+      ]
+    },
+    select: { fileId: true }
+  });
+
+  if (!sr) return error(c, 'No active file number found', 404);
+
+  const slots = await getAvailableSlots(startDate, endDate, sr.fileId, isDraftMeeting);
   return success(c, slots);
 }, 'Failed to fetch availability');
 
@@ -43,7 +57,7 @@ export const createAppointmentRequest = asyncHandler(async (c) => {
   });
 
   if (!sr || !sr.appointmentOfferedAt) {
-    return error(c, 'Appointment has not been offered for this file number', 400);
+    return error(c, 'Appointment booking is not currently available for this strata', 400);
   }
 
   const existingRequest = await prisma.appointmentRequest.findFirst({
@@ -78,7 +92,7 @@ export const createAppointmentRequest = asyncHandler(async (c) => {
       );
 
       if (!firstAvailable) {
-        throw new Error('The selected time slot is no longer available. Please choose a different date or time.');
+        throw new Error('Your first choice time slot is no longer available. Please choose a different date or time.');
       }
 
       if (secondChoiceDate && secondChoiceTimeSlotId) {
@@ -317,29 +331,10 @@ export const cancelAppointment = asyncHandler(async (c) => {
     return error(c, 'Cannot cancel within 48 hours of the appointment. Please call SRP at (604) 638-4960.', 400);
   }
 
-  const updated = await prisma.appointment.update({
-    where: { appointmentId: id },
-    data: { status: 'Cancelled' }
-  });
+  const body = await c.req.json().catch(() => ({}));
+  const reason: string | undefined = typeof body?.reason === 'string' && body.reason.trim() ? body.reason.trim() : undefined;
 
-  prisma.profile.findUnique({
-    where: { id: user.id },
-    select: { firstName: true, lastName: true, displayName: true, email: true },
-  }).then((profile) => {
-    sendAdminAppointmentCancelledEmail({
-      fileNumber: appointment.fileNumber.fileNumber || '',
-      strataNumber: appointment.fileNumber.strata.strataPlan || '',
-      propertyAddress: appointment.fileNumber.strata.complexName || appointment.fileNumber.strata.strataPlan || '',
-      clientName: profile?.displayName || [profile?.firstName, profile?.lastName].filter(Boolean).join(' ') || 'Unknown',
-      clientEmail: profile?.email || '',
-      appointmentType: appointment.appointmentType.typeName,
-      appointmentDate: appointment.appointmentDate.toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }),
-      appointmentTime: appointment.timeSlot.slotName,
-      cancelledAt: new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' }),
-      cancellationReason: 'No reason provided',
-    }).catch((err) => console.error('Failed to send admin appointment cancelled email:', err));
-  }).catch((err) => console.error('Failed to fetch profile for admin appointment cancelled email:', err));
-
+  const updated = await cancelAppointmentService(id, reason);
   return success(c, updated);
 }, 'Failed to cancel appointment');
 
@@ -405,12 +400,22 @@ export const rescheduleAppointment = asyncHandler(async (c) => {
 }, 'Failed to reschedule appointment');
 
 export const getDraftMeetingEligibility = asyncHandler(async (c) => {
-  const fileId = c.req.query('fileId');
-  if (!fileId) {
-    return error(c, 'fileId is required', 400);
-  }
+  const user = c.get('user');
 
-  const result = await checkDraftMeetingEligibility(parseInt(fileId));
+  const sr = await prisma.fileNumber.findFirst({
+    where: {
+      archived: false,
+      OR: [
+        { strata: { strataProfiles: { some: { profileId: user.id } } } },
+        { requestedByProfileId: user.id }
+      ]
+    },
+    select: { fileId: true }
+  });
+
+  if (!sr) return error(c, 'No active file number found', 404);
+
+  const result = await checkDraftMeetingEligibility(sr.fileId);
   return success(c, result);
 }, 'Failed to check draft meeting eligibility');
 

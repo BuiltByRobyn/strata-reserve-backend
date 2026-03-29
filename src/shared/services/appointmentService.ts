@@ -8,15 +8,15 @@ const DRAFT_MEETING_REQUIRED_SLOT_TIME = '19:00';
 
 const fullDayInspectionSlotError = () =>
   new Error(
-    'Full Day Inspection appointments are only available for the Morning (10:00 AM) time slot.'
+    'Full Day Inspection appointments must begin at 10:00 AM'
   );
 
 const draftMeetingSlotError = () =>
-  new Error('Draft Meeting appointments are only available for the 7:00 PM time slot.');
+  new Error('Draft Meeting appointments are only available at 7:00 PM.');
 
 const draftFullDaySameDateConflictError = () =>
   new Error(
-    'Draft Meeting and Full Day Inspection cannot be booked on the same date. Please choose a different date.'
+    'A conflicting appointment is already scheduled for this date. Please choose a different timeslot.'
   );
 
 async function assertAppointmentTypeTimeSlot(appointmentTypeId: number, timeSlotId: number) {
@@ -127,6 +127,33 @@ export const getAppointments = async () => {
   });
 };
 
+export const getRecentCancellations = async (hoursAgo: number) => {
+  const since = new Date();
+  since.setHours(since.getHours() - hoursAgo);
+
+  return prisma.appointment.findMany({
+    where: {
+      status: 'Cancelled',
+      cancelledAt: { gte: since },
+    },
+    orderBy: { cancelledAt: 'desc' },
+    select: {
+      appointmentId: true,
+      appointmentDate: true,
+      cancellationReason: true,
+      cancelledAt: true,
+      appointmentType: { select: { typeName: true } },
+      fileNumber: {
+        select: {
+          fileId: true,
+          fileNumber: true,
+          strata: { select: { complexName: true, strataPlan: true } },
+        },
+      },
+    },
+  });
+};
+
 export const getAppointmentById = async (id: number) => {
   return prisma.appointment.findUnique({
     where: { appointmentId: id },
@@ -173,6 +200,7 @@ export const updateAppointmentStatus = async (id: number, status: string, comple
       fileNumber: {
         select: {
           fileNumber: true,
+          strata: { select: { strataPlan: true } },
           requestedBy: { select: { email: true } },
         },
       },
@@ -232,6 +260,7 @@ export const cancelAppointment = async (id: number, reason?: string) => {
     data: {
       status: 'Cancelled',
       cancellationReason: reason ?? null,
+      cancelledAt: new Date(),
     }
   });
 
@@ -485,7 +514,7 @@ export const reviewAppointmentRequest = async (data: {
     });
 
     if (!request) throw new Error('Appointment request not found');
-    if (request.status !== 'Pending Review') throw new Error('Request is not pending review');
+    if (request.status !== 'Pending Review') throw new Error('Request was already reviewed');
 
     const reviewStatus = await tx.reviewStatus.findFirst({
       where: { statusName: data.approved ? 'Approved' : 'Rejected' }
@@ -627,7 +656,7 @@ export const createAppointment = async (data: {
       },
     });
     if (inspectorConflict) {
-      throw new Error('The selected inspector is already booked for this time slot on the selected date. Please choose a different inspector, date, or time slot.');
+      throw new Error('The selected inspector is already booked for this time slot. Please adjust date, time or staff member.');
     }
   }
 

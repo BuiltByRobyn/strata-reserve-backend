@@ -70,7 +70,7 @@ function collectInspectorIdsForRow(
 
 const crossRegionError = (a: string, b: string) =>
   new Error(
-    `Stratas must be located in the same region for same day appointments. Please change inspector, or select a different day. (Except for draft meetings.)`
+    `Same day inspections are only permitted for stratas located in the same region. Please update date or inspector to continue.`
   );
 
 import type { PrismaClient } from '@prisma/client';

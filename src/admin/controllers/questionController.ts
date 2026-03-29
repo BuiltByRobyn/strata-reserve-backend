@@ -19,7 +19,7 @@ export const createQuestion = asyncHandler(async (c) => {
   if (!body.questionText || body.questionText.trim() === '') {
     return error(c, 'Question text is required', 400);
   }
-  if (!body.questionCategory || body.questionCategory.trim() === '') {
+  if (!body.questionCategoryId) {
     return error(c, 'Question category is required', 400);
   }
   if (!body.questionTypeId) {
@@ -33,7 +33,7 @@ export const createQuestion = asyncHandler(async (c) => {
       allowNa: body.allowNa ?? false,
       allowUnavailable: body.allowUnavailable ?? false,
       informationText: body.informationText?.trim() || null,
-      questionCategory: body.questionCategory.trim(),
+      questionCategoryId: Number(body.questionCategoryId),
       questionTypeId: Number(body.questionTypeId),
       subLabel: body.subLabel?.trim() || null,
       serviceIds: Array.isArray(body.serviceIds) ? body.serviceIds.map((s: { serviceId: number; sortOrder: number }) => ({
@@ -53,12 +53,8 @@ export const createQuestion = asyncHandler(async (c) => {
       return error(c, errObj.message, 400);
     }
     const cause = errObj?.cause;
-    if (cause?.code === '23514' && typeof cause?.message === 'string' && cause.message.includes('question_question_category_check')) {
-      return error(
-        c,
-        'Invalid question category. Allowed values: Exterior, Interior, Services, Clubhouse, Amenity Room, Legal, Council Concerns. If the database was just set up, run the migration that updates the question_category check constraint.',
-        400
-      );
+    if (cause?.code === '23503' && typeof cause?.message === 'string' && cause.message.includes('question_category_id')) {
+      return error(c, 'Invalid question category. The selected category does not exist.', 400);
     }
     if (cause?.code === '23514') {
       return error(c, cause.message ?? 'A database check constraint was violated', 400);
@@ -77,7 +73,7 @@ export const updateQuestion = asyncHandler(async (c) => {
     allowNa: body.allowNa !== undefined ? body.allowNa : undefined,
     allowUnavailable: body.allowUnavailable !== undefined ? body.allowUnavailable : undefined,
     informationText: body.informationText !== undefined ? (body.informationText?.trim() || null) : undefined,
-    questionCategory: body.questionCategory?.trim(),
+    questionCategoryId: body.questionCategoryId ? Number(body.questionCategoryId) : undefined,
     questionTypeId: body.questionTypeId ? Number(body.questionTypeId) : undefined,
     subLabel: body.subLabel !== undefined ? (body.subLabel?.trim() || null) : undefined,
     serviceIds: body.serviceIds !== undefined ? (Array.isArray(body.serviceIds) ? body.serviceIds.map((s: { serviceId: number; sortOrder: number }) => ({
