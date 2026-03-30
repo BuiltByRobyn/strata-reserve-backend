@@ -265,7 +265,7 @@ export const getRequiredDocumentsChecklist = async (profileId: string, fileId: n
   const sr = await getFileNumberByIdForProfile(profileId, fileId);
   if (!sr) return null;
 
-  const [requirements, reviews] = await Promise.all([
+  const [requirements, reviews, allDocuments] = await Promise.all([
     prisma.fileNumberDocumentRequirement.findMany({
       where: { fileId },
       include: requirementInclude,
@@ -286,6 +286,19 @@ export const getRequiredDocumentsChecklist = async (profileId: string, fileId: n
         },
       },
     }),
+    prisma.fileNumberDocument.findMany({
+      where: { fileId, fnDocRequirementId: null },
+      orderBy: { uploadedAt: 'desc' },
+      select: {
+        fileNumberDocumentId: true,
+        fileName: true,
+        filePath: true,
+        uploadedAt: true,
+        fnDocRequirementId: true,
+        documentTypeId: true,
+        propertyTypeId: true,
+      },
+    }),
   ]);
 
   const latestReview = reviews[0] ?? null;
@@ -304,6 +317,16 @@ export const getRequiredDocumentsChecklist = async (profileId: string, fileId: n
 
   return requirements.map((req) => {
     const reviewItem = reviewItemMap.get(req.fnDocRequirementId);
+    const linkedDoc = req.fileNumberDocuments[0] ?? null;
+    const fallbackDoc = !linkedDoc
+      ? allDocuments.find(d => d.documentTypeId === req.documentTypeId && d.propertyTypeId === req.propertyTypeId) ?? null
+      : null;
+    const doc = linkedDoc || fallbackDoc;
+
+    // If a document was uploaded after N/A was set, the document takes precedence
+    const naSetAt = req.naStatus?.setAt?.toISOString() ?? null;
+    const docOverridesNa = doc && naSetAt && new Date(doc.uploadedAt) > new Date(naSetAt);
+
     return {
       fnDocRequirementId: req.fnDocRequirementId,
       fileId: req.fileId,
@@ -312,9 +335,9 @@ export const getRequiredDocumentsChecklist = async (profileId: string, fileId: n
       versionLabel: req.versionLabel,
       documentType: req.documentType,
       propertyType: req.propertyType,
-      naStatus: req.naStatus?.status ?? null,
-      naStatusSetAt: req.naStatus?.setAt?.toISOString() ?? null,
-      uploadedDocument: req.fileNumberDocuments[0] ?? null,
+      naStatus: docOverridesNa ? null : (req.naStatus?.status ?? null),
+      naStatusSetAt: docOverridesNa ? null : naSetAt,
+      uploadedDocument: doc,
       reviewId: latestReview?.reviewId ?? null,
       reviewedAt: reviewItem?.reviewedAt ?? null,
       reviewStatus: reviewItem?.reviewStatus ?? null,
@@ -444,22 +467,7 @@ export const submitBatchDocumentReview = async (
 export const getLatestDocumentReview = async (fileId: number) => {
   const requirements = await prisma.fileNumberDocumentRequirement.findMany({
     where: { fileId },
-    include: {
-      documentType: { select: { documentTypeId: true, typeName: true } },
-      propertyType: { select: { propertyTypeId: true, propertyTypeName: true } },
-      naStatus: { select: { status: true, setAt: true } },
-      fileNumberDocuments: {
-        orderBy: { uploadedAt: 'desc' },
-        take: 1,
-        select: {
-          fileNumberDocumentId: true,
-          fileName: true,
-          filePath: true,
-          uploadedAt: true,
-          fnDocRequirementId: true,
-        },
-      },
-    },
+    include: requirementInclude,
     orderBy: { fnDocRequirementId: 'asc' },
   });
 

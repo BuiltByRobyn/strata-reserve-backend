@@ -97,8 +97,25 @@ export const addRequirementVersion = async (
   propertyTypeId: number | null,
   versionLabel: string
 ) => {
-  return prisma.fileNumberDocumentRequirement.create({
+  const requirement = await prisma.fileNumberDocumentRequirement.create({
     data: { fileId, documentTypeId, propertyTypeId: propertyTypeId ?? null, versionLabel },
+    include: requirementInclude,
+  });
+
+  // Link any unlinked documents matching this file, document type, and property type
+  await prisma.fileNumberDocument.updateMany({
+    where: {
+      fileId,
+      documentTypeId,
+      propertyTypeId: propertyTypeId ?? null,
+      fnDocRequirementId: null,
+    },
+    data: { fnDocRequirementId: requirement.fnDocRequirementId },
+  });
+
+  // Re-fetch with linked documents
+  return prisma.fileNumberDocumentRequirement.findUnique({
+    where: { fnDocRequirementId: requirement.fnDocRequirementId },
     include: requirementInclude,
   });
 };

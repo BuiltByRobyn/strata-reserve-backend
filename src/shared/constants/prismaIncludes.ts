@@ -11,6 +11,8 @@ export const requirementInclude = {
       filePath: true,
       uploadedAt: true,
       fnDocRequirementId: true,
+      reviewStatus: { select: { reviewStatusId: true, statusName: true } },
+      uploadedBy: { select: { userTypeId: true } },
     },
   },
 } as const;
@@ -38,7 +40,7 @@ export const documentInclude = {
 
 export const documentIncludeCompact = {
   documentType: { select: { documentTypeId: true, typeName: true } },
-  uploadedBy: { select: profileSelectBrief },
+  uploadedBy: { select: { ...profileSelectBrief, userTypeId: true } },
   reviewStatus: { select: { reviewStatusId: true, statusName: true } },
   propertyType: { select: { propertyTypeId: true, propertyTypeName: true } }
 } as const;
