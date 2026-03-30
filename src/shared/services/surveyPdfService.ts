@@ -7,7 +7,7 @@ export type { SurveyPdfMeta, FlatSurveyQuestion, ActiveSurveyResponse };
 function answerToText(q: FlatSurveyQuestion, resp?: ActiveSurveyResponse): string {
   if (!resp) return 'No answer';
   if (resp.responseText === 'NOT_APPLICABLE') return 'Not Applicable';
-  if (resp.responseText === 'UNKNOWN') return 'Unknown';
+  if (resp.responseText === 'NOT_AVAILABLE') return 'Not Available';
 
   const type = q.questionType;
 
@@ -193,7 +193,7 @@ export async function renderSurveyAnswersPdf(
     }
 
     const parentResp = getResp(q.questionId, q.propertyTypeId);
-    const parentFlagged = parentResp?.responseText === 'NOT_APPLICABLE' || parentResp?.responseText === 'UNKNOWN';
+    const parentFlagged = parentResp?.responseText === 'NOT_APPLICABLE' || parentResp?.responseText === 'NOT_AVAILABLE';
     const sub = parentFlagged ? [] : (subByParent.get(`${q.questionId}-${q.propertyTypeId}`) ?? []);
     if (sub.length > 0) {
       doc.moveDown(1.5);

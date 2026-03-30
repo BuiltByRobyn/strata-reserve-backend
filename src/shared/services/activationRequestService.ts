@@ -18,12 +18,30 @@ export const getByStrataProfile = async (strataProfileId: number) => {
   });
 };
 
+export const getByStrataId = async (strataId: number) => {
+  return prisma.activationRequest.findFirst({
+    where: { strataProfile: { strataId } },
+    orderBy: { createdAt: 'desc' },
+    include: requestInclude
+  });
+};
+
 export const create = async (strataProfileId: number) => {
+  // Check for any pending request across the entire strata (not just this user)
+  const strataProfile = await prisma.strataProfile.findUnique({
+    where: { strataProfileId },
+    select: { strataId: true },
+  });
+  if (!strataProfile) throw new Error('Strata profile not found');
+
   const existing = await prisma.activationRequest.findFirst({
-    where: { strataProfileId, status: 'Pending' }
+    where: {
+      strataProfile: { strataId: strataProfile.strataId },
+      status: 'Pending',
+    },
   });
   if (existing) {
-    throw Object.assign(new Error('You already have a pending activation request'), { code: 'DUPLICATE' });
+    throw Object.assign(new Error('A pending activation request already exists for this strata'), { code: 'DUPLICATE' });
   }
 
   return prisma.activationRequest.create({

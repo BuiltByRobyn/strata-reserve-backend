@@ -1,7 +1,7 @@
 export const requirementInclude = {
   documentType: { select: { documentTypeId: true, typeName: true } },
   propertyType: { select: { propertyTypeId: true, propertyTypeName: true } },
-  naStatus: { select: { status: true } },
+  naStatus: { select: { status: true, setAt: true } },
   fileNumberDocuments: {
     orderBy: { uploadedAt: 'desc' as const },
     take: 1,

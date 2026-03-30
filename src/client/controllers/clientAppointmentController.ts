@@ -2,6 +2,7 @@ import { success, error, asyncHandler } from '../../shared/helpers/responseHelpe
 import { parseIntParam } from '../../shared/helpers/parseParams';
 import { isWithin48Hours } from '../../shared/helpers/dateUtils';
 import { getAvailableSlots, checkDraftMeetingEligibility } from '../../shared/services/availabilityCalculationService';
+import { getActiveByProfile } from '../../shared/services/fileNumberService';
 import prisma from '../../shared/lib/prismaClient';
 import type { AppointmentNotification } from '../../shared/types/appointment.types';
 import { sendFileCompletionEmail, sendAdminAppointmentBookingRequestEmail } from '../../shared/lib/emailService';
@@ -17,17 +18,7 @@ export const getAvailability = asyncHandler(async (c) => {
     return error(c, 'startDate and endDate are required', 400);
   }
 
-  const sr = await prisma.fileNumber.findFirst({
-    where: {
-      archived: false,
-      OR: [
-        { strata: { strataProfiles: { some: { profileId: user.id } } } },
-        { requestedByProfileId: user.id }
-      ]
-    },
-    select: { fileId: true }
-  });
-
+  const sr = await getActiveByProfile(user.id);
   if (!sr) return error(c, 'No active file number found', 404);
 
   const slots = await getAvailableSlots(startDate, endDate, sr.fileId, isDraftMeeting);
@@ -80,9 +71,13 @@ export const createAppointmentRequest = asyncHandler(async (c) => {
   let result;
   try {
     result = await prisma.$transaction(async (tx) => {
+      const dates = [firstChoiceDate, secondChoiceDate].filter(Boolean) as string[];
+      const rangeStart = dates.reduce((a, b) => (a < b ? a : b));
+      const rangeEnd = dates.reduce((a, b) => (a > b ? a : b));
+
       const availability = await getAvailableSlots(
-        firstChoiceDate,
-        secondChoiceDate || firstChoiceDate,
+        rangeStart,
+        rangeEnd,
         parseInt(fileId),
         isDraftMeeting
       );
@@ -174,17 +169,7 @@ export const createAppointmentRequest = asyncHandler(async (c) => {
 export const getActiveAppointment = asyncHandler(async (c) => {
   const user = c.get('user');
 
-  const sr = await prisma.fileNumber.findFirst({
-    where: {
-      archived: false,
-      OR: [
-        { strata: { strataProfiles: { some: { profileId: user.id } } } },
-        { requestedByProfileId: user.id }
-      ]
-    },
-    select: { fileId: true }
-  });
-
+  const sr = await getActiveByProfile(user.id);
   if (!sr) return success(c, null);
 
   const pendingRequest = await prisma.appointmentRequest.findFirst({
@@ -276,12 +261,24 @@ export const cancelAppointmentRequest = asyncHandler(async (c) => {
   const user = c.get('user');
 
   const request = await prisma.appointmentRequest.findUnique({
-    where: { appointmentRequestId: id }
+    where: { appointmentRequestId: id },
+    include: {
+      fileNumber: {
+        select: {
+          requestedByProfileId: true,
+          strata: { select: { strataProfiles: { where: { profileId: user.id } } } },
+        },
+      },
+    },
   });
 
-  if (!request || request.requestedByProfileId !== user.id) {
-    return error(c, 'Appointment request not found', 404);
-  }
+  if (!request) return error(c, 'Appointment request not found', 404);
+
+  const isOwner = request.requestedByProfileId === user.id
+    || request.fileNumber.requestedByProfileId === user.id
+    || (request.fileNumber.strata?.strataProfiles?.length ?? 0) > 0;
+
+  if (!isOwner) return error(c, 'Appointment request not found', 404);
 
   if (request.status !== 'Pending Review') {
     return error(c, 'Only pending requests can be cancelled', 400);
@@ -402,17 +399,7 @@ export const rescheduleAppointment = asyncHandler(async (c) => {
 export const getDraftMeetingEligibility = asyncHandler(async (c) => {
   const user = c.get('user');
 
-  const sr = await prisma.fileNumber.findFirst({
-    where: {
-      archived: false,
-      OR: [
-        { strata: { strataProfiles: { some: { profileId: user.id } } } },
-        { requestedByProfileId: user.id }
-      ]
-    },
-    select: { fileId: true }
-  });
-
+  const sr = await getActiveByProfile(user.id);
   if (!sr) return error(c, 'No active file number found', 404);
 
   const result = await checkDraftMeetingEligibility(sr.fileId);
@@ -422,23 +409,13 @@ export const getDraftMeetingEligibility = asyncHandler(async (c) => {
 export const getNotifications = asyncHandler(async (c) => {
   const user = c.get('user');
 
-  const sr = await prisma.fileNumber.findFirst({
-    where: {
-      archived: false,
-      OR: [
-        { strata: { strataProfiles: { some: { profileId: user.id } } } },
-        { requestedByProfileId: user.id }
-      ]
-    },
-    select: { fileId: true }
-  });
-
+  const sr = await getActiveByProfile(user.id);
   if (!sr) return success(c, []);
 
   const oneWeekAgo = new Date();
   oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
-  const [approvedRequests, rejectedRequests, cancelledAppointments, rescheduledAppointments] = await Promise.all([
+  const [approvedRequests, rejectedRequests, cancelledAppointments, rescheduledAppointments, activeAppointment, pendingRequest] = await Promise.all([
     prisma.appointmentRequest.findMany({
       where: { fileId: sr.fileId, status: 'Approved', requestDate: { gte: oneWeekAgo } },
       orderBy: { requestDate: 'desc' },
@@ -470,8 +447,17 @@ export const getNotifications = asyncHandler(async (c) => {
       where: { fileId: sr.fileId, status: 'Rescheduled', appointmentDate: { gte: oneWeekAgo } },
       orderBy: { appointmentDate: 'desc' },
       select: { appointmentId: true, appointmentDate: true, rescheduleReason: true, timeSlot: { select: { slotTime: true, slotName: true } } }
-    })
+    }),
+    prisma.appointment.findFirst({
+      where: { fileId: sr.fileId, status: { in: ['Scheduled', 'Rescheduled'] } },
+    }),
+    prisma.appointmentRequest.findFirst({
+      where: { fileId: sr.fileId, status: 'Pending Review' },
+    }),
   ]);
+
+  // Suppress cancelled notifications when a newer appointment or pending request exists
+  const suppressCancelled = !!(activeAppointment || pendingRequest);
 
   const notifications: AppointmentNotification[] = [
     ...approvedRequests.map(r => {
@@ -500,12 +486,12 @@ export const getNotifications = asyncHandler(async (c) => {
         date: (r.appointmentReviews[0]?.reviewDate ?? r.requestDate).toISOString()
       };
     }),
-    ...cancelledAppointments.map(a => ({
+    ...(suppressCancelled ? [] : cancelledAppointments.map(a => ({
       type: 'appointment_cancelled' as const,
       message: 'Your appointment was cancelled.',
       reason: a.cancellationReason,
       date: a.appointmentDate.toISOString()
-    })),
+    }))),
     ...rescheduledAppointments.map(a => ({
       type: 'appointment_rescheduled' as const,
       message: 'Your appointment has been rescheduled.',

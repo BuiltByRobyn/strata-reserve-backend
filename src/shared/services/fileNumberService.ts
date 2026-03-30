@@ -2,8 +2,10 @@ import prisma from '../lib/prismaClient';
 import type { CreateFileNumberInput } from '../types/file-number.types';
 import { fileNumberIncludeList, profileSelectBrief, profileSelectWithEmail, documentIncludeCompact } from '../constants/prismaIncludes';
 import { validateFileNumber } from '../helpers/fileNumberUtils';
+import { surveyQuestionKey } from '../helpers/surveyUtils';
 import { mostRecentAnniversary } from '../helpers/dateUtils';
 import { sendFileCreatedEmail, sendAppointmentBookingOpenEmail, sendAdminAppointmentBookingOpenEmail, sendSurveyFinalizedEmail, sendAdminSurveyFinalizedEmail } from '../lib/emailService';
+import * as fnDocRequirementService from './fnDocRequirementService';
 
 export const getFileNumbers = async (filters?: { strataId?: number; archived?: boolean }) => {
   const results = await prisma.fileNumber.findMany({
@@ -163,6 +165,7 @@ export const updateFileNumber = async (id: number, fileNumber: string) => {
 export const submitForReview = async (id: number, profileId: string) => {
   const sr = await prisma.fileNumber.findUnique({
     where: { fileId: id },
+    include: { strata: { select: { strataPlan: true } } },
   });
   if (!sr) throw new Error('Service request not found');
 
@@ -188,30 +191,30 @@ export const submitForReview = async (id: number, profileId: string) => {
     ? new Set([...configuredTypeIds].filter(id => profileTypeIds.has(id)))
     : configuredTypeIds;
 
-  const requiredQuestionIds = srQuestions
+  const requiredQuestionKeys = srQuestions
     .filter(sq => effectiveTypeIds.size === 0 || effectiveTypeIds.has(sq.propertyTypeId))
-    .map(sq => sq.question.questionId);
+    .map(sq => surveyQuestionKey(sq.question.questionId, sq.propertyTypeId));
 
   const responses = await prisma.questionResponse.findMany({
     where: { fileId: id, archivedAt: null },
-    select: { questionId: true },
+    select: { questionId: true, propertyTypeId: true },
   });
-  const answeredIds = new Set(responses.map(r => r.questionId));
+  const answeredKeys = new Set(responses.map(r => surveyQuestionKey(r.questionId, r.propertyTypeId)));
 
-  const unanswered = requiredQuestionIds.filter(qId => !answeredIds.has(qId));
+  const unanswered = requiredQuestionKeys.filter(key => !answeredKeys.has(key));
   if (unanswered.length > 0) {
     const err = new Error(`${unanswered.length} required question(s) have not been answered`) as Error & { code: string };
     err.code = 'VALIDATION_ERROR';
     throw err;
   }
 
-  const updated = await prisma.fileNumber.update({
-    where: { fileId: id },
-    data: {
-      submittedForReviewDate: new Date(),
-      status: 'Pending Approval',
+  await prisma.fileNumberSurveyRequirement.updateMany({
+    where: {
+      fileId: id,
+      propertyTypeId: { in: [...effectiveTypeIds] },
+      finalizedAt: null,
     },
-    include: fileNumberIncludeList,
+    data: { finalizedAt: new Date(), finalizedByProfileId: profileId },
   });
 
   const profile = await prisma.profile.findUnique({
@@ -219,20 +222,51 @@ export const submitForReview = async (id: number, profileId: string) => {
     select: { email: true },
   });
 
-  const surveyDate = new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
-
   if (profile?.email) {
+    const surveyDate = new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
     sendSurveyFinalizedEmail({
       to: profile.email,
-      strataNumber: updated.strata?.strataPlan || '',
+      strataNumber: sr.strata?.strataPlan || '',
       finalizedDate: surveyDate,
     }).catch((err) => console.error('Failed to send survey finalized email:', err));
   }
 
+  const updated = await tryFinalizeApplication(id);
+  return updated;
+};
+
+export const tryFinalizeApplication = async (fileId: number) => {
+  const existing = await prisma.fileNumber.findUnique({
+    where: { fileId },
+    select: { submittedForReviewDate: true },
+  });
+  if (existing?.submittedForReviewDate) {
+    return prisma.fileNumber.findUnique({ where: { fileId }, include: fileNumberIncludeList });
+  }
+
+  const unfinalizedSurveys = await prisma.fileNumberSurveyRequirement.count({
+    where: { fileId, finalizedAt: null },
+  });
+  if (unfinalizedSurveys > 0) {
+    return prisma.fileNumber.findUnique({ where: { fileId }, include: fileNumberIncludeList });
+  }
+
+  const allDocsAddressed = await fnDocRequirementService.checkAllRequirementsAnswered(fileId);
+  if (!allDocsAddressed) {
+    return prisma.fileNumber.findUnique({ where: { fileId }, include: fileNumberIncludeList });
+  }
+
+  const updated = await prisma.fileNumber.update({
+    where: { fileId },
+    data: { submittedForReviewDate: new Date(), status: 'Pending Approval' },
+    include: fileNumberIncludeList,
+  });
+
   const clientName = updated.requestedBy?.displayName
     || [updated.requestedBy?.firstName, updated.requestedBy?.lastName].filter(Boolean).join(' ')
-    || 'Unknown';
+    || 'Unknown client';
   const propertyAddress = updated.strata?.complexName || updated.strata?.strataPlan || '';
+  const surveyDate = new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
 
   sendAdminSurveyFinalizedEmail({
     fileNumber: updated.fileNumber || '',
@@ -240,8 +274,8 @@ export const submitForReview = async (id: number, profileId: string) => {
     propertyAddress,
     clientName,
     surveyDate,
-    surveyCompleted: updated.submittedForReviewDate ? 'Yes' : 'No',
-  }).catch((err) => console.error('Failed to send admin survey finalized email:', err));
+    surveyCompleted: 'Yes',
+  }).catch((err) => console.error('Failed to send admin finalized email:', err));
 
   return updated;
 };
