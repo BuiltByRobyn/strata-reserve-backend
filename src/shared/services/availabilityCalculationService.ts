@@ -83,10 +83,8 @@ export async function getAvailableSlots(
   const locationCode = isDraftMeeting ? 'Virtual' : sr.strata.location?.locationCode;
 
   const assignedInspectorIds: string[] = [];
-  if (!isDraftMeeting) {
-    if (sr.appointmentOfferInspectorId) assignedInspectorIds.push(sr.appointmentOfferInspectorId);
-    if (sr.appointmentOfferSecondInspectorId) assignedInspectorIds.push(sr.appointmentOfferSecondInspectorId);
-  }
+  if (sr.appointmentOfferInspectorId) assignedInspectorIds.push(sr.appointmentOfferInspectorId);
+  if (sr.appointmentOfferSecondInspectorId) assignedInspectorIds.push(sr.appointmentOfferSecondInspectorId);
 
   const start = new Date(startDate + 'T00:00:00Z');
   const end = new Date(endDate + 'T00:00:00Z');
