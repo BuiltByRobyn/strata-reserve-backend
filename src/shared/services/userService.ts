@@ -170,16 +170,14 @@ export const deleteUser = async (id: string) => {
     throw new Error('This inspector has future appointments already arranged, please reassign appointment inspector before continuing');
   }
 
-  // Delete from auth first — if this fails, DB stays intact
+  // Supabase auth.users → profiles has ON DELETE CASCADE,
+  // so deleting the auth user also deletes the profile and triggers
+  // all DB-level cascades (StrataProfile, InAppNotification, etc.)
+  // and set-null actions (FileNumber, AppointmentRequest, etc.)
   const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(id);
   if (authError) {
     throw new Error(`Failed to delete auth user: ${authError.message}`);
   }
-
-  await prisma.$transaction([
-    prisma.strataProfile.deleteMany({ where: { profileId: id } }),
-    prisma.profile.deleteMany({ where: { id } }),
-  ]);
 
   return true;
 };

@@ -371,7 +371,7 @@ model FileNumber {
   archivedDate           DateTime? @map("archived_date") @db.Timestamptz
   serviceId              Int       @map("service_id")
   strataId               Int       @map("strata_id")
-  requestedByProfileId   String    @map("requested_by_profile_id") @db.Uuid
+  requestedByProfileId   String?   @map("requested_by_profile_id") @db.Uuid
 
   fiscalYearEnd              DateTime? @map("fiscal_year_end") @db.Date
   lastAgmDate                DateTime? @map("last_agm_date") @db.Date
@@ -392,7 +392,7 @@ model FileNumber {
 
   service                Service              @relation(fields: [serviceId], references: [serviceId], onDelete: Cascade)
   strata                 Strata               @relation(fields: [strataId], references: [strataId], onDelete: Cascade)
-  requestedBy            Profile              @relation("RequestedByProfile", fields: [requestedByProfileId], references: [id], onDelete: Cascade)
+  requestedBy            Profile?             @relation("RequestedByProfile", fields: [requestedByProfileId], references: [id], onDelete: SetNull)
   appointmentOfferType   AppointmentType?     @relation("OfferAppointmentType", fields: [appointmentOfferTypeId], references: [appointmentTypeId], onDelete: SetNull)
   appointmentOfferInspector Profile?           @relation("OfferInspector", fields: [appointmentOfferInspectorId], references: [id], onDelete: SetNull)
   appointmentOfferSecondInspector Profile?     @relation("OfferSecondInspector", fields: [appointmentOfferSecondInspectorId], references: [id], onDelete: SetNull)
@@ -420,7 +420,7 @@ model FileNumberSurveyRequirement {
 
   fileNumber   FileNumber   @relation(fields: [fileId], references: [fileId], onDelete: Cascade)
   propertyType PropertyType @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: Cascade)
-  finalizedBy  Profile?     @relation("SurveyRequirementFinalizer", fields: [finalizedByProfileId], references: [id])
+  finalizedBy  Profile?     @relation("SurveyRequirementFinalizer", fields: [finalizedByProfileId], references: [id], onDelete: SetNull)
 
   @@unique([fileId, propertyTypeId])
   @@map("fn_survey_requirement")
@@ -442,13 +442,13 @@ model AppointmentRequest {
   appointmentTypeId      Int       @map("appointment_type_id")
   firstChoiceTimeSlotId  Int       @map("first_choice_time_slot_id")
   secondChoiceTimeSlotId Int?      @map("second_choice_time_slot_id")
-  requestedByProfileId   String    @map("requested_by_profile_id") @db.Uuid
+  requestedByProfileId   String?   @map("requested_by_profile_id") @db.Uuid
 
   fileNumber       FileNumber       @relation(fields: [fileId], references: [fileId], onDelete: Cascade)
   appointmentType      AppointmentType      @relation(fields: [appointmentTypeId], references: [appointmentTypeId], onDelete: Cascade)
   firstChoiceTimeSlot  AppointmentTimeSlot  @relation("FirstChoiceTimeSlot", fields: [firstChoiceTimeSlotId], references: [timeSlotId], onDelete: Cascade)
   secondChoiceTimeSlot AppointmentTimeSlot? @relation("SecondChoiceTimeSlot", fields: [secondChoiceTimeSlotId], references: [timeSlotId], onDelete: SetNull)
-  requestedBy          Profile              @relation("AppointmentRequestedBy", fields: [requestedByProfileId], references: [id], onDelete: Cascade)
+  requestedBy          Profile?             @relation("AppointmentRequestedBy", fields: [requestedByProfileId], references: [id], onDelete: SetNull)
   appointmentReviews   AppointmentReview[]
   appointments         Appointment[]
 
@@ -463,11 +463,11 @@ model AppointmentReview {
   comments             String?  @db.Text
   rejectionReason      String?  @map("rejection_reason") @db.Text
   appointmentRequestId Int      @map("appointment_request_id")
-  reviewedByProfileId  String   @map("reviewed_by_profile_id") @db.Uuid
+  reviewedByProfileId  String?  @map("reviewed_by_profile_id") @db.Uuid
   reviewStatusId       Int      @map("review_status_id")
 
   appointmentRequest AppointmentRequest @relation(fields: [appointmentRequestId], references: [appointmentRequestId], onDelete: Cascade)
-  reviewedBy         Profile            @relation("ReviewedByProfile", fields: [reviewedByProfileId], references: [id], onDelete: Cascade)
+  reviewedBy         Profile?           @relation("ReviewedByProfile", fields: [reviewedByProfileId], references: [id], onDelete: SetNull)
   reviewStatus       ReviewStatus       @relation(fields: [reviewStatusId], references: [reviewStatusId], onDelete: Cascade)
 
   @@map("appointment_review")
@@ -673,14 +673,14 @@ model QuestionResponse {
   updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
   archivedAt             DateTime? @map("archived_at") @db.Timestamptz
   fileId       Int       @map("file_id")
-  answeredByProfileId    String    @map("answered_by_profile_id") @db.Uuid
+  answeredByProfileId    String?   @map("answered_by_profile_id") @db.Uuid
   questionId             Int       @map("question_id")
   propertyTypeId         Int       @map("property_type_id")
   parentQuestionId       Int?      @map("parent_question_id")
   multipleChoiceOptionId Int?      @map("multiple_choice_option_id")
 
   fileNumber       FileNumber        @relation(fields: [fileId], references: [fileId], onDelete: Cascade)
-  answeredBy           Profile               @relation("AnsweredByProfile", fields: [answeredByProfileId], references: [id], onDelete: Cascade)
+  answeredBy           Profile?              @relation("AnsweredByProfile", fields: [answeredByProfileId], references: [id], onDelete: SetNull)
   question             Question              @relation("QuestionResponses", fields: [questionId], references: [questionId], onDelete: Cascade)
   parentQuestion       Question?             @relation("ParentContextRelation", fields: [parentQuestionId], references: [questionId], onDelete: SetNull)
   propertyType         PropertyType          @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: Cascade)
@@ -730,7 +730,7 @@ model FileNumberDocument {
   notes                   String?  @db.Text
   fileId                  Int      @map("file_id")
   documentTypeId          Int      @map("document_type_id")
-  uploadedByProfileId     String   @map("uploaded_by_profile_id") @db.Uuid
+  uploadedByProfileId     String?  @map("uploaded_by_profile_id") @db.Uuid
   reviewStatusId          Int?     @map("review_status_id")
   sectionId               Int?     @map("section_id")
   propertyTypeId          Int?     @map("property_type_id")
@@ -738,7 +738,7 @@ model FileNumberDocument {
 
   fileNumber    FileNumber                      @relation(fields: [fileId], references: [fileId], onDelete: Cascade)
   documentType  DocumentType                    @relation(fields: [documentTypeId], references: [documentTypeId], onDelete: Cascade)
-  uploadedBy    Profile                         @relation("UploadedByProfile", fields: [uploadedByProfileId], references: [id], onDelete: Cascade)
+  uploadedBy    Profile?                        @relation("UploadedByProfile", fields: [uploadedByProfileId], references: [id], onDelete: SetNull)
   reviewStatus  ReviewStatus?                   @relation(fields: [reviewStatusId], references: [reviewStatusId], onDelete: SetNull)
   section       Section?                        @relation(fields: [sectionId], references: [sectionId], onDelete: SetNull)
   propertyType  PropertyType?                   @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: SetNull)
@@ -774,11 +774,11 @@ model FileNumberDocumentNaStatus {
   naStatusId         Int      @id @default(autoincrement()) @map("na_status_id")
   fnDocRequirementId Int      @unique @map("fn_doc_requirement_id")
   status             String   @map("status") @db.VarChar(20)
-  setByProfileId     String   @map("set_by_profile_id") @db.Uuid
+  setByProfileId     String?  @map("set_by_profile_id") @db.Uuid
   setAt              DateTime @default(now()) @map("set_at") @db.Timestamptz
 
   requirement FileNumberDocumentRequirement @relation(fields: [fnDocRequirementId], references: [fnDocRequirementId], onDelete: Cascade)
-  setBy       Profile                       @relation(fields: [setByProfileId], references: [id], onDelete: Cascade)
+  setBy       Profile?                      @relation(fields: [setByProfileId], references: [id], onDelete: SetNull)
 
   @@map("fn_document_na_status")
   @@schema("public")
@@ -787,12 +787,12 @@ model FileNumberDocumentNaStatus {
 model FileNumberDocumentReview {
   reviewId            Int       @id @default(autoincrement()) @map("review_id")
   fileId              Int       @map("file_id")
-  reviewedByProfileId String    @map("reviewed_by_profile_id") @db.Uuid
+  reviewedByProfileId String?   @map("reviewed_by_profile_id") @db.Uuid
   reviewedAt          DateTime  @default(now()) @map("reviewed_at") @db.Timestamptz
   clientNotifiedAt    DateTime? @map("client_notified_at") @db.Timestamptz
 
   fileNumber FileNumber                     @relation(fields: [fileId], references: [fileId], onDelete: Cascade)
-  reviewedBy Profile                        @relation("AdminDocumentReviews", fields: [reviewedByProfileId], references: [id], onDelete: Cascade)
+  reviewedBy Profile?                       @relation("AdminDocumentReviews", fields: [reviewedByProfileId], references: [id], onDelete: SetNull)
   items      FileNumberDocumentReviewItem[]
 
   @@map("fn_document_review")
