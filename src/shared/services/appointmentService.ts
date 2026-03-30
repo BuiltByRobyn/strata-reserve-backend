@@ -302,6 +302,11 @@ export const cancelAppointment = async (id: number, reason?: string) => {
     }
   });
 
+  await prisma.fileNumber.update({
+    where: { fileId: updated.fileId },
+    data: { rebookingRequestedAt: new Date() }
+  });
+
   if (appointment) {
     const { fileNumber, appointmentType, appointmentDate, timeSlot } = appointment;
     const client = fileNumber?.requestedBy;

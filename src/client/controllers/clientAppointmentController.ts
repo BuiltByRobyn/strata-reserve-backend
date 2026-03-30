@@ -415,7 +415,7 @@ export const getNotifications = asyncHandler(async (c) => {
   const oneWeekAgo = new Date();
   oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
-  const [approvedRequests, rejectedRequests, cancelledAppointments, rescheduledAppointments, activeAppointment, pendingRequest] = await Promise.all([
+  const [approvedRequests, rejectedRequests, cancelledAppointments, rescheduledAppointments] = await Promise.all([
     prisma.appointmentRequest.findMany({
       where: { fileId: sr.fileId, status: 'Approved', requestDate: { gte: oneWeekAgo } },
       orderBy: { requestDate: 'desc' },
@@ -423,7 +423,7 @@ export const getNotifications = asyncHandler(async (c) => {
         appointmentRequestId: true,
         requestDate: true,
         firstChoiceDate: true,
-        firstChoiceTimeSlot: { select: { slotName: true } }
+        firstChoiceTimeSlot: { select: { slotName: true, slotTime: true } }
       }
     }),
     prisma.appointmentRequest.findMany({
@@ -435,7 +435,7 @@ export const getNotifications = asyncHandler(async (c) => {
           take: 1,
           select: { rejectionReason: true, reviewDate: true }
         },
-        firstChoiceTimeSlot: { select: { slotName: true } }
+        firstChoiceTimeSlot: { select: { slotName: true, slotTime: true } }
       }
     }),
     prisma.appointment.findMany({
@@ -448,23 +448,21 @@ export const getNotifications = asyncHandler(async (c) => {
       orderBy: { appointmentDate: 'desc' },
       select: { appointmentId: true, appointmentDate: true, rescheduleReason: true, timeSlot: { select: { slotTime: true, slotName: true } } }
     }),
-    prisma.appointment.findFirst({
-      where: { fileId: sr.fileId, status: { in: ['Scheduled', 'Rescheduled'] } },
-    }),
-    prisma.appointmentRequest.findFirst({
-      where: { fileId: sr.fileId, status: 'Pending Review' },
-    }),
   ]);
 
-  // Suppress cancelled notifications when a newer appointment or pending request exists
-  const suppressCancelled = !!(activeAppointment || pendingRequest);
+  const formatSlotTime = (time: string): string => {
+    const [h, m] = time.split(':').map(Number);
+    const period = h >= 12 ? 'PM' : 'AM';
+    const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    return m === 0 ? `${hour12} ${period}` : `${hour12}:${m.toString().padStart(2, '0')} ${period}`;
+  };
 
   const notifications: AppointmentNotification[] = [
     ...approvedRequests.map(r => {
       const dateLabel = r.firstChoiceDate
         ? new Date(r.firstChoiceDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
         : null;
-      const timeLabel = r.firstChoiceTimeSlot?.slotName ?? null;
+      const timeLabel = r.firstChoiceTimeSlot?.slotTime ? formatSlotTime(r.firstChoiceTimeSlot.slotTime) : null;
       const detail = dateLabel && timeLabel ? ` for ${dateLabel} at ${timeLabel}` : dateLabel ? ` for ${dateLabel}` : '';
       return {
         type: 'request_approved' as const,
@@ -477,7 +475,7 @@ export const getNotifications = asyncHandler(async (c) => {
       const dateLabel = r.firstChoiceDate
         ? new Date(r.firstChoiceDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
         : null;
-      const timeLabel = r.firstChoiceTimeSlot?.slotName ?? null;
+      const timeLabel = r.firstChoiceTimeSlot?.slotTime ? formatSlotTime(r.firstChoiceTimeSlot.slotTime) : null;
       const detail = dateLabel && timeLabel ? ` for ${dateLabel} at ${timeLabel}` : dateLabel ? ` for ${dateLabel}` : '';
       return {
         type: 'request_rejected' as const,
@@ -486,12 +484,12 @@ export const getNotifications = asyncHandler(async (c) => {
         date: (r.appointmentReviews[0]?.reviewDate ?? r.requestDate).toISOString()
       };
     }),
-    ...(suppressCancelled ? [] : cancelledAppointments.map(a => ({
+    ...cancelledAppointments.map(a => ({
       type: 'appointment_cancelled' as const,
       message: 'Your appointment was cancelled.',
       reason: a.cancellationReason,
       date: a.appointmentDate.toISOString()
-    }))),
+    })),
     ...rescheduledAppointments.map(a => ({
       type: 'appointment_rescheduled' as const,
       message: 'Your appointment has been rescheduled.',
