@@ -10,7 +10,7 @@ export const getActivationRequest = asyncHandler(async (c) => {
   });
   if (!strataProfile) return success(c, null);
 
-  const request = await activationRequestService.getByStrataProfile(strataProfile.strataProfileId);
+  const request = await activationRequestService.getByStrataId(strataProfile.strataId);
   return success(c, request);
 }, 'Failed to fetch activation request');
 

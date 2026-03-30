@@ -1,6 +1,6 @@
 import prisma from '../lib/prismaClient';
 import { sendMeetingStatusUpdateEmail, sendFileCompletionEmail, sendAdminAppointmentCancelledEmail } from '../lib/emailService';
-import { assertNoInspectorSameDayCrossRegionConflict } from './inspectorRegionConflictService';
+import { canInspectorTakeSlot } from './availabilityCalculationService';
 
 const FULL_DAY_INSPECTION_TYPE_NAME = 'Full Day Inspection';
 const FULL_DAY_INSPECTION_REQUIRED_SLOT_TIME = '10:00';
@@ -14,10 +14,17 @@ const fullDayInspectionSlotError = () =>
 const draftMeetingSlotError = () =>
   new Error('Draft Meeting appointments are only available at 7:00 PM.');
 
-const draftFullDaySameDateConflictError = () =>
+const schedulingConflictError = () =>
   new Error(
     'A conflicting appointment is already scheduled for this date. Please choose a different timeslot.'
   );
+
+const normalize = (v?: string | null) => (v || '').trim().toLowerCase();
+
+function isFullDay(appointmentType: { durationType?: string | null; typeName?: string | null }): boolean {
+  return normalize(appointmentType.durationType) === 'full day' ||
+    normalize(appointmentType.typeName) === normalize(FULL_DAY_INSPECTION_TYPE_NAME);
+}
 
 async function assertAppointmentTypeTimeSlot(appointmentTypeId: number, timeSlotId: number) {
   const [appointmentType, timeSlot] = await Promise.all([
@@ -42,27 +49,45 @@ async function assertAppointmentTypeTimeSlot(appointmentTypeId: number, timeSlot
   }
 }
 
-async function assertNoDraftFullDaySameDateConflict(
+/**
+ * Per-inspector scheduling conflict check at appointment creation/approval/reschedule time.
+ * Ensures each inspector can take the proposed slot given their existing appointments.
+ */
+async function assertNoInspectorSchedulingConflict(
   db: any,
   params: {
     appointmentTypeId: number;
     appointmentDate: Date;
+    timeSlotId: number;
+    fileId: number;
+    inspectorProfileIds: string[];
     excludeAppointmentId?: number;
   }
 ) {
-  const { appointmentTypeId, appointmentDate, excludeAppointmentId } = params;
-  const appointmentType = await db.appointmentType.findUnique({
-    where: { appointmentTypeId },
-    select: { isDraftMeeting: true, typeName: true, durationType: true },
-  });
-  if (!appointmentType) return;
+  const { appointmentTypeId, appointmentDate, timeSlotId, fileId, excludeAppointmentId } = params;
+  const inspectorProfileIds = [...new Set(params.inspectorProfileIds.filter(Boolean))];
+  if (inspectorProfileIds.length === 0) return;
 
-  const normalize = (v?: string | null) => (v || '').trim().toLowerCase();
-  const isDraftMeeting = appointmentType.isDraftMeeting === true;
-  const isFullDayInspection =
-    normalize(appointmentType.durationType) === 'full day' ||
-    normalize(appointmentType.typeName) === normalize(FULL_DAY_INSPECTION_TYPE_NAME);
-  if (!isDraftMeeting && !isFullDayInspection) return;
+  const [appointmentType, timeSlot, fileRow] = await Promise.all([
+    db.appointmentType.findUnique({
+      where: { appointmentTypeId },
+      select: { isDraftMeeting: true, typeName: true, durationType: true },
+    }),
+    db.appointmentTimeSlot.findUnique({
+      where: { timeSlotId },
+      select: { slotTime: true },
+    }),
+    db.fileNumber.findUnique({
+      where: { fileId },
+      select: { strata: { select: { location: { select: { locationCode: true } } } } },
+    }),
+  ]);
+
+  if (!appointmentType || !timeSlot) return;
+
+  const newIsDraft = appointmentType.isDraftMeeting === true;
+  const newIsFullDay = isFullDay(appointmentType);
+  const newLocationCode = fileRow?.strata?.location?.locationCode ?? null;
 
   const day = new Date(appointmentDate);
   day.setUTCHours(0, 0, 0, 0);
@@ -76,23 +101,36 @@ async function assertNoDraftFullDaySameDateConflict(
       ...(excludeAppointmentId ? { appointmentId: { not: excludeAppointmentId } } : {}),
     },
     select: {
-      appointmentId: true,
-      appointmentType: {
-        select: { isDraftMeeting: true, typeName: true, durationType: true },
+      inspectorProfileId: true,
+      timeSlot: { select: { slotTime: true } },
+      appointmentType: { select: { isDraftMeeting: true, durationType: true, typeName: true } },
+      fileNumber: {
+        select: {
+          appointmentOfferSecondInspectorId: true,
+          strata: { select: { location: { select: { locationCode: true } } } },
+        },
       },
     },
   });
 
-  const hasConflictingType = sameDayAppointments.some((a: any) => {
-    const otherIsDraft = a.appointmentType?.isDraftMeeting === true;
-    const otherIsFullDay =
-      normalize(a.appointmentType?.durationType) === 'full day' ||
-      normalize(a.appointmentType?.typeName) === normalize(FULL_DAY_INSPECTION_TYPE_NAME);
-    return isDraftMeeting ? otherIsFullDay : otherIsDraft;
-  });
+  // For each inspector, build their day's existing appointments and validate
+  for (const inspId of inspectorProfileIds) {
+    const existing = sameDayAppointments
+      .filter((a: any) => {
+        const aptInspectors = [a.inspectorProfileId, a.fileNumber?.appointmentOfferSecondInspectorId]
+          .filter(Boolean);
+        return aptInspectors.includes(inspId);
+      })
+      .map((a: any) => ({
+        slotTime: a.timeSlot.slotTime as string,
+        isDraftMeeting: a.appointmentType.isDraftMeeting === true,
+        isFullDay: isFullDay(a.appointmentType),
+        locationCode: (a.fileNumber?.strata?.location?.locationCode ?? null) as string | null,
+      }));
 
-  if (hasConflictingType) {
-    throw draftFullDaySameDateConflictError();
+    if (!canInspectorTakeSlot(existing, timeSlot.slotTime, newIsDraft, newIsFullDay, newIsDraft ? null : newLocationCode)) {
+      throw schedulingConflictError();
+    }
   }
 }
 
@@ -332,28 +370,20 @@ export const rescheduleAppointment = async (
     throw fullDayInspectionSlotError();
   }
   if (aptInfo?.fileId && aptInfo?.appointmentId && aptInfo?.appointmentTypeId) {
-    await assertNoDraftFullDaySameDateConflict(prisma, {
-      appointmentTypeId: aptInfo.appointmentTypeId,
-      appointmentDate,
-      excludeAppointmentId: aptInfo.appointmentId,
-    });
-  }
-
-  if (aptInfo?.fileId && aptInfo?.appointmentTypeId && aptInfo?.appointmentId) {
     const primaryInspector =
       options?.inspectorProfileId !== undefined ? options.inspectorProfileId : aptInfo.inspectorProfileId;
     const secondInspector =
       options?.secondInspectorProfileId !== undefined
         ? options.secondInspectorProfileId
         : aptInfo.fileNumber?.appointmentOfferSecondInspectorId;
-    const regionInspectorIds = [primaryInspector, secondInspector].filter((id): id is string => !!id);
-    if (regionInspectorIds.length > 0) {
-      await assertNoInspectorSameDayCrossRegionConflict(prisma, {
+    const rescheduleInspectorIds = [primaryInspector, secondInspector].filter((id): id is string => !!id);
+    if (rescheduleInspectorIds.length > 0) {
+      await assertNoInspectorSchedulingConflict(prisma, {
+        appointmentTypeId: aptInfo.appointmentTypeId,
         appointmentDate,
         timeSlotId,
-        appointmentTypeId: aptInfo.appointmentTypeId,
         fileId: aptInfo.fileId,
-        inspectorProfileIds: [...new Set(regionInspectorIds)],
+        inspectorProfileIds: [...new Set(rescheduleInspectorIds)],
         excludeAppointmentId: aptInfo.appointmentId,
       });
     }
@@ -536,10 +566,17 @@ export const reviewAppointmentRequest = async (data: {
       const appointmentDate = choiceNum === 1 ? request.firstChoiceDate : request.secondChoiceDate!;
       const timeSlotId = choiceNum === 1 ? request.firstChoiceTimeSlotId : request.secondChoiceTimeSlotId!;
 
-      await assertNoDraftFullDaySameDateConflict(tx, {
-        appointmentTypeId: request.appointmentTypeId,
-        appointmentDate,
-      });
+      const reviewInspectorIds = [data.inspectorProfileId, data.secondInspectorProfileId]
+        .filter((id): id is string => !!id);
+      if (reviewInspectorIds.length > 0) {
+        await assertNoInspectorSchedulingConflict(tx, {
+          appointmentTypeId: request.appointmentTypeId,
+          appointmentDate,
+          timeSlotId,
+          fileId: request.fileId,
+          inspectorProfileIds: reviewInspectorIds,
+        });
+      }
 
       await tx.appointmentRequest.update({
         where: { appointmentRequestId: data.appointmentRequestId },
@@ -562,6 +599,7 @@ export const reviewAppointmentRequest = async (data: {
         where: { fileId: request.fileId },
         data: {
           status: 'Appointment Scheduled',
+          rebookingRequestedAt: null,
           ...(data.secondInspectorProfileId !== undefined && {
             appointmentOfferSecondInspectorId: data.secondInspectorProfileId || null,
           }),
@@ -614,21 +652,17 @@ export const createAppointment = async (data: {
   }
 
   await assertAppointmentTypeTimeSlot(data.appointmentTypeId, data.timeSlotId);
-  await assertNoDraftFullDaySameDateConflict(prisma, {
-    appointmentTypeId: data.appointmentTypeId,
-    appointmentDate: data.appointmentDate,
-  });
 
-  const regionInspectorIds = [data.inspectorProfileId, data.secondInspectorProfileId].filter(
+  const createInspectorIds = [data.inspectorProfileId, data.secondInspectorProfileId].filter(
     (id): id is string => !!id
   );
-  if (regionInspectorIds.length > 0) {
-    await assertNoInspectorSameDayCrossRegionConflict(prisma, {
+  if (createInspectorIds.length > 0) {
+    await assertNoInspectorSchedulingConflict(prisma, {
+      appointmentTypeId: data.appointmentTypeId,
       appointmentDate: data.appointmentDate,
       timeSlotId: data.timeSlotId,
-      appointmentTypeId: data.appointmentTypeId,
       fileId: data.fileId,
-      inspectorProfileIds: [...new Set(regionInspectorIds)],
+      inspectorProfileIds: [...new Set(createInspectorIds)],
     });
   }
 
@@ -660,12 +694,15 @@ export const createAppointment = async (data: {
     }
   }
 
-  if (data.secondInspectorProfileId !== undefined) {
-    await prisma.fileNumber.update({
-      where: { fileId: data.fileId },
-      data: { appointmentOfferSecondInspectorId: data.secondInspectorProfileId || null },
-    });
-  }
+  await prisma.fileNumber.update({
+    where: { fileId: data.fileId },
+    data: {
+      rebookingRequestedAt: null,
+      ...(data.secondInspectorProfileId !== undefined && {
+        appointmentOfferSecondInspectorId: data.secondInspectorProfileId || null,
+      }),
+    },
+  });
 
   return prisma.appointment.create({
     data: {

@@ -265,13 +265,13 @@ export const getRequiredDocumentsChecklist = async (profileId: string, fileId: n
   const sr = await getFileNumberByIdForProfile(profileId, fileId);
   if (!sr) return null;
 
-  const [requirements, latestReview] = await Promise.all([
+  const [requirements, reviews] = await Promise.all([
     prisma.fileNumberDocumentRequirement.findMany({
       where: { fileId },
       include: requirementInclude,
       orderBy: { fnDocRequirementId: 'asc' },
     }),
-    prisma.fileNumberDocumentReview.findFirst({
+    prisma.fileNumberDocumentReview.findMany({
       where: { fileId },
       orderBy: { reviewedAt: 'desc' },
       select: {
@@ -288,25 +288,39 @@ export const getRequiredDocumentsChecklist = async (profileId: string, fileId: n
     }),
   ]);
 
-  const reviewItemMap = new Map(
-    latestReview?.items.map(item => [item.fnDocRequirementId, item]) ?? []
-  );
+  const latestReview = reviews[0] ?? null;
 
-  return requirements.map((req) => ({
-    fnDocRequirementId: req.fnDocRequirementId,
-    fileId: req.fileId,
-    documentTypeId: req.documentTypeId,
-    propertyTypeId: req.propertyTypeId,
-    versionLabel: req.versionLabel,
-    documentType: req.documentType,
-    propertyType: req.propertyType,
-    naStatus: req.naStatus?.status ?? null,
-    uploadedDocument: req.fileNumberDocuments[0] ?? null,
-    reviewId: latestReview?.reviewId ?? null,
-    reviewedAt: latestReview?.reviewedAt?.toISOString() ?? null,
-    reviewStatus: reviewItemMap.get(req.fnDocRequirementId)?.reviewStatus ?? null,
-    denialNote: reviewItemMap.get(req.fnDocRequirementId)?.notes ?? null,
-  }));
+  const reviewItemMap = new Map<number, { reviewedAt: string; reviewStatus: { reviewStatusId: number; statusName: string } | null; notes: string | null }>();
+  for (let i = reviews.length - 1; i >= 0; i--) {
+    const review = reviews[i];
+    for (const item of review.items) {
+      reviewItemMap.set(item.fnDocRequirementId, {
+        reviewedAt: review.reviewedAt.toISOString(),
+        reviewStatus: item.reviewStatus,
+        notes: item.notes,
+      });
+    }
+  }
+
+  return requirements.map((req) => {
+    const reviewItem = reviewItemMap.get(req.fnDocRequirementId);
+    return {
+      fnDocRequirementId: req.fnDocRequirementId,
+      fileId: req.fileId,
+      documentTypeId: req.documentTypeId,
+      propertyTypeId: req.propertyTypeId,
+      versionLabel: req.versionLabel,
+      documentType: req.documentType,
+      propertyType: req.propertyType,
+      naStatus: req.naStatus?.status ?? null,
+      naStatusSetAt: req.naStatus?.setAt?.toISOString() ?? null,
+      uploadedDocument: req.fileNumberDocuments[0] ?? null,
+      reviewId: latestReview?.reviewId ?? null,
+      reviewedAt: reviewItem?.reviewedAt ?? null,
+      reviewStatus: reviewItem?.reviewStatus ?? null,
+      denialNote: reviewItem?.notes ?? null,
+    };
+  });
 };
 
 export const setNaStatus = async (fnDocRequirementId: number, status: NaStatusValue, profileId: string) => {
@@ -433,7 +447,7 @@ export const getLatestDocumentReview = async (fileId: number) => {
     include: {
       documentType: { select: { documentTypeId: true, typeName: true } },
       propertyType: { select: { propertyTypeId: true, propertyTypeName: true } },
-      naStatus: { select: { status: true } },
+      naStatus: { select: { status: true, setAt: true } },
       fileNumberDocuments: {
         orderBy: { uploadedAt: 'desc' },
         take: 1,
@@ -521,15 +535,39 @@ export const createAdminDocResubmittedNotification = async (fileId: number) => {
       items: {
         include: {
           reviewStatus: { select: { statusName: true } },
+          requirement: {
+            select: {
+              fnDocRequirementId: true,
+              fileNumberDocuments: {
+                select: { uploadedAt: true },
+                orderBy: { uploadedAt: 'desc' },
+                take: 1,
+              },
+              naStatus: { select: { naStatusId: true, setAt: true } },
+            },
+          },
         },
       },
     },
   });
 
-  const hasRejection = latestReview?.items.some((item) =>
+  if (!latestReview) return;
+
+  const rejectedItems = latestReview.items.filter((item) =>
     /deny|reject/i.test(item.reviewStatus.statusName)
   );
-  if (!hasRejection) return;
+  if (rejectedItems.length === 0) return;
+
+  const allRejectedAddressed = rejectedItems.every((item) => {
+    const req = item.requirement;
+    const hasNewUpload = req.fileNumberDocuments.length > 0
+      && req.fileNumberDocuments[0].uploadedAt > latestReview.reviewedAt;
+    const hasNaAfterDenial = req.naStatus !== null
+      && req.naStatus.setAt != null
+      && req.naStatus.setAt > latestReview.reviewedAt;
+    return hasNewUpload || hasNaAfterDenial;
+  });
+  if (!allRejectedAddressed) return;
 
   const existingUnread = await prisma.inAppNotification.findFirst({
     where: { fileId, type: 'doc_resubmitted_after_rejection', isRead: false },

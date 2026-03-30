@@ -1,5 +1,6 @@
 import * as documentService from '../../shared/services/documentService';
 import * as fnDocRequirementService from '../../shared/services/fnDocRequirementService';
+import * as fileNumberService from '../../shared/services/fileNumberService';
 import { success, error, asyncHandler } from '../../shared/helpers/responseHelper';
 import { parseIntParam } from '../../shared/helpers/parseParams';
 import type { NaStatusValue } from '../../shared/types/document.types';
@@ -48,9 +49,12 @@ export const setNaStatus = asyncHandler(async (c) => {
 
   await documentService.setNaStatus(reqId, status, user.id);
 
+  await documentService.createAdminDocResubmittedNotification(fileId);
+
   const allAnswered = await fnDocRequirementService.checkAllRequirementsAnswered(fileId);
   if (allAnswered) {
     await documentService.createAdminReadyForReviewNotification(fileId);
+    await fileNumberService.tryFinalizeApplication(fileId);
   }
 
   return success(c, { updated: true });
@@ -78,6 +82,7 @@ export const markDocumentUploaded = asyncHandler(async (c) => {
   const allAnswered = await fnDocRequirementService.checkAllRequirementsAnswered(fileId);
   if (allAnswered) {
     await documentService.createAdminReadyForReviewNotification(fileId);
+    await fileNumberService.tryFinalizeApplication(fileId);
   }
 
   return success(c, { updated: true });

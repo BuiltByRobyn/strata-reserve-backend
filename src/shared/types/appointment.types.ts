@@ -18,3 +18,10 @@ export interface AvailableDay {
   date: string;
   slots: AvailableSlot[];
 }
+
+export interface InspectorDaySlot {
+  slotTime: string;
+  isDraftMeeting: boolean;
+  isFullDay: boolean;
+  locationCode: string | null;
+}

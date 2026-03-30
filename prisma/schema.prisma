@@ -126,6 +126,7 @@ model Profile {
   documentNaStatuses          FileNumberDocumentNaStatus[]
   adminDocumentReviews        FileNumberDocumentReview[]   @relation("AdminDocumentReviews")
   inAppNotifications          InAppNotification[]
+  finalizedSurveyRequirements FileNumberSurveyRequirement[] @relation("SurveyRequirementFinalizer")
 
   @@map("profiles")
   @@schema("public")
@@ -411,12 +412,15 @@ model FileNumber {
 }
 
 model FileNumberSurveyRequirement {
-  fnSurveyRequirementId Int @id @default(autoincrement()) @map("fn_survey_requirement_id")
-  fileId      Int @map("file_id")
-  propertyTypeId        Int @map("property_type_id")
+  fnSurveyRequirementId Int       @id @default(autoincrement()) @map("fn_survey_requirement_id")
+  fileId                Int       @map("file_id")
+  propertyTypeId        Int       @map("property_type_id")
+  finalizedAt           DateTime? @map("finalized_at") @db.Timestamptz
+  finalizedByProfileId  String?   @map("finalized_by_profile_id") @db.Uuid
 
-  fileNumber FileNumber @relation(fields: [fileId], references: [fileId], onDelete: Cascade)
-  propertyType   PropertyType   @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: Cascade)
+  fileNumber   FileNumber   @relation(fields: [fileId], references: [fileId], onDelete: Cascade)
+  propertyType PropertyType @relation(fields: [propertyTypeId], references: [propertyTypeId], onDelete: Cascade)
+  finalizedBy  Profile?     @relation("SurveyRequirementFinalizer", fields: [finalizedByProfileId], references: [id])
 
   @@unique([fileId, propertyTypeId])
   @@map("fn_survey_requirement")

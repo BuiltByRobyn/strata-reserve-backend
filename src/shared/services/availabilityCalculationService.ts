@@ -1,6 +1,6 @@
 import prisma from '../lib/prismaClient';
 import { isWeekend, formatDateStr } from '../helpers/dateUtils';
-import type { AvailableSlot, AvailableDay } from '../types/appointment.types';
+import type { AvailableSlot, AvailableDay, InspectorDaySlot } from '../types/appointment.types';
 
 const SLOT_REQUIREMENTS: Record<string, { startHour: number; endHour: number }> = {
   '10:00': { startHour: 10, endHour: 14 },
@@ -27,6 +27,41 @@ function inspectorCoversSlot(
   const availEnd = parseHour(endTime);
 
   return availStart <= req.startHour && availEnd >= req.endHour;
+}
+
+export function canInspectorTakeSlot(
+  existing: InspectorDaySlot[],
+  newSlotTime: string,
+  newIsDraft: boolean,
+  newIsFullDay: boolean,
+  newLocationCode: string | null,
+): boolean {
+  if (existing.length === 0) return true;
+  if (existing.length >= 2) return false;
+  if (existing.some(a => a.isFullDay)) return false;
+  if (newIsFullDay) return false;
+
+  const ex = existing[0];
+
+  if (newIsDraft) {
+    if (ex.isDraftMeeting) return false;
+    if (ex.slotTime !== '10:00') return false;
+    return true;
+  }
+
+  if (ex.isDraftMeeting) {
+    if (newSlotTime !== '10:00') return false;
+    return true;
+  }
+
+  if (ex.locationCode && newLocationCode && ex.locationCode !== newLocationCode) {
+    return false;
+  }
+
+  const slots = [ex.slotTime, newSlotTime].sort();
+  if (slots[0] === '10:00' && slots[1] === '14:00') return true;
+
+  return false;
 }
 
 export async function getAvailableSlots(
@@ -112,8 +147,14 @@ export async function getAvailableSlots(
       appointmentDate: true,
       timeSlotId: true,
       inspectorProfileId: true,
-      appointmentType: { select: { isDraftMeeting: true } },
-      fileNumber: { include: { strata: { include: { location: { select: { locationCode: true } } } } } },
+      timeSlot: { select: { slotTime: true } },
+      appointmentType: { select: { isDraftMeeting: true, durationType: true } },
+      fileNumber: {
+        select: {
+          appointmentOfferSecondInspectorId: true,
+          strata: { include: { location: { select: { locationCode: true } } } },
+        },
+      },
     }
   });
 
@@ -141,32 +182,47 @@ export async function getAvailableSlots(
     }
   }
 
-  // Track which dates have draft vs inspection appointments (for cross-day conflict)
-  const draftBookedDates = new Set<string>();
-  const inspectionBookedDates = new Set<string>();
+  const inspectorDayAppointments = new Map<string, InspectorDaySlot[]>();
   const inspectorBookedSlots = new Map<string, Set<string>>();
-  // Track region per inspector per day: key = `${inspectorId}_${dateStr}`, value = locationCode
-  const inspectorDateRegion = new Map<string, string>();
+
   for (const apt of existingAppointments) {
     const dateStr = formatDateStr(apt.appointmentDate);
-    if (apt.appointmentType.isDraftMeeting) {
-      draftBookedDates.add(dateStr);
-    } else {
-      inspectionBookedDates.add(dateStr);
-    }
-    if (apt.inspectorProfileId) {
-      const inspId = apt.inspectorProfileId;
+    const slotTime = apt.timeSlot.slotTime;
+    const aptIsDraft = apt.appointmentType.isDraftMeeting;
+    const aptIsFullDay = !aptIsDraft &&
+      (apt.appointmentType.durationType?.toLowerCase() === 'full day');
+    const aptLocationCode = apt.fileNumber.strata.location?.locationCode ?? null;
+
+    const slotDetail: InspectorDaySlot = {
+      slotTime,
+      isDraftMeeting: aptIsDraft,
+      isFullDay: aptIsFullDay,
+      locationCode: aptLocationCode,
+    };
+
+    const aptInspectorIds = [
+      apt.inspectorProfileId,
+      apt.fileNumber.appointmentOfferSecondInspectorId,
+    ].filter((id): id is string => !!id);
+
+    for (const inspId of aptInspectorIds) {
+      const dayKey = `${inspId}_${dateStr}`;
+      if (!inspectorDayAppointments.has(dayKey)) inspectorDayAppointments.set(dayKey, []);
+      inspectorDayAppointments.get(dayKey)!.push(slotDetail);
+
       if (!inspectorBookedSlots.has(inspId)) inspectorBookedSlots.set(inspId, new Set());
       inspectorBookedSlots.get(inspId)!.add(`${dateStr}_${apt.timeSlotId}`);
-      // Record region for non-draft appointments (draft = Virtual, no region restriction)
-      if (!apt.appointmentType.isDraftMeeting) {
-        const aptLocationCode = apt.fileNumber.strata.location?.locationCode;
-        if (aptLocationCode) {
-          inspectorDateRegion.set(`${inspId}_${dateStr}`, aptLocationCode);
-        }
-      }
     }
   }
+
+  const offeredType = sr.appointmentOfferTypeId
+    ? await prisma.appointmentType.findUnique({
+        where: { appointmentTypeId: sr.appointmentOfferTypeId },
+        select: { durationType: true },
+      })
+    : null;
+  const proposedIsFullDay = !isDraftMeeting &&
+    (offeredType?.durationType?.toLowerCase() === 'full day');
 
   const results: AvailableDay[] = [];
   const today = formatDateStr(new Date());
@@ -186,10 +242,6 @@ export async function getAvailableSlots(
 
     if (dayAvailability.length === 0) continue;
 
-    // Cross-day conflict: draft days block inspections and vice versa
-    if (isDraftMeeting && inspectionBookedDates.has(dateStr)) continue;
-    if (!isDraftMeeting && draftBookedDates.has(dateStr)) continue;
-
     const availableSlots: AvailableSlot[] = [];
 
     for (const slot of timeSlots) {
@@ -200,10 +252,17 @@ export async function getAvailableSlots(
       if (heldSlots.has(slotKey)) continue;
 
       const inspectorCanCoverSlot = (inspId: string) => {
-        // Same-region constraint: if inspector has a non-draft booking that day in a different region, skip
-        if (!isDraftMeeting) {
-          const bookedRegion = inspectorDateRegion.get(`${inspId}_${dateStr}`);
-          if (bookedRegion && bookedRegion !== locationCode) return false;
+        const dayKey = `${inspId}_${dateStr}`;
+        const existingForDay = inspectorDayAppointments.get(dayKey) || [];
+
+        if (!canInspectorTakeSlot(
+          existingForDay,
+          slot.slotTime,
+          isDraftMeeting,
+          proposedIsFullDay,
+          isDraftMeeting ? null : (locationCode ?? null),
+        )) {
+          return false;
         }
 
         const inspAvail = dayAvailability.filter(a => a.inspectorProfile.id === inspId);
@@ -225,10 +284,8 @@ export async function getAvailableSlots(
 
       let slotAvailable: boolean;
       if (assignedInspectorIds.length > 0) {
-        // All assigned inspectors must be available for this slot
         slotAvailable = assignedInspectorIds.every(id => inspectorCanCoverSlot(id));
       } else {
-        // No specific inspector assigned — any available inspector works
         const uniqueInspectorIds = [...new Set(dayAvailability.map(a => a.inspectorProfile.id))];
         slotAvailable = uniqueInspectorIds.some(id => inspectorCanCoverSlot(id));
       }
