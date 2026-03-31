@@ -3,7 +3,7 @@ import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { logger } from 'hono/logger';
 import { cors } from 'hono/cors';
-import { authMiddleware, internalUserMiddleware, noDeleteMiddleware } from './shared/middleware/auth';
+import { authMiddleware, internalUserMiddleware, noDeleteMiddleware, adminAssistantOnlyMiddleware, inspectorReadOnlyMiddleware } from './shared/middleware/auth';
 import prisma from './shared/lib/prismaClient';
 
 // Admin routes
@@ -65,6 +65,9 @@ app.route('/api/lookups', lookupRoutes);
 app.use('/admin/*', authMiddleware);
 app.use('/admin/*', internalUserMiddleware);
 app.use('/admin/*', noDeleteMiddleware);
+app.use('/admin/questions/*', adminAssistantOnlyMiddleware);
+app.use('/admin/company-holidays/*', adminAssistantOnlyMiddleware);
+app.use('/admin/*', inspectorReadOnlyMiddleware);
 app.route('/admin', adminProfileRoutes);
 app.route('/admin', adminUsersRoutes);
 app.route('/admin', strataRoutes);
