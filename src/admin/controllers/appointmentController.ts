@@ -3,7 +3,10 @@ import { success, error, asyncHandler, getByIdHandler } from '../../shared/helpe
 import { parseIntParam } from '../../shared/helpers/parseParams';
 
 export const getAppointments = asyncHandler(async (c) => {
-  const appointments = await appointmentService.getAppointments();
+  const userTypeId = c.get('userTypeId');
+  const user = c.get('user');
+  const inspectorProfileId = userTypeId === 2 ? user.id : undefined;
+  const appointments = await appointmentService.getAppointments(inspectorProfileId);
   return success(c, appointments);
 }, 'Failed to fetch appointments');
 

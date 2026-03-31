@@ -134,8 +134,9 @@ async function assertNoInspectorSchedulingConflict(
   }
 }
 
-export const getAppointments = async () => {
+export const getAppointments = async (inspectorProfileId?: string) => {
   return prisma.appointment.findMany({
+    where: inspectorProfileId ? { inspectorProfileId } : undefined,
     orderBy: { appointmentDate: 'desc' },
     include: {
       appointmentType: {

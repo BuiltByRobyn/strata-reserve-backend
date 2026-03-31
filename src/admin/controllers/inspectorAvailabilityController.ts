@@ -4,6 +4,19 @@ import { parseIntParam } from '../../shared/helpers/parseParams';
 import { VALID_LOCATION_CODES, LOCATION_CODE_MAP } from '../../shared/constants/validation';
 import { toUTCDate } from '../../shared/helpers/dateUtils';
 
+const getInspectorContext = (c: any) => {
+  const userTypeId = c.get('userTypeId');
+  const user = c.get('user');
+  return { isInspector: userTypeId === 2, profileId: user?.id as string };
+};
+
+const assertOwnership = async (id: number, profileId: string) => {
+  const record = await inspectorAvailabilityService.getAvailableDateById(id);
+  if (!record || record.inspectorProfileId !== profileId) {
+    throw Object.assign(new Error('Forbidden - You can only modify your own availability'), { status: 403 });
+  }
+};
+
 const normalizeLocationCodes = (codes: string[] | undefined) =>
   codes?.map(c => LOCATION_CODE_MAP[c] ?? c);
 
@@ -17,7 +30,8 @@ const validateLocationCodes = (locationCodes: string[] | undefined): string | nu
 };
 
 export const getAvailableDates = asyncHandler(async (c) => {
-  const inspectorProfileId = c.req.query('inspectorProfileId');
+  const { isInspector, profileId } = getInspectorContext(c);
+  const inspectorProfileId = isInspector ? profileId : c.req.query('inspectorProfileId');
   const availableDates = await inspectorAvailabilityService.getAvailableDates(inspectorProfileId);
   return success(c, availableDates);
 }, 'Failed to fetch available dates');
@@ -25,8 +39,10 @@ export const getAvailableDates = asyncHandler(async (c) => {
 export const getAvailableDateById = getByIdHandler(inspectorAvailabilityService.getAvailableDateById, 'Available date');
 
 export const createAvailableDate = asyncHandler(async (c) => {
+  const { isInspector, profileId } = getInspectorContext(c);
   const body = await c.req.json();
-  const { availableStartDate, availableEndDate, availableStartTime, availableEndTime, inspectorProfileId, locationCodes } = body;
+  const { availableStartDate, availableEndDate, availableStartTime, availableEndTime, locationCodes } = body;
+  const inspectorProfileId = isInspector ? profileId : body.inspectorProfileId;
 
   if (!availableStartDate || !availableEndDate || !inspectorProfileId) {
     return error(c, 'Start date, end date, and inspector profile ID are required', 400);
@@ -50,7 +66,9 @@ export const createAvailableDate = asyncHandler(async (c) => {
 }, 'Failed to create available date');
 
 export const updateAvailableDate = asyncHandler(async (c) => {
+  const { isInspector, profileId } = getInspectorContext(c);
   const id = parseIntParam(c, 'id');
+  if (isInspector) await assertOwnership(id, profileId);
   const body = await c.req.json();
   const { availableStartDate, availableEndDate, availableStartTime, availableEndTime, locationCodes } = body;
 
@@ -90,7 +108,9 @@ export const updateAvailableDate = asyncHandler(async (c) => {
 }, 'Failed to update available date');
 
 export const deleteAvailableDate = asyncHandler(async (c) => {
+  const { isInspector, profileId } = getInspectorContext(c);
   const id = parseIntParam(c, 'id');
+  if (isInspector) await assertOwnership(id, profileId);
   try {
     await inspectorAvailabilityService.deleteAvailableDate(id);
     return success(c, { message: 'Available date deleted successfully' });
@@ -103,9 +123,10 @@ export const deleteAvailableDate = asyncHandler(async (c) => {
 }, 'Failed to delete available date');
 
 export const getAvailableDatesByRange = asyncHandler(async (c) => {
+  const { isInspector, profileId } = getInspectorContext(c);
   const startDate = c.req.query('startDate');
   const endDate = c.req.query('endDate');
-  const inspectorProfileId = c.req.query('inspectorProfileId');
+  const inspectorProfileId = isInspector ? profileId : c.req.query('inspectorProfileId');
   const locationCodesParam = c.req.query('locationCodes');
 
   if (!startDate || !endDate) {

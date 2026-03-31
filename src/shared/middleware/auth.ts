@@ -2,6 +2,7 @@ import { Context, Next } from 'hono';
 import { supabase } from '../lib/supabaseClient';
 import { prisma } from '../lib/prismaClient';
 import { DELETE_EXEMPT_PATTERNS } from '../config/deleteExemptRoutes';
+import { INSPECTOR_WRITE_EXEMPT_PATTERNS } from '../config/inspectorExemptRoutes';
 
 export const authMiddleware = async (c: Context, next: Next) => {
   const authHeader = c.req.header('Authorization');
@@ -70,6 +71,26 @@ export const internalUserMiddleware = async (c: Context, next: Next) => {
   } catch {
     return c.json({ success: false, error: 'Authorization check failed' }, 500);
   }
+};
+
+export const adminAssistantOnlyMiddleware = async (c: Context, next: Next) => {
+  const userTypeId = c.get('userTypeId');
+  if (userTypeId === 2) {
+    return c.json({ success: false, error: 'Forbidden - You do not have access to this resource' }, 403);
+  }
+  await next();
+};
+
+export const inspectorReadOnlyMiddleware = async (c: Context, next: Next) => {
+  const userTypeId = c.get('userTypeId');
+  if (userTypeId === 2 && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(c.req.method)) {
+    const path = new URL(c.req.url).pathname;
+    const isExempt = INSPECTOR_WRITE_EXEMPT_PATTERNS.some(pattern => pattern.test(path));
+    if (!isExempt) {
+      return c.json({ success: false, error: 'Forbidden - Inspectors have read-only access to this resource' }, 403);
+    }
+  }
+  await next();
 };
 
 export const noDeleteMiddleware = async (c: Context, next: Next) => {
