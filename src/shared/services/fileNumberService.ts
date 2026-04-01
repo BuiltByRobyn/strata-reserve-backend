@@ -219,16 +219,54 @@ export const submitForReview = async (id: number, profileId: string) => {
 
   const profile = await prisma.profile.findUnique({
     where: { id: profileId },
-    select: { email: true },
+    select: { email: true, displayName: true, firstName: true, lastName: true },
   });
 
+  const surveyDate = new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
+
   if (profile?.email) {
-    const surveyDate = new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
-    sendSurveyFinalizedEmail({
-      to: profile.email,
-      strataNumber: sr.strata?.strataPlan || '',
-      finalizedDate: surveyDate,
-    }).catch((err) => console.error('Failed to send survey finalized email:', err));
+    try {
+      await sendSurveyFinalizedEmail({
+        to: profile.email,
+        strataNumber: sr.strata?.strataPlan || '',
+        finalizedDate: surveyDate,
+      });
+    } catch (err) {
+      console.error('Failed to send survey finalized email:', err);
+    }
+  }
+
+  const fileDetails = await prisma.fileNumber.findUnique({
+    where: { fileId: id },
+    include: fileNumberIncludeList,
+  });
+  if (fileDetails) {
+    const clientStrataProfile = await prisma.strataProfile.findFirst({
+      where: {
+        strataId: sr.strataId,
+        profile: { userTypeId: { notIn: [1, 2, 4] } },
+      },
+      select: { profile: { select: { displayName: true, firstName: true, lastName: true } } },
+    });
+    const clientProfile = clientStrataProfile?.profile;
+    const clientName = clientProfile?.displayName
+      || [clientProfile?.firstName, clientProfile?.lastName].filter(Boolean).join(' ')
+      || profile?.displayName
+      || [profile?.firstName, profile?.lastName].filter(Boolean).join(' ')
+      || 'Unknown client';
+    const propertyAddress = fileDetails.strata?.complexName || fileDetails.strata?.strataPlan || '';
+    try {
+      await sendAdminSurveyFinalizedEmail({
+        fileNumber: fileDetails.fileNumber || '',
+        strataNumber: fileDetails.strata?.strataPlan || '',
+        propertyAddress,
+        clientName,
+        surveyDate,
+        surveyCompleted: 'Yes',
+      });
+    } catch (err) {
+      console.error('Failed to send admin survey finalized email:', err);
+    }
   }
 
   const updated = await tryFinalizeApplication(id);
@@ -261,21 +299,6 @@ export const tryFinalizeApplication = async (fileId: number) => {
     data: { submittedForReviewDate: new Date(), status: 'Pending Approval' },
     include: fileNumberIncludeList,
   });
-
-  const clientName = updated.requestedBy?.displayName
-    || [updated.requestedBy?.firstName, updated.requestedBy?.lastName].filter(Boolean).join(' ')
-    || 'Unknown client';
-  const propertyAddress = updated.strata?.complexName || updated.strata?.strataPlan || '';
-  const surveyDate = new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
-
-  sendAdminSurveyFinalizedEmail({
-    fileNumber: updated.fileNumber || '',
-    strataNumber: updated.strata?.strataPlan || '',
-    propertyAddress,
-    clientName,
-    surveyDate,
-    surveyCompleted: 'Yes',
-  }).catch((err) => console.error('Failed to send admin finalized email:', err));
 
   return updated;
 };
