@@ -3,7 +3,7 @@ import * as timelinesService from '../../shared/services/timelinesService';
 import { success, created, error, asyncHandler, getByIdHandler, deleteHandler } from '../../shared/helpers/responseHelper';
 import { parseIntParam } from '../../shared/helpers/parseParams';
 import { STRATA_ID_PATTERN } from '../../shared/constants/validation';
-import { sendNewStrataEmail } from '../../shared/lib/emailService';
+
 
 export const getStratas = asyncHandler(async (c) => {
   const stratas = await strataService.getStratas();
@@ -35,14 +35,6 @@ export const createStrata = asyncHandler(async (c) => {
     sectionIds: Array.isArray(body.sectionIds) ? body.sectionIds.map(Number) : undefined,
     propertyTypeIds: Array.isArray(body.propertyTypeIds) ? body.propertyTypeIds.map(Number) : undefined
   });
-
-  // Send admin notification (non-blocking)
-  sendNewStrataEmail({
-    strataPlan: strata?.strataPlan || body.strataPlan?.trim() || '',
-    complexName: strata?.complexName || body.complexName?.trim(),
-    town: strata?.town || body.town?.trim(),
-    province: strata?.province || body.province?.trim(),
-  }).catch(err => console.error('Failed to send strata notification email:', err));
 
   return created(c, strata);
 }, 'Failed to create strata');

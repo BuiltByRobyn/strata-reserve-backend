@@ -570,24 +570,16 @@ export const createAdminDocResubmittedNotification = async (fileId: number) => {
 export const createClientReviewCompleteNotification = async (
   fileId: number,
   reviewId: number,
-  items: Array<{
-    documentTypeName: string;
-    versionLabel: string;
-    propertyTypeName: string | null;
-    statusName: string;
-    notes: string | null;
-  }>
 ) => {
   const fileNumberRecord = await prisma.fileNumber.findUnique({
     where: { fileId },
     select: {
-      fileNumber: true,
       strata: {
         select: {
           strataPlan: true,
           complexName: true,
           strataProfiles: {
-            select: { profile: { select: { id: true, email: true, firstName: true } } },
+            select: { profile: { select: { id: true } } },
           },
         },
       },
@@ -596,7 +588,6 @@ export const createClientReviewCompleteNotification = async (
   if (!fileNumberRecord) return;
 
   const strataName = fileNumberRecord.strata.complexName || fileNumberRecord.strata.strataPlan || '';
-  const fnLabel = fileNumberRecord.fileNumber || String(fileId);
   const clientProfiles = fileNumberRecord.strata.strataProfiles.map((sp) => sp.profile);
 
   if (clientProfiles.length > 0) {
@@ -609,20 +600,6 @@ export const createClientReviewCompleteNotification = async (
         referenceId: reviewId,
       })),
     });
-  }
-
-  for (const client of clientProfiles) {
-    if (client.email) {
-      emailService
-        .sendDocumentReviewResultEmail({
-          to: client.email,
-          firstName: client.firstName,
-          strataName,
-          fileNumber: fnLabel,
-          items,
-        })
-        .catch((err) => console.error('Email error:', err));
-    }
   }
 
   await prisma.fileNumberDocumentReview.update({
