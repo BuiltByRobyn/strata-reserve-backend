@@ -487,53 +487,6 @@ export const getLatestDocumentReview = async (fileId: number) => {
   return { requirements, review };
 };
 
-export const createAdminReadyForReviewNotification = async (fileId: number) => {
-  const existing = await prisma.inAppNotification.findFirst({
-    where: { fileId, type: 'docs_ready_for_review' },
-  });
-  if (existing) return;
-
-  const fileNumberRecord = await prisma.fileNumber.findUnique({
-    where: { fileId },
-    select: {
-      fileNumber: true,
-      strata: { select: { strataPlan: true, complexName: true } },
-    },
-  });
-  if (!fileNumberRecord) return;
-
-  const strataName = fileNumberRecord.strata.complexName || fileNumberRecord.strata.strataPlan || '';
-  const fnLabel = fileNumberRecord.fileNumber || String(fileId);
-
-  const adminProfiles = await prisma.profile.findMany({
-    where: { userTypeId: 1 },
-    select: { id: true, email: true, firstName: true },
-  });
-
-  if (adminProfiles.length > 0) {
-    await prisma.inAppNotification.createMany({
-      data: adminProfiles.map((p) => ({
-        profileId: p.id,
-        fileId,
-        type: 'docs_ready_for_review',
-        message: `Documents for ${strataName} (${fnLabel}) are ready for review.`,
-      })),
-    });
-  }
-
-  for (const admin of adminProfiles) {
-    if (admin.email) {
-      emailService
-        .sendDocumentReviewReadyEmail({
-          to: admin.email,
-          firstName: admin.firstName,
-          strataName,
-          fileNumber: fnLabel,
-        })
-        .catch((err) => console.error('Email error:', err));
-    }
-  }
-};
 
 export const createAdminDocResubmittedNotification = async (fileId: number) => {
   const latestReview = await prisma.fileNumberDocumentReview.findFirst({

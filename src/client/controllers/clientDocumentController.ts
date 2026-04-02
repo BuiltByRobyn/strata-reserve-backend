@@ -1,8 +1,8 @@
 import * as documentService from '../../shared/services/documentService';
-import * as fnDocRequirementService from '../../shared/services/fnDocRequirementService';
-import * as fileNumberService from '../../shared/services/fileNumberService';
+import * as emailService from '../../shared/lib/emailService';
 import { success, error, asyncHandler } from '../../shared/helpers/responseHelper';
 import { parseIntParam } from '../../shared/helpers/parseParams';
+import prisma from '../../shared/lib/prismaClient';
 import type { NaStatusValue } from '../../shared/types/document.types';
 
 export const getMyDocuments = asyncHandler(async (c) => {
@@ -51,12 +51,6 @@ export const setNaStatus = asyncHandler(async (c) => {
 
   await documentService.createAdminDocResubmittedNotification(fileId);
 
-  const allAnswered = await fnDocRequirementService.checkAllRequirementsAnswered(fileId);
-  if (allAnswered) {
-    await documentService.createAdminReadyForReviewNotification(fileId);
-    await fileNumberService.tryFinalizeApplication(fileId);
-  }
-
   return success(c, { updated: true });
 }, 'Failed to set document status');
 
@@ -79,11 +73,51 @@ export const markDocumentUploaded = asyncHandler(async (c) => {
 
   await documentService.createAdminDocResubmittedNotification(fileId);
 
-  const allAnswered = await fnDocRequirementService.checkAllRequirementsAnswered(fileId);
-  if (allAnswered) {
-    await documentService.createAdminReadyForReviewNotification(fileId);
-    await fileNumberService.tryFinalizeApplication(fileId);
-  }
-
   return success(c, { updated: true });
 }, 'Failed to mark document as uploaded');
+
+export const finalizeDocuments = asyncHandler(async (c) => {
+  const user = c.get('user');
+  const fileId = parseIntParam(c, 'id');
+
+  const fn = await prisma.fileNumber.findFirst({
+    where: { fileId },
+    select: {
+      fileNumber: true,
+      submittedForReviewDate: true,
+      strata: { select: { strataPlan: true, complexName: true } },
+    },
+  });
+
+  if (!fn) return error(c, 'File number not found', 404);
+
+  const finalizedByProfile = await prisma.profile.findUnique({
+    where: { id: user.id },
+    select: { displayName: true, firstName: true, lastName: true },
+  });
+
+  const documentCount = await prisma.fileNumberDocumentRequirement.count({
+    where: { fileId },
+  });
+
+  const strataNumber = fn.strata?.strataPlan || '';
+  const propertyAddress = fn.strata?.complexName || strataNumber;
+  const clientName = finalizedByProfile?.displayName
+    || [finalizedByProfile?.firstName, finalizedByProfile?.lastName].filter(Boolean).join(' ')
+    || 'Unknown';
+  const finalizedBy = finalizedByProfile?.displayName
+    || [finalizedByProfile?.firstName, finalizedByProfile?.lastName].filter(Boolean).join(' ')
+    || 'Client';
+
+  emailService.sendAdminDocumentsFinalizedEmail({
+    fileNumber: fn.fileNumber || '',
+    strataNumber,
+    propertyAddress,
+    clientName,
+    documentCount,
+    finalizedBy,
+    surveyCompleted: fn.submittedForReviewDate ? 'Yes' : 'No',
+  }).catch((err) => console.error('Failed to send admin documents finalized email:', err));
+
+  return success(c, { finalized: true });
+}, 'Failed to finalize documents');
