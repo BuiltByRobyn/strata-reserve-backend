@@ -20,15 +20,7 @@ export const submitDocumentReview = asyncHandler(async (c) => {
 
   const review = await documentService.submitBatchDocumentReview(fileId, user.id, items);
 
-  const reviewItems = review.items.map((item) => ({
-    documentTypeName: item.requirement.documentType.typeName,
-    versionLabel: item.requirement.versionLabel,
-    propertyTypeName: item.requirement.propertyType?.propertyTypeName ?? null,
-    statusName: item.reviewStatus.statusName,
-    notes: item.notes,
-  }));
-
-  await documentService.createClientReviewCompleteNotification(fileId, review.reviewId, reviewItems);
+  await documentService.createClientReviewCompleteNotification(fileId, review.reviewId);
 
   return success(c, review);
 }, 'Failed to submit document review');
