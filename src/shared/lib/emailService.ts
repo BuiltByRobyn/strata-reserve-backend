@@ -1,6 +1,6 @@
-import { Resend } from 'resend';
-import prisma from './prismaClient';
-import { supabase } from './supabaseClient';
+import { Resend } from "resend";
+import prisma from "./prismaClient";
+import { supabase } from "./supabaseClient";
 import type {
   NewStrataEmailParams,
   DocumentReviewResultEmailParams,
@@ -20,11 +20,15 @@ import type {
   AdminPhoneNumberUpdatedEmailParams,
   PasswordUpdatedEmailParams,
   AdminAppointmentBookingOpenEmailParams,
-} from '../types/email.types';
+} from "../types/email.types";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Strata Reserve Planning <noreply@stratareserveplanning.com>';
-const FRONTEND_URL = (process.env.FRONTEND_URL || 'https://your-app-url.com').replace(/\/$/, '');
+const FROM_EMAIL =
+  process.env.RESEND_FROM_EMAIL ||
+  "Strata Reserve Planning <noreply@stratareserveplanning.com>";
+const FRONTEND_URL = (
+  process.env.FRONTEND_URL || "https://your-app-url.com"
+).replace(/\/$/, "");
 
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 
@@ -33,22 +37,27 @@ async function getAdminEmails(): Promise<string[]> {
     where: { userTypeId: 1 },
     select: { id: true },
   });
-  const adminIds = adminProfiles.map(p => p.id);
-  const { data: authUsers } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+  const adminIds = adminProfiles.map((p) => p.id);
+  const { data: authUsers } = await supabase.auth.admin.listUsers({
+    perPage: 1000,
+  });
   return (authUsers?.users ?? [])
-    .filter(u => adminIds.includes(u.id) && !!u.email)
-    .map(u => u.email as string);
+    .filter((u) => adminIds.includes(u.id) && !!u.email)
+    .map((u) => u.email as string);
 }
 
-export async function sendPropertyTypeUpdatedEmail(params: PropertyTypeUpdatedEmailParams): Promise<void> {
+export async function sendPropertyTypeUpdatedEmail(
+  params: PropertyTypeUpdatedEmailParams,
+): Promise<void> {
   if (!resend || !params.to) return;
 
   const { error } = await resend.emails.send({
     from: FROM_EMAIL,
     to: params.to,
-    subject: 'Your property type change request has been reviewed – Strata Reserve Planning',
+    subject:
+      "Your property type change request has been reviewed – Strata Reserve Planning",
     template: {
-      id: 'property-type-updated-client-1',
+      id: "property-type-updated-client-1",
       variables: {
         StrataNumber: params.strataNumber,
         Status: params.status,
@@ -60,15 +69,17 @@ export async function sendPropertyTypeUpdatedEmail(params: PropertyTypeUpdatedEm
   if (error) throw new Error(error.message);
 }
 
-export async function sendFileCompletionEmail(params: FileCompletionEmailParams): Promise<void> {
+export async function sendFileCompletionEmail(
+  params: FileCompletionEmailParams,
+): Promise<void> {
   if (!resend || !params.to) return;
 
   const { error } = await resend.emails.send({
     from: FROM_EMAIL,
     to: params.to,
-    subject: 'Your file has been completed – Strata Reserve Planning',
+    subject: "Your file has been completed – Strata Reserve Planning",
     template: {
-      id: 'file-completion-notification-client-1',
+      id: "file-completion-notification-client-1",
       variables: {
         StrataNumber: params.strataNumber,
         CompletedDate: params.completedDate,
@@ -80,7 +91,9 @@ export async function sendFileCompletionEmail(params: FileCompletionEmailParams)
   if (error) throw new Error(error.message);
 }
 
-export async function sendAdminPhoneNumberUpdatedEmail(params: AdminPhoneNumberUpdatedEmailParams): Promise<void> {
+export async function sendAdminPhoneNumberUpdatedEmail(
+  params: AdminPhoneNumberUpdatedEmailParams,
+): Promise<void> {
   if (!resend) return;
   const to = await getAdminEmails();
   if (to.length === 0) return;
@@ -88,9 +101,10 @@ export async function sendAdminPhoneNumberUpdatedEmail(params: AdminPhoneNumberU
   const { error } = await resend.emails.send({
     from: FROM_EMAIL,
     to,
-    subject: '[Admin Alert] A client has updated their phone number – Strata Reserve Planning',
+    subject:
+      "[Admin Alert] A client has updated their phone number – Strata Reserve Planning",
     template: {
-      id: 'client-phone-number-alert-admin-2',
+      id: "client-phone-number-alert-admin-2",
       variables: {
         ClientName: params.clientName,
         ClientEmail: params.clientEmail,
@@ -105,15 +119,17 @@ export async function sendAdminPhoneNumberUpdatedEmail(params: AdminPhoneNumberU
   if (error) throw new Error(error.message);
 }
 
-export async function sendPhoneNumberUpdatedEmail(params: PhoneNumberUpdatedEmailParams): Promise<void> {
+export async function sendPhoneNumberUpdatedEmail(
+  params: PhoneNumberUpdatedEmailParams,
+): Promise<void> {
   if (!resend || !params.to) return;
 
   const { error } = await resend.emails.send({
     from: FROM_EMAIL,
     to: params.to,
-    subject: 'Your phone number has been updated – Strata Reserve Planning',
+    subject: "Your phone number has been updated – Strata Reserve Planning",
     template: {
-      id: 'phone-number-updated-client-1',
+      id: "phone-number-updated-client-1",
       variables: {
         NewPhone: params.newPhone,
         SiteURL: FRONTEND_URL,
@@ -123,7 +139,9 @@ export async function sendPhoneNumberUpdatedEmail(params: PhoneNumberUpdatedEmai
   if (error) throw new Error(error.message);
 }
 
-export async function sendAdminAppointmentCancelledEmail(params: AdminAppointmentCancelledEmailParams): Promise<void> {
+export async function sendAdminAppointmentCancelledEmail(
+  params: AdminAppointmentCancelledEmailParams,
+): Promise<void> {
   if (!resend) return;
   const to = await getAdminEmails();
   if (to.length === 0) return;
@@ -133,7 +151,7 @@ export async function sendAdminAppointmentCancelledEmail(params: AdminAppointmen
     to,
     subject: `Appointment Cancelled: ${params.fileNumber} — Strata Reserve Planning`,
     template: {
-      id: 'appointment-cancellation-alert-admin-2',
+      id: "appointment-cancellation-alert-admin-2",
       variables: {
         FileNumber: params.fileNumber,
         StrataNumber: params.strataNumber,
@@ -153,7 +171,9 @@ export async function sendAdminAppointmentCancelledEmail(params: AdminAppointmen
   if (error) throw new Error(error.message);
 }
 
-export async function sendAdminAppointmentBookingRequestEmail(params: AdminAppointmentBookingRequestEmailParams): Promise<void> {
+export async function sendAdminAppointmentBookingRequestEmail(
+  params: AdminAppointmentBookingRequestEmailParams,
+): Promise<void> {
   if (!resend) return;
   const to = await getAdminEmails();
   if (to.length === 0) return;
@@ -163,7 +183,7 @@ export async function sendAdminAppointmentBookingRequestEmail(params: AdminAppoi
     to,
     subject: `New Appointment Booking Request: ${params.fileNumber} — Strata Reserve Planning`,
     template: {
-      id: 'appointment-booking-alert-admin-2',
+      id: "appointment-booking-alert-admin-2",
       variables: {
         FileNumber: params.fileNumber,
         StrataNumber: params.strataNumber,
@@ -184,7 +204,9 @@ export async function sendAdminAppointmentBookingRequestEmail(params: AdminAppoi
   if (error) throw new Error(error.message);
 }
 
-export async function sendAdminPropertyTypeChangeRequestEmail(params: AdminPropertyTypeChangeRequestEmailParams): Promise<void> {
+export async function sendAdminPropertyTypeChangeRequestEmail(
+  params: AdminPropertyTypeChangeRequestEmailParams,
+): Promise<void> {
   if (!resend) return;
   const to = await getAdminEmails();
   if (to.length === 0) return;
@@ -194,7 +216,7 @@ export async function sendAdminPropertyTypeChangeRequestEmail(params: AdminPrope
     to,
     subject: `Property Type Change Request: ${params.fileNumber} — Strata Reserve Planning`,
     template: {
-      id: 'property-type-change-request-admin-2',
+      id: "property-type-change-request-admin-2",
       variables: {
         FileNumber: params.fileNumber,
         StrataNumber: params.strataNumber,
@@ -212,7 +234,9 @@ export async function sendAdminPropertyTypeChangeRequestEmail(params: AdminPrope
   if (error) throw new Error(error.message);
 }
 
-export async function sendAdminDocumentsFinalizedEmail(params: AdminDocumentsFinalizedEmailParams): Promise<void> {
+export async function sendAdminDocumentsFinalizedEmail(
+  params: AdminDocumentsFinalizedEmailParams,
+): Promise<void> {
   if (!resend) return;
   const to = await getAdminEmails();
   if (to.length === 0) return;
@@ -222,7 +246,7 @@ export async function sendAdminDocumentsFinalizedEmail(params: AdminDocumentsFin
     to,
     subject: `Documents Finalized: ${params.fileNumber} — Strata Reserve Planning`,
     template: {
-      id: 'documents-finalized-alert-admin-2',
+      id: "documents-finalized-alert-admin-2",
       variables: {
         FileNumber: params.fileNumber,
         StrataNumber: params.strataNumber,
@@ -239,7 +263,9 @@ export async function sendAdminDocumentsFinalizedEmail(params: AdminDocumentsFin
   if (error) throw new Error(error.message);
 }
 
-export async function sendAdminSurveyFinalizedEmail(params: AdminSurveyFinalizedEmailParams): Promise<void> {
+export async function sendAdminSurveyFinalizedEmail(
+  params: AdminSurveyFinalizedEmailParams,
+): Promise<void> {
   if (!resend) return;
   const to = await getAdminEmails();
   if (to.length === 0) return;
@@ -249,7 +275,7 @@ export async function sendAdminSurveyFinalizedEmail(params: AdminSurveyFinalized
     to,
     subject: `Survey Finalized: ${params.fileNumber} — Strata Reserve Planning`,
     template: {
-      id: 'survey-finalized-notification-admin-2',
+      id: "survey-finalized-notification-admin-2",
       variables: {
         FileNumber: params.fileNumber,
         StrataNumber: params.strataNumber,
@@ -265,15 +291,17 @@ export async function sendAdminSurveyFinalizedEmail(params: AdminSurveyFinalized
   if (error) throw new Error(error.message);
 }
 
-export async function sendSurveyFinalizedEmail(params: SurveyFinalizedEmailParams): Promise<void> {
+export async function sendSurveyFinalizedEmail(
+  params: SurveyFinalizedEmailParams,
+): Promise<void> {
   if (!resend || !params.to) return;
 
   const { error } = await resend.emails.send({
     from: FROM_EMAIL,
     to: params.to,
-    subject: 'Your survey has been finalized – Strata Reserve Planning',
+    subject: "Your survey has been finalized – Strata Reserve Planning",
     template: {
-      id: 'survey-finalized-client-1',
+      id: "survey-finalized-client-1",
       variables: {
         StrataNumber: params.strataNumber,
         FinalizedDate: params.finalizedDate,
@@ -284,15 +312,17 @@ export async function sendSurveyFinalizedEmail(params: SurveyFinalizedEmailParam
   if (error) throw new Error(error.message);
 }
 
-export async function sendDocumentsFinalizedEmail(params: DocumentsFinalizedEmailParams): Promise<void> {
+export async function sendDocumentsFinalizedEmail(
+  params: DocumentsFinalizedEmailParams,
+): Promise<void> {
   if (!resend || !params.to) return;
 
   const { error } = await resend.emails.send({
     from: FROM_EMAIL,
     to: params.to,
-    subject: 'Your documents have been finalized – Strata Reserve Planning',
+    subject: "Your documents have been finalized – Strata Reserve Planning",
     template: {
-      id: 'documents-finalized-notification-client-1',
+      id: "documents-finalized-notification-client-1",
       variables: {
         StrataNumber: params.strataNumber,
         FinalizedDate: params.finalizedDate,
@@ -303,7 +333,9 @@ export async function sendDocumentsFinalizedEmail(params: DocumentsFinalizedEmai
   if (error) throw new Error(error.message);
 }
 
-export async function sendAppointmentBookingOpenEmail(params: AppointmentBookingOpenEmailParams): Promise<void> {
+export async function sendAppointmentBookingOpenEmail(
+  params: AppointmentBookingOpenEmailParams,
+): Promise<void> {
   if (!resend || !params.to) return;
 
   const { error } = await resend.emails.send({
@@ -311,12 +343,12 @@ export async function sendAppointmentBookingOpenEmail(params: AppointmentBooking
     to: params.to,
     subject: `Book your ${params.meetingType} appointment – Strata Reserve Planning`,
     template: {
-      id: 'appointment-booking-open-client-2',
+      id: "appointment-booking-open-client-2",
       variables: {
         StrataNumber: params.strataNumber,
         MeetingType: params.meetingType,
         BookingURL: `${FRONTEND_URL}/appointments`,
-        BookingDeadline: params.bookingDeadline || '',
+        BookingDeadline: params.bookingDeadline || "",
         SiteURL: FRONTEND_URL,
       },
     },
@@ -324,7 +356,9 @@ export async function sendAppointmentBookingOpenEmail(params: AppointmentBooking
   if (error) throw new Error(error.message);
 }
 
-export async function sendAdminAppointmentBookingOpenEmail(params: AdminAppointmentBookingOpenEmailParams): Promise<void> {
+export async function sendAdminAppointmentBookingOpenEmail(
+  params: AdminAppointmentBookingOpenEmailParams,
+): Promise<void> {
   if (!resend) return;
   const to = await getAdminEmails();
   if (to.length === 0) return;
@@ -334,7 +368,7 @@ export async function sendAdminAppointmentBookingOpenEmail(params: AdminAppointm
     to,
     subject: `Booking Now Open: ${params.strataNumber} — ${params.meetingType} — Strata Reserve Planning`,
     template: {
-      id: 'appointment-booking-open-admin-1',
+      id: "appointment-booking-open-admin-1",
       variables: {
         FileNumber: params.fileNumber,
         StrataNumber: params.strataNumber,
@@ -348,7 +382,9 @@ export async function sendAdminAppointmentBookingOpenEmail(params: AdminAppointm
   if (error) throw new Error(error.message);
 }
 
-export async function sendMeetingStatusUpdateEmail(params: MeetingStatusUpdateEmailParams): Promise<void> {
+export async function sendMeetingStatusUpdateEmail(
+  params: MeetingStatusUpdateEmailParams,
+): Promise<void> {
   if (!resend || !params.to) return;
 
   const { error } = await resend.emails.send({
@@ -356,14 +392,19 @@ export async function sendMeetingStatusUpdateEmail(params: MeetingStatusUpdateEm
     to: params.to,
     subject: `Your meeting request has been ${params.status} – Strata Reserve Planning`,
     template: {
-      id: 'meeting-status-update-client-1',
+      id: "meeting-status-update-client-1",
       variables: {
         StrataNumber: params.strataNumber,
         MeetingType: params.meetingType,
         MeetingStatus: params.status,
-        MeetingStatusClass: params.status === 'Approved' ? 'approved' : params.status === 'Rejected' ? 'denied' : 'rescheduled',
-        MeetingDate: params.meetingDate || '',
-        MeetingTime: params.meetingTime || '',
+        MeetingStatusClass:
+          params.status === "Approved"
+            ? "approved"
+            : params.status === "Rejected"
+              ? "denied"
+              : "rescheduled",
+        MeetingDate: params.meetingDate || "",
+        MeetingTime: params.meetingTime || "",
         SiteURL: FRONTEND_URL,
       },
     },
@@ -371,15 +412,17 @@ export async function sendMeetingStatusUpdateEmail(params: MeetingStatusUpdateEm
   if (error) throw new Error(error.message);
 }
 
-export async function sendPasswordUpdatedEmail(params: PasswordUpdatedEmailParams): Promise<void> {
+export async function sendPasswordUpdatedEmail(
+  params: PasswordUpdatedEmailParams,
+): Promise<void> {
   if (!resend || !params.to) return;
 
   const { error } = await resend.emails.send({
     from: FROM_EMAIL,
     to: params.to,
-    subject: 'Your password has been updated – Strata Reserve Planning',
+    subject: "Your password has been updated – Strata Reserve Planning",
     template: {
-      id: 'password-update-confirmation-admin-client',
+      id: "password-update-confirmation-admin-client",
       variables: {
         SiteURL: FRONTEND_URL,
       },
@@ -388,15 +431,17 @@ export async function sendPasswordUpdatedEmail(params: PasswordUpdatedEmailParam
   if (error) throw new Error(error.message);
 }
 
-export async function sendFileCreatedEmail(params: FileCreatedEmailParams): Promise<void> {
+export async function sendFileCreatedEmail(
+  params: FileCreatedEmailParams,
+): Promise<void> {
   if (!resend || !params.to) return;
 
   const { error } = await resend.emails.send({
     from: FROM_EMAIL,
     to: params.to,
-    subject: 'Your file has been created – Strata Reserve Planning',
+    subject: "Your file has been created – Strata Reserve Planning",
     template: {
-      id: 'file-creation-notification-client-1',
+      id: "file-creation-notification-client-1",
       variables: {
         StrataNumber: params.strataNumber,
         SiteURL: FRONTEND_URL,
@@ -404,88 +449,4 @@ export async function sendFileCreatedEmail(params: FileCreatedEmailParams): Prom
     },
   });
   if (error) throw new Error(error.message);
-}
-
-
-export async function sendDocumentReviewResultEmail(params: DocumentReviewResultEmailParams): Promise<void> {
-  if (!resend || !params.to) return;
-
-  const rows = params.items
-    .map(
-      (item) => `
-    <tr>
-      <td style="padding: 8px 12px; border: 1px solid #e5e7eb;">${item.documentTypeName}${item.versionLabel ? ` (${item.versionLabel})` : ''}${item.propertyTypeName ? ` — ${item.propertyTypeName}` : ''}</td>
-      <td style="padding: 8px 12px; border: 1px solid #e5e7eb;">${item.statusName}</td>
-      <td style="padding: 8px 12px; border: 1px solid #e5e7eb;">${item.notes || ''}</td>
-    </tr>`
-    )
-    .join('');
-
-  await resend.emails.send({
-    from: FROM_EMAIL,
-    to: params.to,
-    subject: `Document Review Complete: ${params.fileNumber} — ${params.strataName}`,
-    html: `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #111827;">
-        <h2 style="color: #1e40af;">Document Review Complete</h2>
-        <p>Hello${params.firstName ? ` ${params.firstName}` : ''},</p>
-        <p>Your document submission for <strong>${params.strataName}</strong> (File ${params.fileNumber}) has been reviewed.</p>
-        <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
-          <thead>
-            <tr>
-              <th style="text-align: left; padding: 8px 12px; background: #f3f4f6; border: 1px solid #e5e7eb;">Document</th>
-              <th style="text-align: left; padding: 8px 12px; background: #f3f4f6; border: 1px solid #e5e7eb;">Status</th>
-              <th style="text-align: left; padding: 8px 12px; background: #f3f4f6; border: 1px solid #e5e7eb;">Notes</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-        <a href="${FRONTEND_URL}/documents" style="display: inline-block; background-color: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">View Portal</a>
-      </div>
-    `,
-  });
-}
-
-export async function sendNewStrataEmail(params: NewStrataEmailParams): Promise<void> {
-  if (!resend) return;
-  const to = await getAdminEmails();
-  if (to.length === 0) return;
-
-  const location = [params.town, params.province].filter(Boolean).join(', ');
-
-  await resend.emails.send({
-    from: FROM_EMAIL,
-    to,
-    subject: `New Strata Created: ${params.strataPlan}`,
-    html: `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #111827;">
-        <h2 style="color: #1e40af;">New Strata Property Added</h2>
-        <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
-          <tr>
-            <th style="text-align: left; padding: 8px 12px; background: #f3f4f6; border: 1px solid #e5e7eb;">Strata Plan</th>
-            <td style="padding: 8px 12px; border: 1px solid #e5e7eb;">${params.strataPlan}</td>
-          </tr>
-          ${params.complexName ? `
-          <tr>
-            <th style="text-align: left; padding: 8px 12px; background: #f3f4f6; border: 1px solid #e5e7eb;">Complex Name</th>
-            <td style="padding: 8px 12px; border: 1px solid #e5e7eb;">${params.complexName}</td>
-          </tr>` : ''}
-          ${location ? `
-          <tr>
-            <th style="text-align: left; padding: 8px 12px; background: #f3f4f6; border: 1px solid #e5e7eb;">Location</th>
-            <td style="padding: 8px 12px; border: 1px solid #e5e7eb;">${location}</td>
-          </tr>` : ''}
-        </table>
-        <a href="${FRONTEND_URL}/admin/strata" style="
-          display: inline-block;
-          background-color: #2563eb;
-          color: white;
-          padding: 10px 20px;
-          border-radius: 6px;
-          text-decoration: none;
-          font-weight: 600;
-        ">View in Admin Portal</a>
-      </div>
-    `,
-  });
 }
