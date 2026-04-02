@@ -17,7 +17,7 @@ export const getAdminProfile = asyncHandler(async (c) => {
     email: profile.email || user.email || '',
     phoneNumber: profile.phoneNumber || '',
     role: profile.userType?.userTypeName || 'Unknown',
-    companyName: profile.companyName || 'Strata Reserve Planning',
+    companyName: 'Strata Reserve Planning',
   });
 }, 'Failed to fetch admin profile');
 
@@ -26,7 +26,7 @@ export const updateAdminProfile = asyncHandler(async (c) => {
   if (!user) return error(c, 'Unauthorized', 401);
 
   const body = await c.req.json();
-  const { fullName, phoneNumber, companyName } = body;
+  const { fullName, phoneNumber } = body;
 
   const nameParts = (fullName || '').trim().split(/\s+/);
   const firstName = nameParts[0] || null;
@@ -52,7 +52,7 @@ export const updateAdminProfile = asyncHandler(async (c) => {
       email: updated?.email || user.email || '',
       phoneNumber: updated?.phoneNumber || '',
       role: updated?.userType?.userTypeName || 'Unknown',
-      companyName: updated?.companyName || 'Strata Reserve Planning',
+      companyName: 'Strata Reserve Planning',
     },
   });
 }, 'Failed to update admin profile');

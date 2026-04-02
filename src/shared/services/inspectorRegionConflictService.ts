@@ -4,7 +4,7 @@
   Draft meetings are virtual — they do not participate in this geographic constraint.
 */
 
-const FULL_DAY_INSPECTION_TYPE_NAME = 'Full Day Inspection';
+import { FULL_DAY_INSPECTION_TYPE_NAME } from '../constants/appointmentRules';
 
 // Minimum hours between end of one physical visit and start of another when regions differ.
 export const MIN_HOURS_BETWEEN_DIFFERENT_REGION_PHYSICAL = 4;

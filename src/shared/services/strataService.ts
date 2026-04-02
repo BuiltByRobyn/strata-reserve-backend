@@ -181,7 +181,6 @@ export const updateStrata = async (id: number, data: UpdateStrataInput) => {
     }
   });
 
-  // Sync fiscalYearEnd to all active FileNumbers for this strata
   if (fiscalYearEndDate !== undefined) {
     await prisma.fileNumber.updateMany({
       where: { strataId: id, archived: false },
