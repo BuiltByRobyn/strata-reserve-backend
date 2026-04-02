@@ -287,7 +287,7 @@ export const cancelAppointment = async (id: number, reason?: string) => {
       fileNumber: {
         select: {
           fileNumber: true,
-          strata: { select: { strataPlan: true, complexName: true } },
+          strata: { select: { strataId: true, strataPlan: true, complexName: true } },
           requestedBy: { select: { firstName: true, lastName: true, displayName: true, email: true } },
         },
       },
@@ -323,6 +323,25 @@ export const cancelAppointment = async (id: number, reason?: string) => {
       cancelledAt: new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' }),
       cancellationReason: reason || 'No reason provided',
     }).catch((err) => console.error('Failed to send admin appointment cancelled email:', err));
+
+    const strataId = fileNumber?.strata?.strataId;
+    if (strataId) {
+      prisma.strataProfile.findFirst({
+        where: { strataId, profile: { userTypeId: 3 } },
+        select: { profile: { select: { email: true } } },
+      }).then((clientStrataProfile) => {
+        const clientEmail = clientStrataProfile?.profile?.email;
+        if (clientEmail) {
+          const meetingType = appointmentType?.typeName || 'Appointment';
+          sendMeetingStatusUpdateEmail({
+            to: clientEmail,
+            strataNumber: fileNumber?.strata?.strataPlan || '',
+            meetingType,
+            status: 'Rejected',
+          }).catch((err) => console.error('Failed to send client appointment cancelled email:', err));
+        }
+      }).catch((err) => console.error('Failed to fetch client profile for cancellation email:', err));
+    }
   }
 
   return updated;
@@ -710,7 +729,7 @@ export const createAppointment = async (data: {
     },
   });
 
-  return prisma.appointment.create({
+  const appointment = await prisma.appointment.create({
     data: {
       appointmentDate: data.appointmentDate,
       timeSlotId: data.timeSlotId,
@@ -733,6 +752,28 @@ export const createAppointment = async (data: {
       inspector: { select: { id: true, firstName: true, lastName: true, displayName: true } },
     },
   });
+
+  const strataId = appointment.fileNumber?.strata?.strataId;
+  if (strataId) {
+    const clientStrataProfile = await prisma.strataProfile.findFirst({
+      where: { strataId, profile: { userTypeId: 3 } },
+      select: { profile: { select: { email: true } } },
+    });
+    const clientEmail = clientStrataProfile?.profile?.email;
+    if (clientEmail) {
+      const meetingType = appointment.appointmentType?.isDraftMeeting ? 'Draft Meeting' : 'Inspection';
+      sendMeetingStatusUpdateEmail({
+        to: clientEmail,
+        strataNumber: appointment.fileNumber?.strata?.strataPlan || '',
+        meetingType,
+        status: 'Approved',
+        meetingDate: data.appointmentDate.toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' }),
+        meetingTime: appointment.timeSlot?.slotName || appointment.timeSlot?.slotTime || undefined,
+      }).catch((err) => console.error('Failed to send new appointment notification email:', err));
+    }
+  }
+
+  return appointment;
 };
 
 export const getTimeSlots = async () => {

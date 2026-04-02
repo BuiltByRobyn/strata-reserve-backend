@@ -137,15 +137,26 @@ export const createFileNumber = async (data: CreateFileNumberInput) => {
     include: {
       service: { select: { serviceId: true, serviceName: true } },
       strata: { select: { strataId: true, strataPlan: true, complexName: true } },
-      requestedBy: { select: profileSelectWithEmail }
+      requestedBy: { select: { ...profileSelectWithEmail, userTypeId: true } }
     }
   });
 
-  if (created.requestedBy?.email) {
+  // Always notify the assigned client of this strata, regardless of who triggered the creation
+  const clientStrataProfile = await prisma.strataProfile.findFirst({
+    where: {
+      strataId: data.strataId,
+      profile: { userTypeId: 3 },
+    },
+    select: { profile: { select: { email: true } } },
+  });
+  const clientEmail = clientStrataProfile?.profile?.email;
+  if (clientEmail) {
     sendFileCreatedEmail({
-      to: created.requestedBy.email,
+      to: clientEmail,
       strataNumber: created.strata?.strataPlan || '',
     }).catch((err) => console.error('Failed to send file created email:', err));
+  } else {
+    console.warn(`[fileNumberService] No client email found for strata ${data.strataId} — file-creation email not sent`);
   }
 
   return created;

@@ -11,3 +11,4 @@ clientDocumentRoutes.get('/file-numbers/:id/documents', clientDocumentController
 clientDocumentRoutes.post('/file-numbers/:id/requirements/:reqId/na-status', clientDocumentController.setNaStatus);
 clientDocumentRoutes.delete('/file-numbers/:id/requirements/:reqId/na-status', clientDocumentController.clearNaStatus);
 clientDocumentRoutes.post('/file-numbers/:id/requirements/:reqId/uploaded', clientDocumentController.markDocumentUploaded);
+clientDocumentRoutes.post('/file-numbers/:id/finalize-documents', clientDocumentController.finalizeDocuments);

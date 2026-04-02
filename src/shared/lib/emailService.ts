@@ -3,7 +3,6 @@ import prisma from './prismaClient';
 import { supabase } from './supabaseClient';
 import type {
   NewStrataEmailParams,
-  DocumentReviewReadyEmailParams,
   DocumentReviewResultEmailParams,
   FileCreatedEmailParams,
   MeetingStatusUpdateEmailParams,
@@ -407,23 +406,6 @@ export async function sendFileCreatedEmail(params: FileCreatedEmailParams): Prom
   if (error) throw new Error(error.message);
 }
 
-export async function sendDocumentReviewReadyEmail(params: DocumentReviewReadyEmailParams): Promise<void> {
-  if (!resend || !params.to) return;
-
-  await resend.emails.send({
-    from: FROM_EMAIL,
-    to: params.to,
-    subject: `Documents Ready for Review: ${params.fileNumber} — ${params.strataName}`,
-    html: `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #111827;">
-        <h2 style="color: #1e40af;">Documents Ready for Review</h2>
-        <p>Hello${params.firstName ? ` ${params.firstName}` : ''},</p>
-        <p>All documents for <strong>${params.strataName}</strong> (File ${params.fileNumber}) have been submitted and are ready for your review.</p>
-        <a href="${FRONTEND_URL}/admin/strata" style="display: inline-block; background-color: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">Review Documents</a>
-      </div>
-    `,
-  });
-}
 
 export async function sendDocumentReviewResultEmail(params: DocumentReviewResultEmailParams): Promise<void> {
   if (!resend || !params.to) return;
