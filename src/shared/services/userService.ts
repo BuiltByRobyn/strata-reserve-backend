@@ -130,6 +130,11 @@ export const updateUser = async (id: string, data: UpdateUserInput) => {
   const updateData: Prisma.ProfileUpdateInput = {};
   if (data.firstName !== undefined) updateData.firstName = data.firstName;
   if (data.lastName !== undefined) updateData.lastName = data.lastName;
+  if (data.firstName !== undefined || data.lastName !== undefined) {
+    const newFirst = data.firstName !== undefined ? data.firstName : existingUser.firstName;
+    const newLast = data.lastName !== undefined ? data.lastName : existingUser.lastName;
+    updateData.displayName = `${newFirst || ''} ${newLast || ''}`.trim() || null;
+  }
   if (data.phoneNumber !== undefined) updateData.phoneNumber = data.phoneNumber;
   if (data.userTypeId !== undefined) updateData.userType = { connect: { userTypeId: data.userTypeId } };
   if (data.companyName !== undefined) updateData.companyName = data.companyName || null;
@@ -170,10 +175,6 @@ export const deleteUser = async (id: string) => {
     throw new Error('This inspector has future appointments already arranged, please reassign appointment inspector before continuing');
   }
 
-  // Supabase auth.users → profiles has ON DELETE CASCADE,
-  // so deleting the auth user also deletes the profile and triggers
-  // all DB-level cascades (StrataProfile, InAppNotification, etc.)
-  // and set-null actions (FileNumber, AppointmentRequest, etc.)
   const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(id);
   if (authError) {
     throw new Error(`Failed to delete auth user: ${authError.message}`);

@@ -103,14 +103,12 @@ export async function renderSurveyAnswersPdf(
   const BOX_WIDTH = CONTENT_WIDTH;
   const PAGE_BOTTOM = doc.page.height - PAGE_MARGIN;
 
-  // Ensure enough vertical space remains; if not, start a new page
   const ensureSpace = (needed: number) => {
     if (doc.y + needed > PAGE_BOTTOM) {
       doc.addPage();
     }
   };
 
-  // Renders the title + header grid for a property type section
   const renderPageHeader = (propertyTypeName: string) => {
     doc.font('Helvetica-Bold').fontSize(18).text('Survey Answers', { align: 'center', underline: true });
     doc.moveDown(1.5);
@@ -139,7 +137,6 @@ export async function renderSurveyAnswersPdf(
     doc.moveDown(1);
   };
 
-  // Show property type headings when admin, or when client has multiple property types
   const distinctPropertyTypes = new Set(parents.map(q => q.propertyTypeName));
   const showPropertyHeaders = mode === 'admin' || distinctPropertyTypes.size > 1;
 
@@ -148,7 +145,6 @@ export async function renderSurveyAnswersPdf(
   let isFirstPropertyType = true;
 
   for (const q of parents) {
-    // Property type changed → new page with header
     if (q.propertyTypeName !== currentPropertyType) {
       currentPropertyType = q.propertyTypeName;
       currentCategory = null;
@@ -160,9 +156,7 @@ export async function renderSurveyAnswersPdf(
       renderPageHeader(currentPropertyType);
     }
 
-    // Category/section changed → grey separator line + section header
     if (q.questionCategory !== currentCategory) {
-      // Grey line before every section (including the first)
       doc.moveDown(1.5);
       const lineY = doc.y;
       doc.strokeColor('#cccccc').lineWidth(0.5)
@@ -176,7 +170,6 @@ export async function renderSurveyAnswersPdf(
       doc.moveDown(1.5);
     }
 
-    // Ensure question + answer box fit on current page
     ensureSpace(100);
     doc.font('Helvetica-Bold').fontSize(10).text(q.questionText, BOX_LEFT, doc.y, { width: BOX_WIDTH });
     doc.moveDown(0.6);
