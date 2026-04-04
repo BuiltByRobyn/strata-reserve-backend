@@ -34,6 +34,8 @@ import { clientAppointmentRoutes } from './client/routes/clientAppointmentRoutes
 // Shared routes
 import { lookupRoutes } from './shared/routes/lookupRoutes';
 import { notificationRoutes } from './shared/routes/notificationRoutes';
+import { publicHelpRoutes } from './shared/routes/publicHelpRoutes';
+import { helpResourceRoutes } from './shared/routes/helpResourceRoutes';
 
 const app = new Hono();
 
@@ -57,9 +59,13 @@ app.onError((err, c) => {
 // Health check
 app.get('/health', (c) => c.json({ status: 'ok' }, 200));
 
+// Public routes (no auth)
+app.route('/public', publicHelpRoutes);
+
 // API routes (auth required)
 app.use('/api/*', authMiddleware);
 app.route('/api/lookups', lookupRoutes);
+app.route('/api', helpResourceRoutes);
 
 // Admin routes (auth + admin role required)
 app.use('/admin/*', authMiddleware);
