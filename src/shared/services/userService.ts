@@ -139,6 +139,18 @@ export const createUser = async (data: CreateUserInput) => {
 
   const userId = authData.user.id;
 
+  // Wait for the auth trigger to create the profile row
+  let profile = null;
+  for (let i = 0; i < 5; i++) {
+    profile = await prisma.profile.findUnique({ where: { id: userId } });
+    if (profile) break;
+    await new Promise(r => setTimeout(r, 500));
+  }
+
+  if (!profile) {
+    throw new Error('User account was created and invite sent, but profile setup failed. The user can still accept their invite.');
+  }
+
   await prisma.profile.update({
     where: { id: userId },
     data: {
