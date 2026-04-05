@@ -100,21 +100,17 @@ app.route('/client', clientAppointmentRoutes);
 app.route('/client', notificationRoutes);
 app.route('/admin', adminNotificationRoutes);
 
-export default app;
+const port = Number(process.env.PORT) || 3000;
 
-if (!process.env.VERCEL) {
-  const port = Number(process.env.PORT) || 3000;
+serve({
+  fetch: app.fetch,
+  port,
+  hostname: '0.0.0.0',
+});
 
-  serve({
-    fetch: app.fetch,
-    port,
-    hostname: '0.0.0.0',
-  });
+console.log(`Server is running on port ${port}`);
 
-  console.log(`Server is running on port ${port}`);
-
-  process.on('SIGTERM', async () => {
-    await prisma.$disconnect();
-    process.exit(0);
-  });
-}
+process.on('SIGTERM', async () => {
+  await prisma.$disconnect();
+  process.exit(0);
+});

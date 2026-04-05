@@ -17,7 +17,7 @@ export const getAdminProfile = asyncHandler(async (c) => {
     email: profile.email || user.email || '',
     phoneNumber: profile.phoneNumber || '',
     role: profile.userType?.userTypeName || 'Unknown',
-    companyName: 'Strata Reserve Planning',
+    companyName: 'BuiltByRobyn',
   });
 }, 'Failed to fetch admin profile');
 
@@ -52,7 +52,7 @@ export const updateAdminProfile = asyncHandler(async (c) => {
       email: updated?.email || user.email || '',
       phoneNumber: updated?.phoneNumber || '',
       role: updated?.userType?.userTypeName || 'Unknown',
-      companyName: 'Strata Reserve Planning',
+      companyName: 'BuiltByRobyn',
     },
   });
 }, 'Failed to update admin profile');

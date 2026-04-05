@@ -25,7 +25,7 @@ import type {
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL =
   process.env.RESEND_FROM_EMAIL ||
-  "Strata Reserve Planning <noreply@stratareserveplanning.com>";
+  "BuiltByRobyn <noreply@builtbyrobyn.com>";
 const FRONTEND_URL = (
   process.env.FRONTEND_URL || "https://your-app-url.com"
 ).replace(/\/$/, "");
@@ -55,7 +55,7 @@ export async function sendPropertyTypeUpdatedEmail(
     from: FROM_EMAIL,
     to: params.to,
     subject:
-      "Your property type change request has been reviewed – Strata Reserve Planning",
+      "Your property type change request has been reviewed – BuiltByRobyn",
     template: {
       id: "property-type-updated-client-1",
       variables: {
@@ -77,7 +77,7 @@ export async function sendFileCompletionEmail(
   const { error } = await resend.emails.send({
     from: FROM_EMAIL,
     to: params.to,
-    subject: "Your file has been completed – Strata Reserve Planning",
+    subject: "Your file has been completed – BuiltByRobyn",
     template: {
       id: "file-completion-notification-client-1",
       variables: {
@@ -102,7 +102,7 @@ export async function sendAdminPhoneNumberUpdatedEmail(
     from: FROM_EMAIL,
     to,
     subject:
-      "[Admin Alert] A client has updated their phone number – Strata Reserve Planning",
+      "[Admin Alert] A client has updated their phone number – BuiltByRobyn",
     template: {
       id: "client-phone-number-alert-admin-2",
       variables: {
@@ -127,7 +127,7 @@ export async function sendPhoneNumberUpdatedEmail(
   const { error } = await resend.emails.send({
     from: FROM_EMAIL,
     to: params.to,
-    subject: "Your phone number has been updated – Strata Reserve Planning",
+    subject: "Your phone number has been updated – BuiltByRobyn",
     template: {
       id: "phone-number-updated-client-1",
       variables: {
@@ -149,7 +149,7 @@ export async function sendAdminAppointmentCancelledEmail(
   const { error } = await resend.emails.send({
     from: FROM_EMAIL,
     to,
-    subject: `Appointment Cancelled: ${params.fileNumber} — Strata Reserve Planning`,
+    subject: `Appointment Cancelled: ${params.fileNumber} — BuiltByRobyn`,
     template: {
       id: "appointment-cancellation-alert-admin-2",
       variables: {
@@ -181,7 +181,7 @@ export async function sendAdminAppointmentBookingRequestEmail(
   const { error } = await resend.emails.send({
     from: FROM_EMAIL,
     to,
-    subject: `New Appointment Booking Request: ${params.fileNumber} — Strata Reserve Planning`,
+    subject: `New Appointment Booking Request: ${params.fileNumber} — BuiltByRobyn`,
     template: {
       id: "appointment-booking-alert-admin-2",
       variables: {
@@ -214,7 +214,7 @@ export async function sendAdminPropertyTypeChangeRequestEmail(
   const { error } = await resend.emails.send({
     from: FROM_EMAIL,
     to,
-    subject: `Property Type Change Request: ${params.fileNumber} — Strata Reserve Planning`,
+    subject: `Property Type Change Request: ${params.fileNumber} — BuiltByRobyn`,
     template: {
       id: "property-type-change-request-admin-2",
       variables: {
@@ -244,7 +244,7 @@ export async function sendAdminDocumentsFinalizedEmail(
   const { error } = await resend.emails.send({
     from: FROM_EMAIL,
     to,
-    subject: `Documents Finalized: ${params.fileNumber} — Strata Reserve Planning`,
+    subject: `Documents Finalized: ${params.fileNumber} — BuiltByRobyn`,
     template: {
       id: "documents-finalized-alert-admin-2",
       variables: {
@@ -273,7 +273,7 @@ export async function sendAdminSurveyFinalizedEmail(
   const { error } = await resend.emails.send({
     from: FROM_EMAIL,
     to,
-    subject: `Survey Finalized: ${params.fileNumber} — Strata Reserve Planning`,
+    subject: `Survey Finalized: ${params.fileNumber} — BuiltByRobyn`,
     template: {
       id: "survey-finalized-notification-admin-2",
       variables: {
@@ -299,7 +299,7 @@ export async function sendSurveyFinalizedEmail(
   const { error } = await resend.emails.send({
     from: FROM_EMAIL,
     to: params.to,
-    subject: "Your survey has been finalized – Strata Reserve Planning",
+    subject: "Your survey has been finalized – BuiltByRobyn",
     template: {
       id: "survey-finalized-client-1",
       variables: {
@@ -320,7 +320,7 @@ export async function sendDocumentsFinalizedEmail(
   const { error } = await resend.emails.send({
     from: FROM_EMAIL,
     to: params.to,
-    subject: "Your documents have been finalized – Strata Reserve Planning",
+    subject: "Your documents have been finalized – BuiltByRobyn",
     template: {
       id: "documents-finalized-notification-client-1",
       variables: {
@@ -341,7 +341,7 @@ export async function sendAppointmentBookingOpenEmail(
   const { error } = await resend.emails.send({
     from: FROM_EMAIL,
     to: params.to,
-    subject: `Book your ${params.meetingType} appointment – Strata Reserve Planning`,
+    subject: `Book your ${params.meetingType} appointment – BuiltByRobyn`,
     template: {
       id: "appointment-booking-open-client-2",
       variables: {
@@ -366,7 +366,7 @@ export async function sendAdminAppointmentBookingOpenEmail(
   const { error } = await resend.emails.send({
     from: FROM_EMAIL,
     to,
-    subject: `Booking Now Open: ${params.strataNumber} — ${params.meetingType} — Strata Reserve Planning`,
+    subject: `Booking Now Open: ${params.strataNumber} — ${params.meetingType} — BuiltByRobyn`,
     template: {
       id: "appointment-booking-open-admin-1",
       variables: {
@@ -390,7 +390,7 @@ export async function sendMeetingStatusUpdateEmail(
   const { error } = await resend.emails.send({
     from: FROM_EMAIL,
     to: params.to,
-    subject: `Your meeting request has been ${params.status} – Strata Reserve Planning`,
+    subject: `Your meeting request has been ${params.status} – BuiltByRobyn`,
     template: {
       id: "meeting-status-update-client-1",
       variables: {
@@ -420,7 +420,7 @@ export async function sendPasswordUpdatedEmail(
   const { error } = await resend.emails.send({
     from: FROM_EMAIL,
     to: params.to,
-    subject: "Your password has been updated – Strata Reserve Planning",
+    subject: "Your password has been updated – BuiltByRobyn",
     template: {
       id: "password-update-confirmation-admin-client",
       variables: {
@@ -439,7 +439,7 @@ export async function sendFileCreatedEmail(
   const { error } = await resend.emails.send({
     from: FROM_EMAIL,
     to: params.to,
-    subject: "Your file has been created – Strata Reserve Planning",
+    subject: "Your file has been created – BuiltByRobyn",
     template: {
       id: "file-creation-notification-client-1",
       variables: {
