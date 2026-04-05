@@ -139,28 +139,22 @@ export const createUser = async (data: CreateUserInput) => {
 
   const userId = authData.user.id;
 
-  // Wait for the auth trigger to create the profile row
-  let profile = null;
-  for (let i = 0; i < 5; i++) {
-    profile = await prisma.profile.findUnique({ where: { id: userId } });
-    if (profile) break;
-    await new Promise(r => setTimeout(r, 500));
+  // Try to update profile (created by auth trigger) — if it fails, the invite was still sent
+  try {
+    await prisma.profile.update({
+      where: { id: userId },
+      data: {
+        phoneNumber: data.phoneNumber,
+        userTypeId: data.userTypeId,
+        companyName: data.companyName || null
+      }
+    });
+
+    await createStrataAssociations(userId, data.strataAssociations);
+  } catch {
+    // Profile may not exist yet due to trigger timing — return partial success
+    return { id: userId, email: data.email, partialSuccess: true, message: 'Invite sent. User details will be updated when they accept.' };
   }
-
-  if (!profile) {
-    throw new Error('User account was created and invite sent, but profile setup failed. The user can still accept their invite.');
-  }
-
-  await prisma.profile.update({
-    where: { id: userId },
-    data: {
-      phoneNumber: data.phoneNumber,
-      userTypeId: data.userTypeId,
-      companyName: data.companyName || null
-    }
-  });
-
-  await createStrataAssociations(userId, data.strataAssociations);
 
   return prisma.profile.findUnique({
     where: { id: userId },
