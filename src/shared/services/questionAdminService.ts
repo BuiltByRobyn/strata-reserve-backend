@@ -151,12 +151,10 @@ export const setSubQuestions = async (parentId: number, subQuestionIds: number[]
 
 export const deleteQuestion = async (id: number) => {
   return prisma.$transaction(async (tx) => {
-    // Null out MC option FK in responses first
     await tx.questionResponse.updateMany({
       where: { questionId: id, multipleChoiceOptionId: { not: null } },
       data: { multipleChoiceOptionId: null },
     });
-    // Explicitly delete all dependents (don't rely on DB-level cascade)
     await tx.questionResponse.deleteMany({ where: { questionId: id } });
     await tx.fnSurveyQuestion.deleteMany({ where: { questionId: id } });
     await tx.multipleChoiceOption.deleteMany({ where: { questionId: id } });

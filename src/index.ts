@@ -34,6 +34,8 @@ import { clientAppointmentRoutes } from './client/routes/clientAppointmentRoutes
 // Shared routes
 import { lookupRoutes } from './shared/routes/lookupRoutes';
 import { notificationRoutes } from './shared/routes/notificationRoutes';
+import { publicHelpRoutes } from './shared/routes/publicHelpRoutes';
+import { helpResourceRoutes } from './shared/routes/helpResourceRoutes';
 
 const app = new Hono();
 
@@ -57,9 +59,13 @@ app.onError((err, c) => {
 // Health check
 app.get('/health', (c) => c.json({ status: 'ok' }, 200));
 
+// Public routes (no auth)
+app.route('/public', publicHelpRoutes);
+
 // API routes (auth required)
 app.use('/api/*', authMiddleware);
 app.route('/api/lookups', lookupRoutes);
+app.route('/api', helpResourceRoutes);
 
 // Admin routes (auth + admin role required)
 app.use('/admin/*', authMiddleware);
@@ -94,17 +100,21 @@ app.route('/client', clientAppointmentRoutes);
 app.route('/client', notificationRoutes);
 app.route('/admin', adminNotificationRoutes);
 
-const port = Number(process.env.PORT) || 3000;
+export default app;
 
-serve({
-  fetch: app.fetch,
-  port,
-  hostname: '0.0.0.0',
-});
+if (!process.env.VERCEL) {
+  const port = Number(process.env.PORT) || 3000;
 
-console.log(`Server is running on port ${port}`);
+  serve({
+    fetch: app.fetch,
+    port,
+    hostname: '0.0.0.0',
+  });
 
-process.on('SIGTERM', async () => {
-  await prisma.$disconnect();
-  process.exit(0);
-});
+  console.log(`Server is running on port ${port}`);
+
+  process.on('SIGTERM', async () => {
+    await prisma.$disconnect();
+    process.exit(0);
+  });
+}

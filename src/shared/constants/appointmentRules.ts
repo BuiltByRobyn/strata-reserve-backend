@@ -1,0 +1,3 @@
+export const FULL_DAY_INSPECTION_TYPE_NAME = 'Full Day Inspection';
+export const FULL_DAY_INSPECTION_REQUIRED_SLOT_TIME = '10:00';
+export const DRAFT_MEETING_REQUIRED_SLOT_TIME = '19:00';

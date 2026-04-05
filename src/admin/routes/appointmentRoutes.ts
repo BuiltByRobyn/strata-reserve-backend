@@ -28,20 +28,14 @@ appointmentRoutes.get('/appointments/requests', appointmentController.getAppoint
 appointmentRoutes.get('/appointments/requests/:id', appointmentController.getAppointmentRequestById);
 appointmentRoutes.post('/appointments/requests/:id/review', appointmentController.reviewAppointmentRequest);
 
-// GET /admin/appointments/:id - Get appointment by ID
 appointmentRoutes.get('/appointments/:id', appointmentController.getAppointmentById);
 
-// PUT /admin/appointments/:id/status - Update appointment status
 appointmentRoutes.put('/appointments/:id/status', appointmentController.updateAppointmentStatus);
 
-// PUT /admin/appointments/:id/inspector - Assign inspector
 appointmentRoutes.put('/appointments/:id/inspector', appointmentController.assignInspector);
 
-// PUT /admin/appointments/:id/reschedule - Reschedule appointment
 appointmentRoutes.put('/appointments/:id/reschedule', appointmentController.rescheduleAppointment);
 
-// POST /admin/appointments/:id/request-rebooking - Request client rebooking
 appointmentRoutes.post('/appointments/:id/request-rebooking', appointmentController.requestRebooking);
 
-// DELETE /admin/appointments/:id - Cancel appointment
 appointmentRoutes.delete('/appointments/:id', appointmentController.cancelAppointment);

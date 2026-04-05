@@ -1,10 +1,7 @@
 import prisma from '../lib/prismaClient';
 import { sendMeetingStatusUpdateEmail, sendFileCompletionEmail, sendAdminAppointmentCancelledEmail } from '../lib/emailService';
 import { canInspectorTakeSlot } from './availabilityCalculationService';
-
-const FULL_DAY_INSPECTION_TYPE_NAME = 'Full Day Inspection';
-const FULL_DAY_INSPECTION_REQUIRED_SLOT_TIME = '10:00';
-const DRAFT_MEETING_REQUIRED_SLOT_TIME = '19:00';
+import { FULL_DAY_INSPECTION_TYPE_NAME, FULL_DAY_INSPECTION_REQUIRED_SLOT_TIME, DRAFT_MEETING_REQUIRED_SLOT_TIME } from '../constants/appointmentRules';
 
 const fullDayInspectionSlotError = () =>
   new Error(
@@ -722,6 +719,10 @@ export const createAppointment = async (data: {
   await prisma.fileNumber.update({
     where: { fileId: data.fileId },
     data: {
+      status: 'Appointment Scheduled',
+      appointmentOfferedAt: new Date(),
+      appointmentOfferTypeId: data.appointmentTypeId,
+      appointmentOfferInspectorId: data.inspectorProfileId || null,
       rebookingRequestedAt: null,
       ...(data.secondInspectorProfileId !== undefined && {
         appointmentOfferSecondInspectorId: data.secondInspectorProfileId || null,
