@@ -1,4 +1,5 @@
 import * as documentService from '../../shared/services/documentService';
+import * as fileNumberService from '../../shared/services/fileNumberService';
 import * as emailService from '../../shared/lib/emailService';
 import { success, error, asyncHandler } from '../../shared/helpers/responseHelper';
 import { parseIntParam } from '../../shared/helpers/parseParams';
@@ -118,6 +119,8 @@ export const finalizeDocuments = asyncHandler(async (c) => {
     finalizedBy,
     surveyCompleted: fn.submittedForReviewDate ? 'Yes' : 'No',
   }).catch((err) => console.error('Failed to send admin documents finalized email:', err));
+
+  await fileNumberService.tryFinalizeApplication(fileId);
 
   return success(c, { finalized: true });
 }, 'Failed to finalize documents');
