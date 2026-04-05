@@ -24,7 +24,10 @@ export const asyncHandler = (fn: (c: Context) => Promise<Response>, errorMessage
         return error(c, err.message, 400);
       }
       console.error(`${errorMessage}:`, err);
-      return error(c, errorMessage, 500);
+      const message = err instanceof Error && err.message !== errorMessage
+        ? err.message
+        : errorMessage;
+      return error(c, message, 500);
     }
   };
 };

@@ -27,9 +27,14 @@ export const createUser = asyncHandler(async (c) => {
   }
 
   const user = await userService.createUser(body);
-
   return created(c, user);
 }, 'Failed to create user');
+
+export const resendInvite = asyncHandler(async (c) => {
+  const id = c.req.param('id');
+  const result = await userService.resendInvite(id);
+  return success(c, result);
+}, 'Failed to resend invite');
 
 export const updateUser = asyncHandler(async (c) => {
   const id = c.req.param('id');
