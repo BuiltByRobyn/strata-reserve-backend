@@ -84,6 +84,35 @@ export const getUserById = async (id: string) => {
   });
 };
 
+export const resendInvite = async (id: string) => {
+  const profile = await prisma.profile.findUnique({ where: { id } });
+  if (!profile) throw new Error('User not found.');
+  if (!profile.email) throw new Error('User has no email address.');
+  if (!profile.mustChangePassword) throw new Error('User has already set their password.');
+
+  const { error: authError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+    profile.email,
+    {
+      redirectTo: `${(process.env.FRONTEND_URL || '').replace(/\/$/, '')}/auth/callback`,
+      data: {
+        first_name: profile.firstName,
+        last_name: profile.lastName,
+        display_name: profile.displayName,
+        must_change_password: true
+      }
+    }
+  );
+
+  if (authError) {
+    if (authError.status === 429 || authError.code === 'over_email_send_rate_limit') {
+      throw new Error('Email rate limit exceeded. Please wait an hour before resending the invite.');
+    }
+    throw new Error(authError.message || 'Failed to resend invite.');
+  }
+
+  return { message: 'Invite resent successfully.' };
+};
+
 export const createUser = async (data: CreateUserInput) => {
   const { data: authData, error: authError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
     data.email,
@@ -99,7 +128,13 @@ export const createUser = async (data: CreateUserInput) => {
   );
 
   if (authError) {
-    throw authError;
+    if (authError.status === 429 || authError.code === 'over_email_send_rate_limit') {
+      throw new Error('Email rate limit exceeded. Please wait an hour before inviting another user.');
+    }
+    if (authError.message?.includes('already been registered')) {
+      throw new Error('A user with this email address already exists.');
+    }
+    throw new Error(authError.message || 'Failed to create user account.');
   }
 
   const userId = authData.user.id;
