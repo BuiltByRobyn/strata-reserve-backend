@@ -9,6 +9,8 @@ adminUsersRoutes.get('/users/:id', adminUsersController.getUserById);
 
 adminUsersRoutes.post('/users', adminUsersController.createUser);
 
+adminUsersRoutes.post('/users/:id/resend-invite', adminUsersController.resendInvite);
+
 adminUsersRoutes.put('/users/:id', adminUsersController.updateUser);
 
 adminUsersRoutes.delete('/users/:id', adminUsersController.deleteUser);
