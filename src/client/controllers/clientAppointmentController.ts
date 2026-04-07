@@ -435,7 +435,8 @@ export const getNotifications = asyncHandler(async (c) => {
           take: 1,
           select: { rejectionReason: true, reviewDate: true }
         },
-        firstChoiceTimeSlot: { select: { slotName: true, slotTime: true } }
+        firstChoiceTimeSlot: { select: { slotName: true, slotTime: true } },
+        appointmentType: { select: { isDraftMeeting: true } }
       }
     }),
     prisma.appointment.findMany({
@@ -481,7 +482,8 @@ export const getNotifications = asyncHandler(async (c) => {
         type: 'request_rejected' as const,
         message: `Your appointment request${detail} was rejected.`,
         reason: r.appointmentReviews[0]?.rejectionReason ?? null,
-        date: (r.appointmentReviews[0]?.reviewDate ?? r.requestDate).toISOString()
+        date: (r.appointmentReviews[0]?.reviewDate ?? r.requestDate).toISOString(),
+        isDraftMeeting: r.appointmentType.isDraftMeeting
       };
     }),
     ...cancelledAppointments.map(a => ({
