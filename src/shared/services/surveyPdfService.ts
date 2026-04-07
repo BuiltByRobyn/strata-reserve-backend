@@ -218,7 +218,7 @@ export async function renderSurveyAnswersPdf(
     doc.font('Helvetica-Bold').fontSize(14).text('Submission Instructions', CONTENT_LEFT, doc.y, { width: CONTENT_WIDTH });
     doc.moveDown(1);
     doc.font('Helvetica').fontSize(11).text(
-      'Once completed please email to clientcare@stratareserveplanning.com, or mail to our regional office in Vancouver 720-999 West Broadway, Vancouver, BC V5Z 1J5',
+      'Once completed please email to contact@builtbyrobyn.com, or mail to our regional office in Vancouver 720-999 West Broadway, Vancouver, BC V5Z 1J5',
       CONTENT_LEFT,
       doc.y,
       { width: CONTENT_WIDTH }
