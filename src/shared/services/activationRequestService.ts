@@ -1,4 +1,5 @@
 import prisma from '../lib/prismaClient';
+import { sendAdminActivationRequestEmail } from '../lib/emailService';
 
 const requestInclude = {
   strataProfile: {
@@ -44,10 +45,23 @@ export const create = async (strataProfileId: number) => {
     throw Object.assign(new Error('A pending activation request already exists for this strata'), { code: 'DUPLICATE' });
   }
 
-  return prisma.activationRequest.create({
+  const result = await prisma.activationRequest.create({
     data: { strataProfileId, status: 'Pending' },
     include: requestInclude
   });
+
+  const profile = result.strataProfile.profile;
+  const strata = result.strataProfile.strata;
+  const clientName = profile.displayName || [profile.firstName, profile.lastName].filter(Boolean).join(' ') || 'Unknown';
+
+  sendAdminActivationRequestEmail({
+    clientName,
+    strataNumber: strata.strataPlan || '',
+    complexName: strata.complexName || strata.strataPlan || '',
+    requestedAt: new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+  }).catch((err) => console.error('Failed to send admin activation request email:', err));
+
+  return result;
 };
 
 export const getPending = async () => {
