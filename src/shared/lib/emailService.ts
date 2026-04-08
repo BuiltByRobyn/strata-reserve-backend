@@ -20,6 +20,7 @@ import type {
   AdminPhoneNumberUpdatedEmailParams,
   PasswordUpdatedEmailParams,
   AdminAppointmentBookingOpenEmailParams,
+  AdminActivationRequestEmailParams,
 } from "../types/email.types";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
@@ -83,7 +84,7 @@ export async function sendFileCompletionEmail(
       variables: {
         StrataNumber: params.strataNumber,
         CompletedDate: params.completedDate,
-        ReportURL: `${FRONTEND_URL}/documents`,
+        ReportURL: `${FRONTEND_URL}/client/documents`,
         SiteURL: FRONTEND_URL,
       },
     },
@@ -111,7 +112,7 @@ export async function sendAdminPhoneNumberUpdatedEmail(
         OldPhone: params.oldPhone,
         NewPhone: params.newPhone,
         ChangedAt: params.changedAt,
-        AdminURL: `${FRONTEND_URL}/admin`,
+        AdminURL: `${FRONTEND_URL}/admin/dashboard`,
         SiteURL: FRONTEND_URL,
       },
     },
@@ -163,7 +164,7 @@ export async function sendAdminAppointmentCancelledEmail(
         AppointmentTime: params.appointmentTime,
         CancelledAt: params.cancelledAt,
         CancellationReason: params.cancellationReason,
-        AdminDashboardURL: `${FRONTEND_URL}/admin`,
+        AdminDashboardURL: `${FRONTEND_URL}/admin/dashboard`,
         SiteURL: FRONTEND_URL,
       },
     },
@@ -196,7 +197,7 @@ export async function sendAdminAppointmentBookingRequestEmail(
         RequestedTime1: params.requestedTime1,
         RequestedDate2: params.requestedDate2,
         RequestedTime2: params.requestedTime2,
-        AdminDashboardURL: `${FRONTEND_URL}/admin`,
+        AdminDashboardURL: `${FRONTEND_URL}/admin/dashboard`,
         SiteURL: FRONTEND_URL,
       },
     },
@@ -226,7 +227,7 @@ export async function sendAdminPropertyTypeChangeRequestEmail(
         RequestedPropertyType: params.requestedPropertyType,
         RequestedAt: params.requestedAt,
         ClientNote: params.clientNote,
-        AdminDashboardURL: `${FRONTEND_URL}/admin`,
+        AdminDashboardURL: `${FRONTEND_URL}/admin/dashboard`,
         SiteURL: FRONTEND_URL,
       },
     },
@@ -255,7 +256,7 @@ export async function sendAdminDocumentsFinalizedEmail(
         DocumentCount: params.documentCount,
         FinalizedBy: params.finalizedBy,
         SurveyCompleted: params.surveyCompleted,
-        AdminDashboardURL: `${FRONTEND_URL}/admin`,
+        AdminDashboardURL: `${FRONTEND_URL}/admin/dashboard`,
         SiteURL: FRONTEND_URL,
       },
     },
@@ -283,7 +284,7 @@ export async function sendAdminSurveyFinalizedEmail(
         ClientName: params.clientName,
         SurveyDate: params.surveyDate,
         SurveyCompleted: params.surveyCompleted,
-        AdminDashboardURL: `${FRONTEND_URL}/admin`,
+        AdminDashboardURL: `${FRONTEND_URL}/admin/dashboard`,
         SiteURL: FRONTEND_URL,
       },
     },
@@ -347,7 +348,7 @@ export async function sendAppointmentBookingOpenEmail(
       variables: {
         StrataNumber: params.strataNumber,
         MeetingType: params.meetingType,
-        BookingURL: `${FRONTEND_URL}/appointments`,
+        BookingURL: `${FRONTEND_URL}/client/appointments`,
         BookingDeadline: params.bookingDeadline || "",
         SiteURL: FRONTEND_URL,
       },
@@ -374,7 +375,7 @@ export async function sendAdminAppointmentBookingOpenEmail(
         StrataNumber: params.strataNumber,
         MeetingType: params.meetingType,
         BookingDeadline: params.bookingDeadline,
-        BookingURL: `${FRONTEND_URL}/admin`,
+        BookingURL: `${FRONTEND_URL}/admin/appointments`,
         SiteURL: FRONTEND_URL,
       },
     },
@@ -424,6 +425,32 @@ export async function sendPasswordUpdatedEmail(
     template: {
       id: "password-update-confirmation-admin-client",
       variables: {
+        SiteURL: FRONTEND_URL,
+      },
+    },
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function sendAdminActivationRequestEmail(
+  params: AdminActivationRequestEmailParams,
+): Promise<void> {
+  if (!resend) return;
+  const to = await getAdminEmails();
+  if (to.length === 0) return;
+
+  const { error } = await resend.emails.send({
+    from: FROM_EMAIL,
+    to,
+    subject: `Account Activation Requested: ${params.strataNumber} — Strata Reserve Planning`,
+    template: {
+      id: "request-account-activation-notification-admin",
+      variables: {
+        ClientName: params.clientName,
+        StrataNumber: params.strataNumber,
+        ComplexName: params.complexName,
+        RequestedAt: params.requestedAt,
+        AdminURL: `${FRONTEND_URL}/admin/dashboard`,
         SiteURL: FRONTEND_URL,
       },
     },

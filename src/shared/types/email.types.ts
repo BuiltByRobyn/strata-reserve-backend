@@ -152,3 +152,10 @@ export interface DocumentReviewResultEmailParams {
     notes: string | null;
   }>;
 }
+
+export interface AdminActivationRequestEmailParams {
+  clientName: string;
+  strataNumber: string;
+  complexName: string;
+  requestedAt: string;
+}
